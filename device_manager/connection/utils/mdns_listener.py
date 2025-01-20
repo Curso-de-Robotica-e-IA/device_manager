@@ -1,7 +1,7 @@
 import re
 import socket
 from zeroconf import ServiceListener, Zeroconf
-from device_manager.connection.utils.mdns_context import ServiceInfo
+from connection.utils.mdns_context import ServiceInfo
 
 
 class MDnsListener(ServiceListener):

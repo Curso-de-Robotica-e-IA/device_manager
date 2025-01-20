@@ -6,8 +6,8 @@ import cv2 as cv
 import numpy as np
 import qrcode
 from zeroconf import ServiceBrowser, Zeroconf
-from device_manager.connection.utils.mdns_context import MDnsContext
-from device_manager.connection.utils.mdns_listener import MDnsListener
+from connection.utils.mdns_context import MDnsContext
+from connection.utils.mdns_listener import MDnsListener
 
 
 class AdbPairing:

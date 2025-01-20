@@ -1,5 +1,5 @@
 from threading import Lock
-from device_manager.connection.utils.service_info import ServiceInfo
+from connection.utils.service_info import ServiceInfo
 
 
 class MDnsContext:

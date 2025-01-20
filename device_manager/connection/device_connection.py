@@ -1,13 +1,17 @@
-from time import sleep
 import subprocess
-from device_manager.connection.connection_manager import ConnectionManager
-from device_manager.connection.utils.connection_status import (
+from connection.connection_manager import ConnectionManager
+from connection.utils.connection_status import (
     ConnectionInfoStatus,
 )
+from rich import print
+from rich.console import Console
+from rich.prompt import Prompt
+from time import sleep
 
 
 class DeviceConnection:
     def __init__(self):
+        self.console = Console()
         self.connection = ConnectionManager()
         self.connection_info = None
         self.current_comm_uri = None
@@ -76,6 +80,26 @@ class DeviceConnection:
 
         return True
 
+    def check_pairing(self) -> None:
+        """Checks if a device is already paired with the host.
+        Case it is not, it calls the `ConnectionManager` to pair the device.
+        """
+        prompt = Prompt()
+        options = ['Y', 'N']
+        response = prompt.ask(
+            "Device already paired with host?",
+            choices=options,
+            case_sensitive=False,
+        )
+        paired = False if response.upper() == 'N' else True
+
+        if not paired:
+            self.console.print("Scan QRCode to pair and close window")
+            if self.connection.device_pairing(5):
+                print("Success in pairing new host!")
+            else:
+                print("Failed in pairing new host!")
+
     def start_connection(self) -> bool:
         """
         This method facilitates the process of connecting to an Android device
@@ -86,75 +110,61 @@ class DeviceConnection:
         :return: True if the connection is successfully established,
             False otherwise.
         """
+        self.check_pairing()
 
+        print("Available devices to connect:\n")
+        device_idx = None
         while True:
-            require_pair = None
-            while require_pair is None:
-                res = input("Host authorized to connect in device (y/n)?")
-                if "n" in res or "y" in res:
-                    require_pair = res
+            available_devices = self.connection.available_devices()
+            for i, serial_number in enumerate(available_devices):
+                print(f"[{i}] - {serial_number} on IP: {available_devices[serial_number].ip}")  # noqa
 
-            if "n" in require_pair:
-                print("Scan QRCode to pair and close window")
-                if self.connection.device_pairing(5):
-                    print("Success in pairing new host!")
-                else:
-                    print("Failed in pairing new host!")
-                    continue
-
-            print("Available devices to connect:\n")
             device_idx = None
-            while True:
-                available_devices = self.connection.available_devices()
-                for i, serial_number in enumerate(available_devices):
-                    print(f"[{i}] - {serial_number} on IP: {available_devices[serial_number].ip}")  # noqa
-
-                device_idx = None
-                while device_idx is None:
-                    res = input("Select device index to connect, or just press enter to search devices again: ")  # noqa
-                    if len(res) == 0:
-                        device_idx = -1
-                    else:
-                        int_res = None
-
-                        try:
-                            int_res = int(res)
-                            if (
-                                isinstance(int_res, int)
-                                and int_res < len(available_devices)
-                            ):
-                                device_idx = int_res
-                        except Exception as err:  # noqa
-                            print(f'Error: {err}')
-
-                if device_idx >= 0:
-                    break
-
-            selected_serial_num = list(available_devices.keys())[device_idx]
-            connection = None
-
-            count = 0
-            while count < 3:
-                print("Try connect ...")
-                connection = self.connection.device_connect(
-                    selected_serial_num,
-                )
-
-                if connection is None:
-                    print(f"Connection adb for device {selected_serial_num} failed")  # noqa
+            while device_idx is None:
+                res = input("Select device index to connect, or just press enter to search devices again: ")  # noqa
+                if len(res) == 0:
+                    device_idx = -1
                 else:
-                    print(f"Connection adb for device {selected_serial_num} success!")  # noqa
-                    break
-                count += 1
+                    int_res = None
 
-            if connection is not None:
-                self.connection_info = connection
-                self.current_comm_uri = f"{self.connection_info.ip}:{self.connection_info.port}"  # noqa
-                if self.connection_info.port != 5555:
-                    self.__change_adb_port()
-                    # Talvez tenha que dar um kill-server antes
+                    try:
+                        int_res = int(res)
+                        if (
+                            isinstance(int_res, int)
+                            and int_res < len(available_devices)
+                        ):
+                            device_idx = int_res
+                    except Exception as err:  # noqa
+                        print(f'Error: {err}')
 
-                return True
+            if device_idx >= 0:
+                break
+
+        selected_serial_num = list(available_devices.keys())[device_idx]
+        connection = None
+
+        count = 0
+        while count < 3:
+            print("Try connect ...")
+            connection = self.connection.device_connect(
+                selected_serial_num,
+            )
+
+            if connection is None:
+                print(f"Connection adb for device {selected_serial_num} failed")  # noqa
+            else:
+                print(f"Connection adb for device {selected_serial_num} success!")  # noqa
+                break
+            count += 1
+
+        if connection is not None:
+            self.connection_info = connection
+            self.current_comm_uri = f"{self.connection_info.ip}:{self.connection_info.port}"  # noqa
+            if self.connection_info.port != 5555:
+                self.__change_adb_port()
+                # Talvez tenha que dar um kill-server antes
+
+            return True
 
     def __change_adb_port(self):
         """Change the ADB port and reconnect.

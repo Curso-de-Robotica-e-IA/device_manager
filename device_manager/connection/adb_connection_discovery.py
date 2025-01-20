@@ -1,13 +1,13 @@
 import weakref
 from zeroconf import ServiceBrowser, Zeroconf
-from device_manager.connection.utils.connection_status import (
+from connection.utils.connection_status import (
     ConnectionInfoStatus,
 )
-from device_manager.connection.utils.mdns_context import (
+from connection.utils.mdns_context import (
     MDnsContext,
     ServiceInfo,
 )
-from device_manager.connection.utils.mdns_listener import MDnsListener
+from connection.utils.mdns_listener import MDnsListener
 
 
 class AdbConnectionDiscovery:

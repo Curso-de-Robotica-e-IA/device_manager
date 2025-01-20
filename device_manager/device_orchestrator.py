@@ -1,4 +1,4 @@
-from device_manager.connection.device_connection import ConnectionManager
+from connection.device_connection import ConnectionManager
 
 
 class Devices:

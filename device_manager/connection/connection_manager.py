@@ -1,10 +1,10 @@
 import subprocess
 from time import sleep, time
-from device_manager.connection.adb_connection_discovery import (
+from connection.adb_connection_discovery import (
     AdbConnectionDiscovery,
 )
-from device_manager.connection.adb_pairing import AdbPairing
-from device_manager.connection.utils.service_info import ServiceInfo
+from connection.adb_pairing import AdbPairing
+from connection.utils.service_info import ServiceInfo
 
 
 class ConnectionManager:
@@ -33,7 +33,7 @@ class ConnectionManager:
         return self.__discovery.list_of_online_device()
 
     @staticmethod
-    def device_pairing(timeout_s):
+    def device_pairing(timeout_s) -> bool:
         adb_pairing = AdbPairing()
         adb_pairing.start()
         adb_pairing.qrcode_cv_window_show()
@@ -45,7 +45,6 @@ class ConnectionManager:
             sleep(0.1)
         result = adb_pairing.pair_devices()
         adb_pairing.stop_pair_listener()
-
         return result
 
     def device_connect(self, serial_num):
