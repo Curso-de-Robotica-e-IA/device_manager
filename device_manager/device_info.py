@@ -1,7 +1,4 @@
-import re
 import subprocess
-from time import sleep
-from xml.etree import ElementTree
 import uiautomator2 as u2
 
 
@@ -21,7 +18,7 @@ class DeviceInfo:
 
         if self.connection_manager.validate_connection():
             result = subprocess.run(
-                f'adb -s {self.current_comm_uri} shell "dumpsys activity activities | grep topResumedActivity"',
+                f'adb -s {self.current_comm_uri} shell "dumpsys activity activities | grep topResumedActivity"',  # noqa
                 capture_output=True,
                 text=True,
             )
@@ -31,7 +28,11 @@ class DeviceInfo:
 
     def is_screen_on(self):
         if self.connection_manager.validate_connection():
-            output = subprocess.run(f'adb -s {self.current_comm_uri} shell "dumpsys deviceidle | grep mScreenOn"', capture_output=True, text=True)
+            output = subprocess.run(
+                f'adb -s {self.current_comm_uri} shell "dumpsys deviceidle | grep mScreenOn"',  # noqa
+                capture_output=True,
+                text=True,
+            )
             output = output.stdout.strip()
             output = output.split("=")
             if "true" in output:
@@ -43,7 +44,9 @@ class DeviceInfo:
     def is_device_locked(self):
         if self.connection_manager.validate_connection():
             output = subprocess.run(
-                f'adb -s {self.current_comm_uri} shell "dumpsys deviceidle | grep mScreenLocked"', capture_output=True, text=True
+                f'adb -s {self.current_comm_uri} shell "dumpsys deviceidle | grep mScreenLocked"',  # noqa
+                capture_output=True,
+                text=True,
             )
             output = output.stdout.strip()
             output = output.split("=")

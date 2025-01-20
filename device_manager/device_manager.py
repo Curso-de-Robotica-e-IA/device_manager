@@ -1,11 +1,4 @@
-import os
-import re
-import subprocess
-from time import sleep
-from xml.etree import ElementTree
-import uiautomator2 as u2
-
-from device.connection.device_connection import ConnectionManager
+from device_manager.connection.device_connection import ConnectionManager
 
 
 class Devices:

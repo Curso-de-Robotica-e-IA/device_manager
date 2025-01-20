@@ -9,9 +9,10 @@ class DeviceActions:
 
     def click_by_coordinates(self, x: int, y: int) -> None:
         """
-        This method validates the device connection and then uses an ADB command
-        to simulate a swipe gesture that acts as a click at the provided (x, y)
-        coordinates. The swipe coordinates are the same for the start and end
+        This method validates the device connection and then uses an ADB
+        command to simulate a swipe gesture that acts as a click at the
+        provided (x, y)coordinates.
+        The swipe coordinates are the same for the start and end
         points to ensure it functions as a click.
         :param x:The x-coordinate on the screen where the click should occur.
         :param y:The y-coordinate on the screen where the click should occur.
@@ -20,7 +21,7 @@ class DeviceActions:
 
         if self.connection_manager.validate_connection():
             subprocess.run(
-                f"adb -s {self.current_comm_uri} shell input swipe {x} {y} {x} {y}",
+                f"adb -s {self.current_comm_uri} shell input swipe {x} {y} {x} {y}",  # noqa
                 shell=True,
             )
 
@@ -29,7 +30,7 @@ class DeviceActions:
 
         if self.connection_manager.validate_connection():
             subprocess.run(
-                f"adb -s {self.current_comm_uri} shell input swipe {x1} {y1} {x2} {y2} {time}",
+                f"adb -s {self.current_comm_uri} shell input swipe {x1} {y1} {x2} {y2} {time}",  # noqa
                 shell=True,
             )
 
@@ -39,7 +40,8 @@ class DeviceActions:
         """
         if self.connection_manager.validate_connection():
             subprocess.run(
-                ["adb", "shell", "am", "start", "com.rria.gravity/com.rria.gravity.MainActivity"],
+                ["adb", "shell", "am", "start",
+                 "com.rria.gravity/com.rria.gravity.MainActivity"],
                 check=True,
             )
             sleep(2)
@@ -56,13 +58,18 @@ class DeviceActions:
 
     def turn_on_screen(self):
         if self.connection_manager.validate_connection():
-            subprocess.run(f"adb -s {self.current_comm_uri} shell input keyevent 26")
+            subprocess.run(
+                f"adb -s {self.current_comm_uri} shell input keyevent 26",
+            )
 
     def unlock_screen(self):
         if self.connection_manager.validate_connection():
-            subprocess.run(f"adb -s {self.current_comm_uri} shell input keyevent 82")
+            subprocess.run(
+                f"adb -s {self.current_comm_uri} shell input keyevent 82",
+            )
 
     def home_button(self):
         if self.connection_manager.validate_connection():
-            subprocess.run(f"adb -s {self.current_comm_uri} shell input keyevent 3")
-
+            subprocess.run(
+                f"adb -s {self.current_comm_uri} shell input keyevent 3",
+            )

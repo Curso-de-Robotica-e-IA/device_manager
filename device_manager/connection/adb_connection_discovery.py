@@ -1,10 +1,16 @@
 import weakref
 from zeroconf import ServiceBrowser, Zeroconf
-from device.connection.utils.connection_status import ConnectionInfoStatus
-from device.connection.utils.mdns_context import MDnsContext, ServiceInfo
-from device.connection.utils.mdns_listener import MDnsListener
-class AdbConnectionDiscovery:
+from device_manager.connection.utils.connection_status import (
+    ConnectionInfoStatus,
+)
+from device_manager.connection.utils.mdns_context import (
+    MDnsContext,
+    ServiceInfo,
+)
+from device_manager.connection.utils.mdns_listener import MDnsListener
 
+
+class AdbConnectionDiscovery:
 
     def __init__(self):
         self.__started = False
@@ -22,12 +28,19 @@ class AdbConnectionDiscovery:
                 self.__zeroconf,
                 self.__service_type,
                 MDnsListener(
-                    self.__context, self.__service_re_filter, self.__service_type
+                    self.__context,
+                    self.__service_re_filter,
+                    self.__service_type,
                 ),
             )
+
             def atexit(zeroconf):
                 zeroconf.close()
-            self.__finalize = weakref.finalize(self.__zeroconf, atexit, self.__zeroconf)
+            self.__finalize = weakref.finalize(
+                self.__zeroconf,
+                atexit,
+                self.__zeroconf,
+            )
             self.__started = True
 
     def list_of_online_device(self):
@@ -47,11 +60,11 @@ class AdbConnectionDiscovery:
     def connection_status_for_device(
         self, service_info: ServiceInfo
     ) -> ConnectionInfoStatus:
-        if service_info.serial_number in self.__context.get_offline_service_list():
+        if service_info.serial_number in self.__context.get_offline_service_list():  # noqa
 
             return ConnectionInfoStatus.DOWN
 
-        if not (service_info.serial_number in self.__context.get_online_service_list()):
+        if service_info.serial_number not in self.__context.get_online_service_list():  # noqa
 
             return ConnectionInfoStatus.UNKNOWN
 

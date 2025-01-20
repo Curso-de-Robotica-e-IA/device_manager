@@ -1,7 +1,8 @@
 import re
 import socket
 from zeroconf import ServiceListener, Zeroconf
-from device.connection.utils.mdns_context import ServiceInfo
+from device_manager.connection.utils.mdns_context import ServiceInfo
+
 
 class MDnsListener(ServiceListener):
     def __init__(self, service_context, re_filter, service_type) -> None:

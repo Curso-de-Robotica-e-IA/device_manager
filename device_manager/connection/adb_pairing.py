@@ -6,8 +6,8 @@ import cv2 as cv
 import numpy as np
 import qrcode
 from zeroconf import ServiceBrowser, Zeroconf
-from device.connection.utils.mdns_context import MDnsContext
-from device.connection.utils.mdns_listener import MDnsListener
+from device_manager.connection.utils.mdns_context import MDnsContext
+from device_manager.connection.utils.mdns_listener import MDnsListener
 
 
 class AdbPairing:
@@ -40,7 +40,10 @@ class AdbPairing:
             border=2,
         )
         self.__qr.add_data(s)
-        self.__qr_image = self.__qr.make_image(fill_color="black", back_color="white")
+        self.__qr_image = self.__qr.make_image(
+            fill_color="black",
+            back_color="white",
+        )
 
     def start(self):
         if not self.__started:
@@ -49,12 +52,19 @@ class AdbPairing:
                 self.__zeroconf,
                 self.__service_type,
                 MDnsListener(
-                    self.__context, self.__service_re_filter, self.__service_type
+                    self.__context,
+                    self.__service_re_filter,
+                    self.__service_type,
                 ),
             )
+
             def atexit(zeroconf):
                 zeroconf.close()
-            self.__finalize = finalize(self.__zeroconf, atexit, self.__zeroconf)
+            self.__finalize = finalize(
+                self.__zeroconf,
+                atexit,
+                self.__zeroconf,
+                )
             self.__started = True
 
     def qrcode_prompt_show(self):
@@ -81,7 +91,9 @@ class AdbPairing:
         for elem in online_services.items():
             comm_uri = f"{elem[1].ip}:{elem[1].port}"
             result = subprocess.run(
-                f"adb pair {comm_uri} {self.__passwd}", capture_output=True, text=True
+                f"adb pair {comm_uri} {self.__passwd}",
+                capture_output=True,
+                text=True,
             )
             if f"Successfully paired to {comm_uri}" in result.stdout:
                 success = True

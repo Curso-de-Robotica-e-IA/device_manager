@@ -1,12 +1,15 @@
 import subprocess
 from time import sleep, time
-from device.connection.adb_connection_discovery import AdbConnectionDiscovery
-from device.connection.adb_pairing import AdbPairing
-from device.connection.utils.service_info import ServiceInfo
+from device_manager.connection.adb_connection_discovery import (
+    AdbConnectionDiscovery,
+)
+from device_manager.connection.adb_pairing import AdbPairing
+from device_manager.connection.utils.service_info import ServiceInfo
 
 
 class ConnectionManager:
-    # Connection Manager has been developed based in to code available on https://github.com/openatx/adbutils/issues/111#issuecomment-2094694894
+    # Connection Manager has been developed based in to code available on
+    # https://github.com/openatx/adbutils/issues/111#issuecomment-2094694894
     def __init__(self) -> None:
         self.__discovery = AdbConnectionDiscovery()
         subprocess.run("adb start-server")
@@ -15,17 +18,18 @@ class ConnectionManager:
 
     @staticmethod
     def check_devices_adb_connection(comm_uri):
-        result = subprocess.run(["adb", "devices"], capture_output=True, text=True)
+        result = subprocess.run(
+            ["adb", "devices"],
+            capture_output=True,
+            text=True,
+        )
         devices_lines = str(result.stdout).split("\n")
         for info_line in devices_lines:
-            if comm_uri in info_line and not ("offline" in info_line):
-
+            if comm_uri in info_line and "offline" not in info_line:
                 return True
-
         return False
 
     def available_devices(self):
-
         return self.__discovery.list_of_online_device()
 
     @staticmethod
