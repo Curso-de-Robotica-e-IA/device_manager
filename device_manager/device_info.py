@@ -3,8 +3,8 @@ import uiautomator2 as u2
 
 
 class DeviceInfo:
-    def __init__(self, connection_manager):
-        self.connection_manager = connection_manager
+    def __init__(self, device_connection):
+        self.device_connection = device_connection
         self.current_comm_uri = None
 
     def actual_activity(self) -> str:
@@ -16,7 +16,7 @@ class DeviceInfo:
         :return: The name of the currently resumed activity.
         """
 
-        if self.connection_manager.validate_connection():
+        if self.device_connection.validate_connection():
             result = subprocess.run(
                 f'adb -s {self.current_comm_uri} shell "dumpsys activity activities | grep topResumedActivity"',  # noqa
                 capture_output=True,
@@ -27,7 +27,7 @@ class DeviceInfo:
             return output
 
     def is_screen_on(self):
-        if self.connection_manager.validate_connection():
+        if self.device_connection.validate_connection():
             output = subprocess.run(
                 f'adb -s {self.current_comm_uri} shell "dumpsys deviceidle | grep mScreenOn"',  # noqa
                 capture_output=True,
@@ -42,7 +42,7 @@ class DeviceInfo:
             return False
 
     def is_device_locked(self):
-        if self.connection_manager.validate_connection():
+        if self.device_connection.validate_connection():
             output = subprocess.run(
                 f'adb -s {self.current_comm_uri} shell "dumpsys deviceidle | grep mScreenLocked"',  # noqa
                 capture_output=True,
@@ -57,7 +57,7 @@ class DeviceInfo:
             return False
 
     def get_screen_gui_xml(self):
-        if self.connection_manager.validate_connection():
+        if self.device_connection.validate_connection():
             device = u2.connect(self.current_comm_uri)
 
             return device.dump_hierarchy()

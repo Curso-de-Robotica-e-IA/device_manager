@@ -3,9 +3,9 @@ from time import sleep
 
 
 class DeviceActions:
-    def __init__(self, connection_manager):
-        self.connection_manager = connection_manager
-        self.current_comm_uri = self.connection_manager.current_comm_uri
+    def __init__(self, device_connection):
+        self.device_connection = device_connection
+        self.current_comm_uri = self.device_connection.current_comm_uri
 
     def click_by_coordinates(self, x: int, y: int) -> None:
         """
@@ -19,7 +19,7 @@ class DeviceActions:
         :return:
         """
 
-        if self.connection_manager.validate_connection():
+        if self.device_connection.validate_connection():
             subprocess.run(
                 f"adb -s {self.current_comm_uri} shell input swipe {x} {y} {x} {y}",  # noqa
                 shell=True,
@@ -28,7 +28,7 @@ class DeviceActions:
     def swipe(self, x1: int, y1: int, x2: int, y2: int, time: int) -> None:
         """ """
 
-        if self.connection_manager.validate_connection():
+        if self.device_connection.validate_connection():
             subprocess.run(
                 f"adb -s {self.current_comm_uri} shell input swipe {x1} {y1} {x2} {y2} {time}",  # noqa
                 shell=True,
@@ -38,7 +38,7 @@ class DeviceActions:
         """
         This method start the app gravity sensor.
         """
-        if self.connection_manager.validate_connection():
+        if self.device_connection.validate_connection():
             subprocess.run(
                 ["adb", "shell", "am", "start",
                  "com.rria.gravity/com.rria.gravity.MainActivity"],
@@ -57,19 +57,19 @@ class DeviceActions:
         subprocess.run("adb shell am force-stop com.example.gravity_sensor")
 
     def turn_on_screen(self):
-        if self.connection_manager.validate_connection():
+        if self.device_connection.validate_connection():
             subprocess.run(
                 f"adb -s {self.current_comm_uri} shell input keyevent 26",
             )
 
     def unlock_screen(self):
-        if self.connection_manager.validate_connection():
+        if self.device_connection.validate_connection():
             subprocess.run(
                 f"adb -s {self.current_comm_uri} shell input keyevent 82",
             )
 
     def home_button(self):
-        if self.connection_manager.validate_connection():
+        if self.device_connection.validate_connection():
             subprocess.run(
                 f"adb -s {self.current_comm_uri} shell input keyevent 3",
             )

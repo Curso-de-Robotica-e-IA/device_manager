@@ -3,18 +3,22 @@ from connection.connection_manager import ConnectionManager
 from connection.utils.connection_status import (
     ConnectionInfoStatus,
 )
+from connection.components.manager import ObjectManager
+from connection.utils.mdns_context import (
+    ServiceInfo,
+)
 from rich import print
 from rich.console import Console
 from rich.prompt import Prompt
 from time import sleep
+from typing import List
 
 
 class DeviceConnection:
     def __init__(self):
         self.console = Console()
         self.connection = ConnectionManager()
-        self.connection_info = None
-        self.current_comm_uri = None
+        self.connection_info: ObjectManager[ServiceInfo] = ObjectManager()
 
     def close(self):
         """
@@ -25,7 +29,47 @@ class DeviceConnection:
 
         self.connection.close_discovery()
 
-    def validate_connection(self) -> bool:
+    def check_connections(self) -> bool:
+        """
+        This method checks the status of the current connections and returns
+        True if all devices are connected and updated. If any device is not
+        connected or updated, the method returns False.
+
+        Returns:
+            bool: True if all devices are connected and updated, False
+                otherwise.
+        """
+
+        devices_connected = subprocess.run(
+            'adb devices',
+            capture_output=True,
+            text=True,
+        ).stdout
+        self.console.print(devices_connected)
+        for serial_number in self.connection_info:
+            device = self.connection_info.get(serial_number)
+            substr = f'{device.ip}:{device.port}\tdevice'
+            if substr not in devices_connected:
+                return False
+        return True
+
+    def build_comm_uri(self, serial_number: str) -> str:
+        """
+        This method constructs a communication URI for the specified device
+        using the IP address and port number stored in the `connection_info`
+        attribute.
+
+        Args:
+            serial_number (str): The serial number of the device to connect to.
+
+        Returns:
+            str: The communication URI in the format `ip:port`.
+        """
+
+        device = self.connection_info.get(serial_number)
+        return f"{device.ip}:{device.port}"
+
+    def validate_connection(self, serial_number: str) -> bool:
         """
         This method checks whether a device is currently connected by
         evaluating the `connection_info` attribute. If no device is connected,
@@ -33,22 +77,26 @@ class DeviceConnection:
         status is not updated or the connection is lost, it attempts to
         reconnect. The method handles cases where the device is offline or
         requires a reconnection.
-        :return: True if the connection is valid or successfully reestablished.
+
+        Returns:
+            bool: True if the connection is valid or successfully
+                reestablished.
         """
 
-        if self.connection_info is None:
+        if self.connection_info.get(serial_number) is None:
             print("Running without device connected")
             return self.start_connection()
 
-        comm_uri = f"{self.connection_info.ip}:{self.connection_info.port}"
+        device = self.connection_info.get(serial_number)
+        comm_uri = f"{device.ip}:{device.port}"
 
         if self.connection.check_wireless_adb_service_for(
-                self.connection_info
+                self.connection_info.get(serial_number),
         ) != ConnectionInfoStatus.UPDATED or not self.connection.check_devices_adb_connection(comm_uri):  # noqa
 
             if (
                     self.connection.check_wireless_adb_service_for(
-                        self.connection_info,
+                        self.connection_info.get(serial_number),
                     ) == ConnectionInfoStatus.DOWN
             ):
                 print("Current device to offline")
@@ -56,27 +104,23 @@ class DeviceConnection:
 
             print("try update connection ...")
             connection = self.connection.device_connect(
-                self.connection_info.serial_number,
+                device.serial_number,
             )
             if connection is None:
                 print("Connection failed, retry..")
                 sleep(5)
                 connection = self.connection.device_connect(
-                    self.connection_info.serial_number,
+                    device.serial_number,
                 )
+            else:
+                self.connection_info.edit(device.serial_number, connection)
 
-            self.connection_info = connection
             if connection is None:
-                self.current_comm_uri = None
                 print("Connection lost")
                 print("Running without device connected")
                 return self.start_connection()
             else:
                 print("Reconnection success!")
-                self.current_comm_uri = f"{self.connection_info.ip}:{self.connection_info.port}"  # noqa
-
-        else:
-            self.current_comm_uri = comm_uri
 
         return True
 
@@ -100,6 +144,86 @@ class DeviceConnection:
             else:
                 print("Failed in pairing new host!")
 
+    def select_devices_to_connect(self) -> List[str]:
+        """Prompts the user to select devices to connect to.
+
+        Returns:
+            List[str]: A list of serial numbers of the devices selected by the
+                user.
+        """
+        prompt = Prompt()
+
+        device_idx = None
+        finish_loop = False
+        available_devices = self.connection.available_devices()
+        selected_devices = list()
+        while not finish_loop:
+            prompt_options = {
+                str(i+1): f"{srnmb} on IP: {available_devices[srnmb].ip}"
+                for i, srnmb in enumerate(available_devices)
+            }
+            self.console.print("Available devices found in the network:")
+            for key, prompt_msg in prompt_options.items():
+                self.console.print(f"  [{key}] - {prompt_msg}")
+            options = list(prompt_options.keys())
+            options.append('0')
+            response = prompt.ask(
+                'Select device index to connect, or 0 to search devices again',
+                choices=options,
+            )
+
+            if response == '0':
+                available_devices = self.connection.available_devices()
+            else:
+                device_idx = int(response) - 1
+                device = list(available_devices.keys())[device_idx]
+                selected_devices.append(device)
+
+                connect_another = prompt.ask(
+                    'Do you want to connect to another device?',
+                    choices=['Y', 'N'],
+                    case_sensitive=False,
+                )
+                if connect_another == 'N':
+                    finish_loop = True
+
+        return selected_devices
+
+    def establish_connection(self, device_serial_number: str) -> bool:
+        """Attempts to establish an ADB connection with the specified device.
+
+        Args:
+            device_serial_number (str): The serial number of the device to
+                connect to.
+
+        Returns:
+            bool: True if the connection is successfully established, False
+                otherwise.
+        """
+        success = False
+        connection = None
+        for _ in range(3):
+            if not success:
+                self.console.print("Trying to connect ...")
+                connection = self.connection.device_connect(
+                    device_serial_number,
+                )
+
+            if connection is not None:
+                success = True
+            else:
+                print(
+                    f"ADB Connection for device {device_serial_number} failed",
+                )
+
+        if connection is not None:
+            if self.connection_info.get(device_serial_number) is not None:
+                self.connection_info.remove(device_serial_number)
+            self.connection_info.add(connection.serial_number, connection)
+            if self.connection_info.get(connection.serial_number).port != 5555:
+                self.__change_adb_port(connection.serial_number)
+            return True
+
     def start_connection(self) -> bool:
         """
         This method facilitates the process of connecting to an Android device
@@ -112,61 +236,13 @@ class DeviceConnection:
         """
         self.check_pairing()
 
-        print("Available devices to connect:\n")
-        device_idx = None
-        while True:
-            available_devices = self.connection.available_devices()
-            for i, serial_number in enumerate(available_devices):
-                print(f"[{i}] - {serial_number} on IP: {available_devices[serial_number].ip}")  # noqa
+        selected_devices = self.select_devices_to_connect()
 
-            device_idx = None
-            while device_idx is None:
-                res = input("Select device index to connect, or just press enter to search devices again: ")  # noqa
-                if len(res) == 0:
-                    device_idx = -1
-                else:
-                    int_res = None
+        for selected_serial_num in selected_devices:
+            self.establish_connection(selected_serial_num)
+        return self.check_connections()
 
-                    try:
-                        int_res = int(res)
-                        if (
-                            isinstance(int_res, int)
-                            and int_res < len(available_devices)
-                        ):
-                            device_idx = int_res
-                    except Exception as err:  # noqa
-                        print(f'Error: {err}')
-
-            if device_idx >= 0:
-                break
-
-        selected_serial_num = list(available_devices.keys())[device_idx]
-        connection = None
-
-        count = 0
-        while count < 3:
-            print("Try connect ...")
-            connection = self.connection.device_connect(
-                selected_serial_num,
-            )
-
-            if connection is None:
-                print(f"Connection adb for device {selected_serial_num} failed")  # noqa
-            else:
-                print(f"Connection adb for device {selected_serial_num} success!")  # noqa
-                break
-            count += 1
-
-        if connection is not None:
-            self.connection_info = connection
-            self.current_comm_uri = f"{self.connection_info.ip}:{self.connection_info.port}"  # noqa
-            if self.connection_info.port != 5555:
-                self.__change_adb_port()
-                # Talvez tenha que dar um kill-server antes
-
-            return True
-
-    def __change_adb_port(self):
+    def __change_adb_port(self, serial_number: str):
         """Change the ADB port and reconnect.
 
         This method calls `__fix_adb_port` to fix the ADB port, disconnects
@@ -175,30 +251,29 @@ class DeviceConnection:
         It updates the connection URI with the new port number.
         """
 
-        self.__fix_adb_port()
-        self.disconnect()
-        self.__connect_with_fix_port()
-        self.connection_info.port = 5555
-        self.current_comm_uri = f"{self.connection_info.ip}:{self.connection_info.port}"  # noqa
+        self.__fix_adb_port(serial_number)
+        # self.disconnect()
+        self.__connect_with_fix_port(serial_number)
 
-    def __fix_adb_port(self):
+    def __fix_adb_port(self, serial_number: str):
         """Fix the ADB port by setting it to 5555.
 
         This method validates the current connection and if valid, runs the
         ADB command to set the device's port to 5555.
         """
 
-        if self.validate_connection():
-            subprocess.run(f"adb -s {self.current_comm_uri} tcpip 5555")
+        if self.validate_connection(serial_number):
+            comm_uri = self.build_comm_uri(serial_number)
+            subprocess.run(f"adb -s {comm_uri} tcpip 5555")
 
-    def __connect_with_fix_port(self):
+    def __connect_with_fix_port(self, serial_number: str):
         """Reconnect using the fixed ADB port.
 
         This method establishes a new ADB connection using the fixed port
         (5555).
         """
-
-        subprocess.run(f"adb connect {self.connection_info.ip}:5555")
+        device = self.connection_info.get(serial_number)
+        subprocess.run(f"adb connect {device.ip}:5555")
 
     @staticmethod
     def disconnect():
