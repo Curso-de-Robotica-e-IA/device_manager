@@ -189,7 +189,7 @@ class DeviceConnection:
 
         return selected_devices
 
-    def establish_connection(self, device_serial_number: str) -> bool:
+    def establish_first_connection(self, device_serial_number: str) -> bool:
         """Attempts to establish an ADB connection with the specified device.
 
         Args:
@@ -221,8 +221,13 @@ class DeviceConnection:
                 self.connection_info.remove(device_serial_number)
             self.connection_info.add(connection.serial_number, connection)
             if self.connection_info.get(connection.serial_number).port != 5555:
-                self.__change_adb_port(connection.serial_number)
+                self.__fix_adb_port(connection.serial_number)
             return True
+
+    def connect_all_devices(self) -> None:
+        """"""
+        for serial_number in self.connection_info:
+            self.__connect_with_fix_port(serial_number)
 
     def start_connection(self) -> bool:
         """
@@ -239,21 +244,10 @@ class DeviceConnection:
         selected_devices = self.select_devices_to_connect()
 
         for selected_serial_num in selected_devices:
-            self.establish_connection(selected_serial_num)
+            self.establish_first_connection(selected_serial_num)
+        self.disconnect()
+        self.connect_all_devices()
         return self.check_connections()
-
-    def __change_adb_port(self, serial_number: str):
-        """Change the ADB port and reconnect.
-
-        This method calls `__fix_adb_port` to fix the ADB port, disconnects
-        from the current connection, and then reconnects using the fixed port
-        (5555).
-        It updates the connection URI with the new port number.
-        """
-
-        self.__fix_adb_port(serial_number)
-        # self.disconnect()
-        self.__connect_with_fix_port(serial_number)
 
     def __fix_adb_port(self, serial_number: str):
         """Fix the ADB port by setting it to 5555.
@@ -265,6 +259,7 @@ class DeviceConnection:
         if self.validate_connection(serial_number):
             comm_uri = self.build_comm_uri(serial_number)
             subprocess.run(f"adb -s {comm_uri} tcpip 5555")
+            self.connection_info.get(serial_number).port = 5555
 
     def __connect_with_fix_port(self, serial_number: str):
         """Reconnect using the fixed ADB port.
