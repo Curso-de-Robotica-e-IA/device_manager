@@ -1,5 +1,5 @@
 import pytest
-from device_manager.connection.components.manager import ObjectManager
+from device_manager.components.manager import ObjectManager
 
 
 @pytest.mark.parametrize(
@@ -66,7 +66,7 @@ def test_object_manager_dunder_iter():
     manager.add('one', 1)
     manager.add('two', 2)
 
-    assert list(manager) == ['one', 'two']
+    assert list(manager) == [1, 2]
 
 
 def test_object_manager_dunder_getitem():

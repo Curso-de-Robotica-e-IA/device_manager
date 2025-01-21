@@ -76,7 +76,7 @@ class ObjectManager(Generic[T]):
 
     def __iter__(self):
         """Iterate over the objects in the manager."""
-        return iter(self.__objects)
+        return iter(self.__objects.values())
 
     def __getitem__(self, key: str) -> Optional[T]:
         """Get an object from the manager.
