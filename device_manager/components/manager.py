@@ -1,3 +1,4 @@
+from types import MappingProxyType
 from typing import TypeVar, Generic, Dict, Optional
 
 
@@ -16,6 +17,14 @@ class ObjectManager(Generic[T]):
 
     def __init__(self):
         self.__objects: Dict[str, T] = dict()
+
+    def keys(self) -> MappingProxyType:
+        """Get the keys of the objects in the manager.
+
+        Returns:
+            MappingProxyType: A read-only view of the keys in the manager.
+        """
+        return self.__objects.keys()
 
     def add(self, key: str, obj: T):
         """Add an object to the manager.

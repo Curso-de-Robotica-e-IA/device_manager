@@ -102,3 +102,11 @@ def test_object_manager_dunder_contains():
     manager.add('one', 1)
 
     assert 'one' in manager
+
+
+def test_object_manager_keys_returns_keys():
+    manager = ObjectManager()
+    manager.add('one', 1)
+    manager.add('two', 2)
+
+    assert manager.keys() == {'one': 1, 'two': 2}.keys()

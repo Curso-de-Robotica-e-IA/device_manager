@@ -102,6 +102,7 @@ class DeviceConnection:
             res = prompt.ask(
                 'Do you want to pair another device?',
                 choices=['Y', 'N'],
+                case_sensitive=False,
             )
             done = True if res == 'N' else False
         selected_devices = self.select_devices_to_connect()
@@ -134,7 +135,7 @@ class DeviceConnection:
             text=True,
         ).stdout
         self.console.print(devices_connected)
-        for serial_number in self.connection_info:
+        for serial_number in self.connection_info.keys():
             device = self.connection_info.get(serial_number)
             substr = f'{device.ip}:{device.port}\tdevice'
             if substr not in devices_connected:
@@ -234,6 +235,10 @@ class DeviceConnection:
                 self.establish_first_connection(serial_number)
                 self.disconnect()
                 self.connect_all_devices()
+                return self.validate_connection(
+                    serial_number,
+                    force_reconnect,
+                )
             else:
                 return False
         return True
@@ -242,8 +247,7 @@ class DeviceConnection:
         """Connects to all devices in the `connection_info` attribute.
         This method expects that all the devices added to the `connection_info`
         attribute are available and with the correct port set."""
-        # TODO: iterkeys
-        for serial_number in self.connection_info:
+        for serial_number in self.connection_info.keys():
             self.__connect_with_fix_port(serial_number)
 
     def start_connection(self, selected_devices: List[str]) -> bool:
