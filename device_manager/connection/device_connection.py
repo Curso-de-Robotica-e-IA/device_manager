@@ -3,7 +3,7 @@ from connection.connection_manager import ConnectionManager
 from connection.utils.connection_status import (
     ConnectionInfoStatus,
 )
-from components.manager import ObjectManager
+from device_manager.components.object_manager import ObjectManager
 from connection.utils.mdns_context import (
     ServiceInfo,
 )

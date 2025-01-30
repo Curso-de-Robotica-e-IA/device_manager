@@ -1,4 +1,4 @@
-from components.manager import ObjectManager
+from device_manager.components.object_manager import ObjectManager
 from connection.device_connection import DeviceConnection
 from device_actions import DeviceActions
 from device_info import DeviceInfo
@@ -7,10 +7,29 @@ from typing import Tuple, Optional
 
 class DeviceManager:
 
-    def __init__(self):
+    def __init__(self, keep_alive: bool = False):
         self.connector = DeviceConnection()
         self.__device_info: ObjectManager[DeviceInfo] = ObjectManager()
         self.__device_actions: ObjectManager[DeviceActions] = ObjectManager()
+        self.__keep_alive = keep_alive
+
+    @property
+    def keep_alive(self) -> bool:
+        """Indicates whether the connection to the devices should be kept alive
+        during the lifetime of the DeviceManager object. If keep_alive is True,
+        the connection will be kept alive, otherwise no attempt will be made to
+        keep the connection alive. The default value is False.
+
+        Returns:
+            bool: True if the connection should be kept alive, False otherwise.
+        """
+        return self.__keep_alive
+
+    @keep_alive.setter
+    def keep_alive(self, value: bool):
+        if not isinstance(value, bool):
+            raise TypeError('keep_alive must be a boolean value.')
+        self.__keep_alive = value
 
     def connect_devices(self, *serial_number: str) -> bool:
         """Connects to the devices with the provided serial numbers.

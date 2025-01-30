@@ -1,5 +1,5 @@
 import pytest
-from device_manager.components.manager import ObjectManager
+from device_manager.components.object_manager import ObjectManager
 
 
 @pytest.mark.parametrize(
