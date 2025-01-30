@@ -1,11 +1,20 @@
 import subprocess
 import uiautomator2 as u2
+from connection.device_connection import DeviceConnection
 
 
 class DeviceInfo:
-    def __init__(self, device_connection):
+
+    def __init__(
+        self,
+        device_connection: DeviceConnection,
+        serial_number: str,
+    ):
         self.device_connection = device_connection
-        self.current_comm_uri = None
+        self.__serial_number = serial_number
+        self.current_comm_uri = self.device_connection.build_comm_uri(
+            self.__serial_number,
+        )
 
     def actual_activity(self) -> str:
         """
@@ -16,7 +25,10 @@ class DeviceInfo:
         :return: The name of the currently resumed activity.
         """
 
-        if self.device_connection.validate_connection():
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
             result = subprocess.run(
                 f'adb -s {self.current_comm_uri} shell "dumpsys activity activities | grep topResumedActivity"',  # noqa
                 capture_output=True,
@@ -27,7 +39,10 @@ class DeviceInfo:
             return output
 
     def is_screen_on(self):
-        if self.device_connection.validate_connection():
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
             output = subprocess.run(
                 f'adb -s {self.current_comm_uri} shell "dumpsys deviceidle | grep mScreenOn"',  # noqa
                 capture_output=True,
@@ -42,7 +57,10 @@ class DeviceInfo:
             return False
 
     def is_device_locked(self):
-        if self.device_connection.validate_connection():
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
             output = subprocess.run(
                 f'adb -s {self.current_comm_uri} shell "dumpsys deviceidle | grep mScreenLocked"',  # noqa
                 capture_output=True,
@@ -57,7 +75,9 @@ class DeviceInfo:
             return False
 
     def get_screen_gui_xml(self):
-        if self.device_connection.validate_connection():
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
             device = u2.connect(self.current_comm_uri)
-
             return device.dump_hierarchy()

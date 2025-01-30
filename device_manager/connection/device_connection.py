@@ -14,6 +14,12 @@ from typing import List
 
 
 class DeviceConnection:
+    """This class is responsible for managing the connection with devices.
+    It provides methods to establish, validate, and close connections with
+    devices. It also provides methods to check the status of the current
+    connections and to build communication URIs for the devices.
+    """
+
     def __init__(self):
         self.console = Console()
         self.connection = ConnectionManager()
