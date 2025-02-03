@@ -7,11 +7,10 @@ from typing import Tuple, Optional
 
 class DeviceManager:
 
-    def __init__(self, keep_alive: bool = False):
+    def __init__(self):
         self.connector = DeviceConnection()
         self.__device_info: ObjectManager[DeviceInfo] = ObjectManager()
         self.__device_actions: ObjectManager[DeviceActions] = ObjectManager()
-        self.__keep_alive = keep_alive
 
     @property
     def keep_alive(self) -> bool:

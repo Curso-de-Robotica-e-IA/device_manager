@@ -46,3 +46,6 @@ addopts = "-vv --cov=device_manager --cov-report=term-missing"
 testpaths = [
     "tests",
 ]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
