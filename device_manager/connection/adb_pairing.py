@@ -91,7 +91,7 @@ class AdbPairing:
         for elem in online_services.items():
             comm_uri = f"{elem[1].ip}:{elem[1].port}"
             result = subprocess.run(
-                f"adb pair {comm_uri} {self.__passwd}",
+                ["adb", "pair", comm_uri, self.__passwd],
                 capture_output=True,
                 text=True,
             )

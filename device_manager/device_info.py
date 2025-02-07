@@ -30,7 +30,8 @@ class DeviceInfo:
             force_reconnect=True,
         ):
             result = subprocess.run(
-                f'adb -s {self.current_comm_uri} shell "dumpsys activity activities | grep topResumedActivity"',  # noqa
+                ['adb', '-s', self.current_comm_uri, 'shell',
+                 '"dumpsys activity activities | grep topResumedActivity"'],
                 capture_output=True,
                 text=True,
             )
@@ -44,7 +45,8 @@ class DeviceInfo:
             force_reconnect=True,
         ):
             output = subprocess.run(
-                f'adb -s {self.current_comm_uri} shell "dumpsys deviceidle | grep mScreenOn"',  # noqa
+                ['adb', '-s', self.current_comm_uri, 'shell',
+                 '"dumpsys deviceidle | grep mScreenOn"'],
                 capture_output=True,
                 text=True,
             )
@@ -62,7 +64,8 @@ class DeviceInfo:
             force_reconnect=True,
         ):
             output = subprocess.run(
-                f'adb -s {self.current_comm_uri} shell "dumpsys deviceidle | grep mScreenLocked"',  # noqa
+                ['adb', '-s', self.current_comm_uri, 'shell',
+                 '"dumpsys deviceidle | grep mScreenLocked"'],
                 capture_output=True,
                 text=True,
             )

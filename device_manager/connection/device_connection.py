@@ -286,7 +286,7 @@ class DeviceConnection:
 
         if self.validate_connection(serial_number):
             comm_uri = self.build_comm_uri(serial_number)
-            subprocess.run(f"adb -s {comm_uri} tcpip 5555")
+            subprocess.run(["adb", "-s", comm_uri, "tcpip", "5555"])
             self.connection_info.get(serial_number).port = 5555
 
     def __connect_with_fix_port(self, serial_number: str):
@@ -296,7 +296,7 @@ class DeviceConnection:
         (5555).
         """
         device = self.connection_info.get(serial_number)
-        subprocess.run(f"adb connect {device.ip}:5555")
+        subprocess.run(["adb", "connect", f"{device.ip}:5555"])
 
     @staticmethod
     def disconnect():
@@ -305,4 +305,4 @@ class DeviceConnection:
         kill the ADB server, effectively disconnecting the current session with
         the specified device.
         """
-        subprocess.run("adb kill-server")
+        subprocess.run(["adb", "kill-server"])

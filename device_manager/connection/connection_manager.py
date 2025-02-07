@@ -16,7 +16,7 @@ class ConnectionManager:
     # https://github.com/openatx/adbutils/issues/111#issuecomment-2094694894
     def __init__(self) -> None:
         self.__discovery = AdbConnectionDiscovery()
-        subprocess.run("adb start-server")
+        subprocess.run(["adb", "start-server"])
         self.__discovery.start()
         sleep(2)
 

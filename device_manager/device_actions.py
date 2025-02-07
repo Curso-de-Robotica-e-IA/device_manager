@@ -33,7 +33,9 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                f"adb -s {self.current_comm_uri} shell input swipe {x} {y} {x} {y}",  # noqa
+                ["adb", "-s", self.current_comm_uri,
+                 "shell", "input", "swipe",
+                 str(x), str(y), str(x), str(y)],
                 shell=True,
             )
 
@@ -54,7 +56,9 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                f"adb -s {self.current_comm_uri} shell input swipe {x1} {y1} {x2} {y2} {time}",  # noqa
+                ["adb", "-s", self.current_comm_uri,
+                 "shell", "input", "swipe",
+                 str(x1), str(y1), str(x2), str(y2), str(time)],
                 shell=True,
             )
 
@@ -72,7 +76,9 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                f"adb -s {self.current_comm_uri} shell am start -n {package_name}/{activity_name}",  # noqa
+                ["adb", "-s", self.current_comm_uri,
+                 "shell", "am", "start", "-n",
+                 f"{package_name}/{activity_name}"],
                 shell=True,
             )
 
@@ -89,7 +95,8 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                f"adb -s {self.current_comm_uri} shell am force-stop {package_name}",  # noqa
+                ["adb", "-s", self.current_comm_uri,
+                 "shell", "am", "force-stop", package_name],
                 shell=True,
             )
 
@@ -134,7 +141,8 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                f"adb -s {self.current_comm_uri} shell input keyevent 26",
+                ["adb", "-s", self.current_comm_uri,
+                 "shell", "input", "keyevent", "26"],
             )
 
     def unlock_screen(self):
@@ -143,7 +151,8 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                f"adb -s {self.current_comm_uri} shell input keyevent 82",
+                ["adb", "-s", self.current_comm_uri,
+                 "shell", "input", "keyevent", "82"],
             )
 
     def home_button(self):
@@ -152,5 +161,6 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                f"adb -s {self.current_comm_uri} shell input keyevent 3",
+                ["adb", "-s", self.current_comm_uri,
+                 "shell", "input", "keyevent", "3"],
             )
