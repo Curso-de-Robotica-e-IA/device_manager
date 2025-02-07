@@ -3,8 +3,12 @@ from time import sleep, time
 from connection.adb_connection_discovery import (
     AdbConnectionDiscovery,
 )
+from connection.utils.connection_status import (
+    ConnectionInfoStatus,
+)
 from connection.adb_pairing import AdbPairing
 from connection.utils.service_info import ServiceInfo
+from typing import Dict, Optional
 
 
 class ConnectionManager:
@@ -17,7 +21,17 @@ class ConnectionManager:
         sleep(2)
 
     @staticmethod
-    def check_devices_adb_connection(comm_uri):
+    def check_devices_adb_connection(comm_uri: str) -> bool:
+        """Check if the device is connected to the adb server.
+        A device is considered as connected if it does not appear
+        as `offline` in the output of the `adb devices` command.
+
+        Args:
+            comm_uri (string): The communication URI of the device.
+
+        Returns:
+            bool: True if the device is connected, False otherwise.
+        """
         result = subprocess.run(
             ["adb", "devices"],
             capture_output=True,
@@ -29,11 +43,29 @@ class ConnectionManager:
                 return True
         return False
 
-    def available_devices(self):
+    def available_devices(self) -> Dict[str, ServiceInfo]:
+        """Get the list of devices that are currently online.
+        The dict is indexed by the serial number of the devices.
+
+        Returns:
+            Dict[str, ServiceInfo]: A dictionary of devices that are online.
+        """
         return self.__discovery.list_of_online_device()
 
     @staticmethod
-    def device_pairing(timeout_s) -> bool:
+    def device_pairing(timeout_s: float) -> bool:
+        """Pairs a device via ADB using the QRCode method.
+        :warning: The user must close the QRCode window shown by the
+        method `qrcode_cv_window_show` to continue the execution of the
+        script.
+
+        Args:
+            timeout_s (float): The maximum time to wait for the device to
+            be paired.
+
+        Returns:
+            bool: True if the device was paired, False otherwise.
+        """
         adb_pairing = AdbPairing()
         adb_pairing.start()
         adb_pairing.qrcode_cv_window_show()
@@ -47,7 +79,15 @@ class ConnectionManager:
         adb_pairing.stop_pair_listener()
         return result
 
-    def device_connect(self, serial_num):
+    def device_connect(self, serial_num: str) -> Optional[ServiceInfo]:
+        """Connects to a device using the serial number.
+
+        Args:
+            serial_num (str): The serial number of the device.
+
+        Returns:
+            Optional[ServiceInfo]: The service information of the device.
+        """
         info = self.__discovery.get_service_info_for(serial_num)
         if info is None:
             print("Device service not online or located")
@@ -58,21 +98,41 @@ class ConnectionManager:
             )
             if f"failed to connect to {comm_uri}" in result.stdout:
                 print("Fail to connect device")
-            elif self.check_devices_adb_connection(comm_uri):
+        return info
 
-                return info
+    def check_wireless_adb_service_for(
+        self,
+        info: ServiceInfo,
+    ) -> ConnectionInfoStatus:
+        """Check the connection status of a device.
 
-    def check_wireless_adb_service_for(self, info):
+        Args:
+            info (ServiceInfo): The service information of the device.
 
+        Returns:
+            ConnectionInfoStatus: The connection status of the device.
+        """
         return self.__discovery.connection_status_for_device(info)
 
-    def validate_and_reconnect_device(self, info: ServiceInfo):
+    def validate_and_reconnect_device(
+        self,
+        info: ServiceInfo,
+    ) -> Optional[ServiceInfo]:
+        """Validate the connection status of a device and reconnect if
+        necessary.
+
+        Args:
+            info (ServiceInfo): The service information of the device.
+
+        Returns:
+            Optional[ServiceInfo]: The service information of the device.
+        """
         comm_uri = f"{info.ip}:{info.port}"
         if self.check_devices_adb_connection(comm_uri):
-
             return info
-
         return self.device_connect(info.serial_number)
 
-    def close_discovery(self):
+    def close_discovery(self) -> None:
+        """Close the discovery listener.
+        """
         self.__discovery.stop_discovery_listener()
