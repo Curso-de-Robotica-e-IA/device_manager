@@ -4,6 +4,13 @@ from device_manager.connection.device_connection import DeviceConnection
 
 
 class DeviceActions:
+    """Class responsible for interacting with a single device. It is able
+    to execute predefined actions at the device.
+
+    Args:
+        device_connection (DeviceConnection): the `DeviceConnection` object.
+        serial_number (str): the serial number associated with the device.
+    """
 
     def __init__(
         self,
@@ -15,6 +22,15 @@ class DeviceActions:
         self.current_comm_uri = self.device_connection.build_comm_uri(
             self.__serial_number,
         )
+
+    @property
+    def serial_number(self) -> str:
+        """The serial number associated with the device.
+
+        Returns:
+            str: The device serial number.
+        """
+        return self.__serial_number
 
     def click_by_coordinates(self, x: int, y: int) -> None:
         """
@@ -136,6 +152,10 @@ class DeviceActions:
             )
 
     def turn_on_screen(self):
+        """
+        This method executes the adb `keyevent 26`, which represents
+        the `wakeup screen` action.
+        """
         if self.device_connection.validate_connection(
             self.__serial_number,
             force_reconnect=True,
@@ -146,6 +166,10 @@ class DeviceActions:
             )
 
     def unlock_screen(self):
+        """
+        This method executes the adb `keyevent 82`, which represents
+        the `unlock screen` action.
+        """
         if self.device_connection.validate_connection(
             self.__serial_number,
             force_reconnect=True,
@@ -156,6 +180,10 @@ class DeviceActions:
             )
 
     def home_button(self):
+        """
+        This method executes the adb `keyevent 3`, which represents
+        the `Home` phone button.
+        """
         if self.device_connection.validate_connection(
             self.__serial_number,
             force_reconnect=True,

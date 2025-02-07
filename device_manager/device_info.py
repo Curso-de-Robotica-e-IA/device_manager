@@ -4,6 +4,13 @@ from device_manager.connection.device_connection import DeviceConnection
 
 
 class DeviceInfo:
+    """Class responsible for retrieving information from a single device.
+    It is able to execute predefined actions at the device.
+
+    Args:
+        device_connection (DeviceConnection): the `DeviceConnection` object.
+        serial_number (str): the serial number associated with the device.
+    """
 
     def __init__(
         self,
@@ -16,13 +23,23 @@ class DeviceInfo:
             self.__serial_number,
         )
 
+    @property
+    def serial_number(self) -> str:
+        """The serial number associated with the device.
+
+        Returns:
+            str: The device serial number.
+        """
+        return self.__serial_number
+
     def actual_activity(self) -> str:
         """
         This method checks the device connection and executes an ADB command
         to obtain information about the top resumed activity from the Android
         activity manager. The output is captured and returned as a string.
 
-        :return: The name of the currently resumed activity.
+        Returns:
+            str: The name of the currently resumed activity.
         """
 
         if self.device_connection.validate_connection(
@@ -39,7 +56,12 @@ class DeviceInfo:
 
             return output
 
-    def is_screen_on(self):
+    def is_screen_on(self) -> bool:
+        """This method checks if the associated device screen is on.
+
+        Returns:
+            bool: True if the screen is on, false otherwise.
+        """
         if self.device_connection.validate_connection(
             self.__serial_number,
             force_reconnect=True,
@@ -58,7 +80,12 @@ class DeviceInfo:
 
             return False
 
-    def is_device_locked(self):
+    def is_device_locked(self) -> bool:
+        """This method checks if the associated device is locked.
+
+        Returns:
+            bool: True if the device is locked, false otherwise.
+        """
         if self.device_connection.validate_connection(
             self.__serial_number,
             force_reconnect=True,
@@ -77,7 +104,13 @@ class DeviceInfo:
 
             return False
 
-    def get_screen_gui_xml(self):
+    def get_screen_gui_xml(self) -> str:
+        """This method retrieves the .xml that represents the current state
+        of the device screen.
+
+        Returns:
+            str: The device screen xml as a string.
+        """
         if self.device_connection.validate_connection(
             self.__serial_number,
             force_reconnect=True,
