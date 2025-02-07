@@ -1,13 +1,13 @@
 import subprocess
 from time import sleep, time
-from connection.adb_connection_discovery import (
+from device_manager.connection.adb_connection_discovery import (
     AdbConnectionDiscovery,
 )
-from connection.utils.connection_status import (
+from device_manager.connection.utils.connection_status import (
     ConnectionInfoStatus,
 )
-from connection.adb_pairing import AdbPairing
-from connection.utils.service_info import ServiceInfo
+from device_manager.connection.adb_pairing import AdbPairing
+from device_manager.connection.utils.service_info import ServiceInfo
 from typing import Dict, Optional
 
 

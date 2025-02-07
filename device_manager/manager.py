@@ -1,7 +1,7 @@
 from device_manager.components.object_manager import ObjectManager
-from connection.device_connection import DeviceConnection
-from device_actions import DeviceActions
-from device_info import DeviceInfo
+from device_manager.connection.device_connection import DeviceConnection
+from device_manager.device_actions import DeviceActions
+from device_manager.device_info import DeviceInfo
 from typing import Tuple, Optional
 
 

@@ -1,10 +1,10 @@
 import subprocess
-from connection.connection_manager import ConnectionManager
-from connection.utils.connection_status import (
+from device_manager.connection.connection_manager import ConnectionManager
+from device_manager.connection.utils.connection_status import (
     ConnectionInfoStatus,
 )
 from device_manager.components.object_manager import ObjectManager
-from connection.utils.mdns_context import (
+from device_manager.connection.utils.mdns_context import (
     ServiceInfo,
 )
 from rich import print
