@@ -136,7 +136,7 @@ class DeviceConnection:
         """
 
         devices_connected = subprocess.run(
-            'adb devices',
+            ['adb', 'devices'],
             capture_output=True,
             text=True,
         ).stdout
