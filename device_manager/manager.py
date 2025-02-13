@@ -1,8 +1,11 @@
+import subprocess
 from device_manager.components.object_manager import ObjectManager
 from device_manager.connection.device_connection import DeviceConnection
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
-from typing import Tuple, Optional
+from functools import singledispatchmethod
+from subprocess import CompletedProcess
+from typing import Tuple, Optional, List
 
 
 class DeviceManager:
@@ -16,6 +19,16 @@ class DeviceManager:
         self.connector = DeviceConnection()
         self.__device_info: ObjectManager[DeviceInfo] = ObjectManager()
         self.__device_actions: ObjectManager[DeviceActions] = ObjectManager()
+
+    @property
+    def connected_devices(self) -> List[str]:
+        """Returns the list of serial numbers of the devices that are
+        currently connected.
+
+        Returns:
+            List[str]: The list of serial numbers of the connected devices.
+        """
+        return list(self.__device_info.keys())
 
     def connect_devices(self, *serial_number: str) -> bool:
         """Connects to the devices with the provided serial numbers.
@@ -86,3 +99,103 @@ class DeviceManager:
             return info, actions
         except KeyError:
             return None
+
+    @staticmethod
+    def build_command_list(
+        base_command: List[str],
+        comm_uri_list: List[str],
+        custom_command: str,
+        **kwargs,
+    ) -> List[str]:
+        """Builds a list of commands to be executed on multiple devices.
+        This method is used to build a list of commands that will be executed
+        on multiple devices. The command is built using the base command
+        provided, the list of communication URIs, the custom command to be
+        executed, and any additional arguments that should be added to the
+        command.
+
+        Args:
+            base_command (List[str]): The base command to be executed.
+            comm_uri_list (List[str]): The list of communication URIs for the
+                devices.
+            custom_command (str): The custom command to be executed.
+            **kwargs: Additional arguments to be added to the command.
+        """
+        command = base_command.copy()
+        command_as_list = custom_command.split(" ")
+        for idx, uri in enumerate(comm_uri_list):
+            command.append(uri)
+            if idx < len(comm_uri_list) - 1:
+                command.append("&&")
+        command.append("shell")
+        command.extend(command_as_list)
+        if kwargs:
+            for key, value in kwargs.items():
+                command.extend([key, value])
+        return command
+
+    @singledispatchmethod
+    def execute_adb_command(
+        self,
+        command: str,
+        **kwargs,
+    ) -> CompletedProcess:
+        """Executes a custom adb command on all connected devices.
+        Additional arguments and keyword arguments can be provided to
+        customize the command, which will be added to the end of the command
+        string.
+        This function already adds the `adb shell` part of the shell command.
+
+        Passing a command such as `input keyevent 3` will produce the
+        following command: `adb shell input keyevent 3`, applied with the
+        `-s` flag for each device.
+
+        You can execute a command on a set of specific devices by providing
+        the serial numbers as additional arguments.
+
+        Args:
+            command (str): The adb command to execute.
+            *comm_uri (str): The serial numbers of the devices to execute the
+                command on.
+
+        Returns:
+            CompletedProcess: The result of the command execution.
+        """
+        uris = [device.current_comm_uri for device in self.__device_info]
+        base_command = ["adb", "-s"]
+        adb_command = self.build_command_list(
+            base_command=base_command,
+            comm_uri_list=uris,
+            custom_command=command,
+            **kwargs,
+        )
+        return subprocess.run(adb_command, shell=True)
+
+    @execute_adb_command.register
+    def _(self, command: str, *comm_uri: str, **kwargs) -> CompletedProcess:
+        """Executes a custom adb command on a set of specific devices.
+        Additional arguments and keyword arguments can be provided to
+        customize the command, which will be added to the end of the command
+        string.
+        This function already adds the `adb shell` part of the shell command.
+
+        Passing a command such as `input keyevent 3` will produce the
+        following command: `adb shell input keyevent 3`.
+
+        Args:
+            command (str): The adb command to execute.
+            *comm_uri (str): The serial numbers of the devices to execute the
+                command on.
+
+        Returns:
+            CompletedProcess: The result of the command execution.
+        """
+        base_command = ["adb", "-s"]
+        uris = list(comm_uri)
+        adb_command = self.build_command_list(
+            base_command=base_command,
+            comm_uri_list=uris,
+            custom_command=command,
+            **kwargs,
+        )
+        return subprocess.run(adb_command, shell=True)
