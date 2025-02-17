@@ -115,6 +115,15 @@ class DeviceConnection:
         return selected_devices
 # endregion
 
+    def visible_devices(self) -> List[ServiceInfo]:
+        """Returns a list of visible devices in the network.
+
+        Returns:
+            List[ServiceInfo]: A list of visible devices in the network.
+        """
+        available_devices = self.connection.available_devices()
+        return list(available_devices.values())
+
     def close(self):
         """
          This method terminates any ongoing device discovery process managed by

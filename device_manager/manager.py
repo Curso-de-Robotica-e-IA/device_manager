@@ -4,7 +4,17 @@ from device_manager.connection.device_connection import DeviceConnection
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
 from subprocess import CompletedProcess
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, NamedTuple, Iterable
+
+
+DeviceObjects = NamedTuple(
+    'DeviceObjects',
+    [
+        ('serial_number', str),
+        ('device_info', DeviceInfo),
+        ('device_actions', DeviceActions),
+    ]
+)
 
 
 class DeviceManager:
@@ -175,3 +185,16 @@ class DeviceManager:
             adb_command,
             shell=True,
         )
+
+    def __iter__(self) -> Iterable[DeviceObjects]:
+        """Iterates over the devices being managed by this class.
+        Returns an iterator with a tuple containing the device serial number,
+        device information and device actions.
+
+        Supports usage of the `for` loop to iterate over the devices."""
+        device_objects = map(lambda info, actions: DeviceObjects(
+            serial_number=info.serial_number,
+            device_info=info,
+            device_actions=actions,
+        ), self.__device_info, self.__device_actions)
+        return device_objects
