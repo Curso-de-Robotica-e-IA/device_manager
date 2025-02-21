@@ -42,7 +42,7 @@ def test_mdns_context_add_service(empty_mdns_context, sample_service_info):
         sample_service_info.serial_number,
         sample_service_info,
     )
-    online_list = empty_mdns_context.online_service_list
+    online_list = empty_mdns_context.get_online_service()
     assert sample_service_info.serial_number in online_list.keys()
 
 
@@ -63,7 +63,7 @@ def test_mdns_context_add_multiple_services(
         second_service.serial_number,
         second_service,
     )
-    online_list = empty_mdns_context.online_service_list
+    online_list = empty_mdns_context.get_online_service()
 
     assert sample_service_info.serial_number in online_list.keys()
     assert second_service.serial_number in online_list.keys()
@@ -80,7 +80,7 @@ def test_mdns_context_update_service(
         sample_service_info,
     )
 
-    online_list = mdns_context_with_services.online_service_list
+    online_list = mdns_context_with_services.get_online_service()
     assert online_list[sample_service_info.serial_number].port == NEW_PORT
 
 
@@ -93,8 +93,8 @@ def test_mdns_context_to_offline_service(
         sample_service_info,
     )
 
-    online_list = mdns_context_with_services.online_service_list
-    offline_list = mdns_context_with_services.offline_service_list
+    online_list = mdns_context_with_services.get_online_service()
+    offline_list = mdns_context_with_services.get_offline_service()
 
     assert sample_service_info.serial_number not in online_list.keys()
     assert sample_service_info.serial_number in offline_list.keys()
@@ -114,8 +114,8 @@ def test_adding_service_already_in_offline_list(
         sample_service_info,
     )
 
-    online_list = mdns_context_with_services.online_service_list
-    offline_list = mdns_context_with_services.offline_service_list
+    online_list = mdns_context_with_services.get_online_service()
+    offline_list = mdns_context_with_services.get_offline_service()
 
     assert sample_service_info.serial_number in online_list.keys()
     assert sample_service_info.serial_number not in offline_list.keys()
@@ -136,8 +136,28 @@ def test_updating_service_from_offline_list(
         sample_service_info,
     )
 
-    online_list = mdns_context_with_services.online_service_list
-    offline_list = mdns_context_with_services.offline_service_list
+    online_list = mdns_context_with_services.get_online_service()
+    offline_list = mdns_context_with_services.get_offline_service()
 
     assert sample_service_info.serial_number in online_list.keys()
     assert sample_service_info.serial_number not in offline_list.keys()
+
+
+def test_online_service_list_property(mdns_context_with_services):
+    online_list = mdns_context_with_services.online_service_list
+    expected_length = 3
+    assert len(online_list) == expected_length
+    assert isinstance(online_list[0], ServiceInfo)
+
+
+def test_offline_service_list_property(
+    mdns_context_with_services,
+    sample_service_info,
+):
+    mdns_context_with_services.to_offline_service(
+        sample_service_info.serial_number,
+        sample_service_info,
+    )
+    offline_list = mdns_context_with_services.offline_service_list
+    assert len(offline_list) == 1
+    assert isinstance(offline_list[0], ServiceInfo)

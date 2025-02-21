@@ -51,7 +51,7 @@ class ConnectionManager:
         Returns:
             Dict[str, ServiceInfo]: A dictionary of devices that are online.
         """
-        return self.__discovery.list_of_online_device()
+        return self.__discovery.online_devices()
 
     @staticmethod
     def device_pairing(timeout_s: float) -> bool:

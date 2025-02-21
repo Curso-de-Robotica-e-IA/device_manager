@@ -83,11 +83,11 @@ class AdbPairing:
 
     def has_device_to_pairing(self):
 
-        return len(self.__context.get_online_service_list()) > 0
+        return len(self.__context.get_online_service()) > 0
 
     def pair_devices(self):
         success = False
-        online_services = self.__context.get_online_service_list()
+        online_services = self.__context.get_online_service()
         for elem in online_services.items():
             comm_uri = f"{elem[1].ip}:{elem[1].port}"
             result = subprocess.run(
