@@ -24,6 +24,7 @@ taskipy = "^1.14.1"
 pytest-cov = "^6.0.0"
 pytest-mock = "^3.14.0"
 ruff = "^0.9.6"
+pytest-socket = "^0.7.0"
 
 
 [tool.poetry.group.doc.dependencies]
@@ -34,7 +35,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-addopts = "-vv --cov=device_manager --cov-report=term-missing -p no:warnings"
+addopts = "-vv --cov=device_manager --cov-report=term-missing -p no:warnings --disable-socket"
 testpaths = [
     "tests",
 ]
@@ -90,5 +91,5 @@ docstring-code-format = false
 lint = 'ruff check . && ruff check . --diff'
 format = 'ruff check . --fix && ruff format .'
 pre_test = 'task format'
-test = 'pytest -vv --cov=device_manager --cov-report=term-missing -p no:warnings'
+test = 'pytest -vv --cov=device_manager --cov-report=term-missing -p no:warnings --disable-socket'
 post_test = 'coverage html'
