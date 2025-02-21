@@ -3,9 +3,9 @@
 import pytest
 
 from device_manager.connection.utils.mdns_listener import (
+    DEFAULT_REGEX_FILTER,
     MDnsListener,
     ServiceInfo,
-    DEFAULT_REGEX_FILTER,
 )
 
 
