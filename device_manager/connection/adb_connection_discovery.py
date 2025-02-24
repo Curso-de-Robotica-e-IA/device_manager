@@ -12,7 +12,7 @@ from device_manager.connection.utils.mdns_context import (
     ServiceInfo,
 )
 from device_manager.connection.utils.mdns_listener import (
-    # DEFAULT_REGEX_FILTER,
+    DEFAULT_REGEX_FILTER,
     DEFAULT_SERVICE_TYPE,
     MDnsListener,
 )
@@ -46,7 +46,7 @@ class AdbConnectionDiscovery:
 
     def __init__(self):
         self.__started = False
-        self.__service_re_filter = "adb\-(\w+)\-\w+\\"
+        self.__service_re_filter = DEFAULT_REGEX_FILTER
         self.__service_type = DEFAULT_SERVICE_TYPE
         self.__zeroconf: Optional[Zeroconf] = None
         self.__finalize: Optional[weakref.finalize] = None
@@ -68,11 +68,11 @@ class AdbConnectionDiscovery:
                 ),
             )
 
-            def atexit():
+            def atexit() -> None:
                 """Callback function to update the __started attribute and
                 the __browser attribute, once the Zeroconf service has been
                 finalized."""
-                print("Closing Zeroconf")
+                print("Zeroconf finalized")
                 self.__browser = None
                 self.__started = False
 
