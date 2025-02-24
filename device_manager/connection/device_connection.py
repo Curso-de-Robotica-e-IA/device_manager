@@ -109,7 +109,7 @@ class DeviceConnection:
         selected_devices = list()
         while not finish_loop:
             prompt_options = {
-                str(i+1): f"{srnmb} on IP: {available_devices[srnmb].ip}"
+                str(i + 1): f"{srnmb} on IP: {available_devices[srnmb].ip}"
                 for i, srnmb in enumerate(available_devices)
             }
             self.console.print("Available devices found in the network:")

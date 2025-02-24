@@ -3,8 +3,8 @@ from subprocess import CompletedProcess
 from typing import Iterable, List, NamedTuple, Optional, Tuple
 
 from device_manager.components.object_manager import ObjectManager
-from device_manager.connection.device_connection import DeviceConnection
 from device_manager.connection.adb_pairing import AdbPairing
+from device_manager.connection.device_connection import DeviceConnection
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
 
