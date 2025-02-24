@@ -1,16 +1,20 @@
 import subprocess
+from typing import List
+
+from rich import print
+from rich.console import Console
+from rich.prompt import Prompt
+
+from device_manager.components.object_manager import ObjectManager
 from device_manager.connection.connection_manager import ConnectionManager
 from device_manager.connection.utils.connection_status import (
     ConnectionInfoStatus,
 )
-from device_manager.components.object_manager import ObjectManager
 from device_manager.connection.utils.mdns_context import (
     ServiceInfo,
 )
-from rich import print
-from rich.console import Console
-from rich.prompt import Prompt
-from typing import List
+
+DEFAULT_FIXED_PORT = 5555
 
 
 class DeviceConnection:
@@ -18,12 +22,56 @@ class DeviceConnection:
     It provides methods to establish, validate, and close connections with
     devices. It also provides methods to check the status of the current
     connections and to build communication URIs for the devices.
+
+    Args:
+        subprocess_check_flag (bool, optional): A flag to check if the
+                subprocess execution was successful, passed to the subprocess
+                `check` argument. Defaults to False.
+                Check the subprocess documentation for more information.
+        fixed_port (int, optional): The fixed port to use for the ADB
+            connection. Defaults to 5555.
+
+    Attributes:
+        console (Console): A rich console to print messages.
+        connection (ConnectionManager): A connection manager to manage the
+            ADB connections.
+        connection_info (ObjectManager[ServiceInfo]): An object manager to
+            store the service information of the connected devices.
+
+    methods:
+        check_pairing: Checks if a device is already paired with the host.
+        select_devices_to_connect: Prompts the user to select devices to
+            connect to.
+        prompt_device_connection: Prompts the user to select devices to connect
+            to.
+        visible_devices: Returns a list of visible devices in the network.
+        close: Terminates any ongoing device discovery process managed by the
+            `connection_manager`.
+        check_connections: Checks the status of the current connections.
+        build_comm_uri: Constructs a communication URI for the specified
+            device.
+        establish_first_connection: Attempts to establish an ADB connection
+            with the specified device.
+        validate_connection: Validates the current connection with the
+            specified device.
+        connect_all_devices: Connects to all devices in the `connection_info`
+            attribute.
+        start_connection: Starts the connection process for the selected
+            devices.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        subprocess_check_flag: bool = False,
+        fixed_port: int = DEFAULT_FIXED_PORT,
+    ):
         self.console = Console()
-        self.connection = ConnectionManager()
+        self.__subprocess_check_flag = subprocess_check_flag
+        self.connection = ConnectionManager(
+            subprocess_check_flag=self.__subprocess_check_flag,
+        )
         self.connection_info: ObjectManager[ServiceInfo] = ObjectManager()
+        self.fixed_port = fixed_port
 
 # region: user_interaction
     def check_pairing(self) -> None:
@@ -148,6 +196,7 @@ class DeviceConnection:
             ['adb', 'devices'],
             capture_output=True,
             text=True,
+            check=self.__subprocess_check_flag,
         ).stdout
         self.console.print(devices_connected)
         for serial_number in self.connection_info.keys():
@@ -204,7 +253,9 @@ class DeviceConnection:
             if self.connection_info.get(device_serial_number) is not None:
                 self.connection_info.remove(device_serial_number)
             self.connection_info.add(connection.serial_number, connection)
-            if self.connection_info.get(connection.serial_number).port != 5555:
+            if (self.connection_info.get(
+                connection.serial_number,
+            ).port != self.fixed_port):
                 self.__fix_adb_port(connection.serial_number)
             return True
         return False
@@ -268,7 +319,7 @@ class DeviceConnection:
     def start_connection(self, selected_devices: List[str]) -> bool:
         """Starts the connection process for the selected devices.
         This method establishes a first connection with the selected devices,
-        changing the ADB port to 5555 if necessary. After that, it
+        changing the ADB port the `fixed_port` if necessary. After that, it
         disconnects the current connection, and then reconnects to all devices
         in the `connection_info` attribute.
 
@@ -287,31 +338,46 @@ class DeviceConnection:
         return self.check_connections()
 
     def __fix_adb_port(self, serial_number: str):
-        """Fix the ADB port by setting it to 5555.
+        """Fix the ADB port by setting it to the `fixed_port` attribute value.
 
         This method validates the current connection and if valid, runs the
-        ADB command to set the device's port to 5555.
+        ADB command to set the device's port to `fixed_port`.
         """
 
         if self.validate_connection(serial_number):
             comm_uri = self.build_comm_uri(serial_number)
-            subprocess.run(["adb", "-s", comm_uri, "tcpip", "5555"])
-            self.connection_info.get(serial_number).port = 5555
+            subprocess.run(
+                ["adb", "-s", comm_uri, "tcpip", f"{self.fixed_port}"],
+                check=self.__subprocess_check_flag,
+            )
+            self.connection_info.get(serial_number).port = self.fixed_port
 
     def __connect_with_fix_port(self, serial_number: str):
         """Reconnect using the fixed ADB port.
 
         This method establishes a new ADB connection using the fixed port
-        (5555).
+        attribute.
         """
         device = self.connection_info.get(serial_number)
-        subprocess.run(["adb", "connect", f"{device.ip}:5555"])
+        subprocess.run(
+            ["adb", "connect", f"{device.ip}:{self.fixed_port}"],
+            check=self.__subprocess_check_flag,
+        )
 
     @staticmethod
-    def disconnect():
+    def disconnect(subprocess_check_flag: bool = False,):
         """
         This method checks the device connection and executes an ADB command to
         kill the ADB server, effectively disconnecting the current session with
         the specified device.
+
+        Args:
+            subprocess_check_flag (bool, optional): A flag to check if the
+                subprocess execution was successful, passed to the subprocess
+                `check` argument. Defaults to False.
+                Check the subprocess documentation for more information.
         """
-        subprocess.run(["adb", "kill-server"])
+        subprocess.run(
+            ["adb", "kill-server"],
+            check=subprocess_check_flag,
+        )

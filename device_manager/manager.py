@@ -1,11 +1,12 @@
 import subprocess
+from subprocess import CompletedProcess
+from typing import Iterable, List, NamedTuple, Optional, Tuple
+
 from device_manager.components.object_manager import ObjectManager
 from device_manager.connection.device_connection import DeviceConnection
+from device_manager.connection.adb_pairing import AdbPairing
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
-from subprocess import CompletedProcess
-from typing import Tuple, Optional, List, NamedTuple, Iterable
-
 
 DeviceObjects = NamedTuple(
     'DeviceObjects',
@@ -26,6 +27,7 @@ class DeviceManager:
 
     def __init__(self):
         self.connector = DeviceConnection()
+        self.adb_pair: Optional[AdbPairing] = None
         self.__device_info: ObjectManager[DeviceInfo] = ObjectManager()
         self.__device_actions: ObjectManager[DeviceActions] = ObjectManager()
 
@@ -147,6 +149,7 @@ class DeviceManager:
         self,
         command: str,
         comm_uris: Optional[List[str]] = None,
+        subprocess_check_flag: bool = False,
         **kwargs,
     ) -> CompletedProcess:
         """Executes a custom adb command on all connected devices.
@@ -164,8 +167,13 @@ class DeviceManager:
 
         Args:
             command (str): The adb command to execute.
-            *comm_uri (str): The serial numbers of the devices to execute the
-                command on.
+            comm_uri (List[str]): The serial numbers of the devices to execute
+                the command on.
+            subprocess_check_flag (bool, optional): A flag to check if the
+                subprocess execution was successful, passed to the subprocess
+                `check` argument. Defaults to False.
+                Check the subprocess documentation for more information.
+            **kwargs: Additional arguments to be added to the command.
 
         Returns:
             CompletedProcess: The result of the command execution.
@@ -184,7 +192,39 @@ class DeviceManager:
         return subprocess.run(
             adb_command,
             shell=True,
+            check=subprocess_check_flag,
         )
+
+    def adb_pairing_instance(
+        self,
+        service_name: str = 'robot_celular',
+        service_regex_filter: Optional[str] = None,
+        subprocess_check_flag: bool = False,
+    ) -> None:
+        """Creates an instance of the AdbPairing class. This instance will
+        be available at the `adb_pair` attribute of this class.
+        All of the parameters are passed to the AdbPairing constructor.
+
+        Args:
+            service_name (str, optional): The name of the service in the
+                network. Defaults to 'robot_celular'.
+            service_regex_filter (Optional[str], optional): The filter that
+                will be applied to the mDNSListener operations. Defaults to
+                    None.
+            subprocess_check_flag (bool, optional): A flag to check if the
+                subprocess execution was successful, passed to the subprocess
+                `check` argument. Defaults to False.
+                Check the subprocess documentation for more information.
+        """
+        self.adb_pair = AdbPairing(
+            service_name=service_name,
+            service_regex_filter=service_regex_filter,
+            subprocess_check_flag=subprocess_check_flag
+        )
+
+    def __len__(self) -> int:
+        """Returns the number of devices currently managed by this class."""
+        return len(self.__device_info)
 
     def __iter__(self) -> Iterable[DeviceObjects]:
         """Iterates over the devices being managed by this class.

@@ -1,34 +1,52 @@
 import subprocess
 from time import sleep, time
+from typing import Dict, Optional
+
 from device_manager.connection.adb_connection_discovery import (
     AdbConnectionDiscovery,
 )
+from device_manager.connection.adb_pairing import AdbPairing
 from device_manager.connection.utils.connection_status import (
     ConnectionInfoStatus,
 )
-from device_manager.connection.adb_pairing import AdbPairing
 from device_manager.connection.utils.service_info import ServiceInfo
-from typing import Dict, Optional
 
 
 class ConnectionManager:
     # Connection Manager has been developed based in to code available on
     # https://github.com/openatx/adbutils/issues/111#issuecomment-2094694894
-    def __init__(self) -> None:
-        subprocess.run(["adb", "kill-server"])
+    def __init__(
+        self,
+        subprocess_check_flag: bool = False,
+    ) -> None:
+        self.__subprocess_check_flag = subprocess_check_flag
+        subprocess.run(
+            ["adb", "kill-server"],
+            check=self.__subprocess_check_flag,
+        )
         self.__discovery = AdbConnectionDiscovery()
-        subprocess.run(["adb", "start-server"])
+        subprocess.run(
+            ["adb", "start-server"],
+            check=self.__subprocess_check_flag,
+        )
         self.__discovery.start()
         sleep(2)
 
     @staticmethod
-    def check_devices_adb_connection(comm_uri: str) -> bool:
+    def check_devices_adb_connection(
+        comm_uri: str,
+        subprocess_check_flag: bool = False,
+    ) -> bool:
         """Check if the device is connected to the adb server.
         A device is considered as connected if it does not appear
         as `offline` in the output of the `adb devices` command.
 
         Args:
             comm_uri (string): The communication URI of the device.
+            subprocess_check_flag (bool, optional): A flag to check if the
+                subprocess execution was successful, passed to the subprocess
+                `check` argument. Defaults to False.
+                Check the subprocess documentation for more information.
 
         Returns:
             bool: True if the device is connected, False otherwise.
@@ -37,6 +55,7 @@ class ConnectionManager:
             ["adb", "devices"],
             capture_output=True,
             text=True,
+            check=subprocess_check_flag,
         )
         devices_lines = str(result.stdout).split("\n")
         for info_line in devices_lines:
@@ -95,7 +114,10 @@ class ConnectionManager:
         else:
             comm_uri = f"{info.ip}:{info.port}"
             result = subprocess.run(
-                ["adb", "connect", comm_uri], capture_output=True, text=True
+                ["adb", "connect", comm_uri],
+                capture_output=True,
+                text=True,
+                check=self.__subprocess_check_flag,
             )
             if f"failed to connect to {comm_uri}" in result.stdout:
                 print("Fail to connect device")
