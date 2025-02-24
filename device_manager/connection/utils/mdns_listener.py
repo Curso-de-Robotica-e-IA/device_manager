@@ -17,14 +17,19 @@ from device_manager.connection.utils.mdns_context import (
 
 r'''re_filter -> This string is used to filter the services found by the mDNS
 listener. It is used to extract the serial number from the service name.
-"adb\-(\w+)\-\w+\\" is the default value.'''  # noqa
+"adb\-(\w+)\-\w+\\" is the default value.'''
 DEFAULT_REGEX_FILTER = r"adb\-(\w+)\-\w+\\?"
 
 
-r'''service_type -> In summary, this string is used to identify a specific type
+'''service_type -> In summary, this string is used to identify a specific type
 of service (ADB TLS pairing) that can be discovered on the local network
 using DNS-SD. "_adb-tls-pairing._tcp.local."'''
-DEFAULT_SERVICE_TYPE = "_adb-tls-connect._tcp.local."
+CONNECT_SERVICE_TYPE = "_adb-tls-connect._tcp.local."
+
+'''This string is used to identify a specific type of service (ADB TLS pairing)
+that can be discovered on the local network using DNS-SD.
+'''
+PAIRING_SERVICE_TYPE = "_adb-tls-pairing._tcp.local."
 
 
 class MDnsListener(ServiceListener):
@@ -53,7 +58,7 @@ class MDnsListener(ServiceListener):
         self,
         service_context: MDnsContext,
         re_filter: Optional[str] = None,
-        service_type: str = DEFAULT_SERVICE_TYPE,
+        service_type: str = CONNECT_SERVICE_TYPE,
     ) -> None:
         super().__init__()
         self.__service_context = service_context

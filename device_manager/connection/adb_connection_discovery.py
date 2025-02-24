@@ -12,8 +12,8 @@ from device_manager.connection.utils.mdns_context import (
     ServiceInfo,
 )
 from device_manager.connection.utils.mdns_listener import (
+    CONNECT_SERVICE_TYPE,
     DEFAULT_REGEX_FILTER,
-    DEFAULT_SERVICE_TYPE,
     MDnsListener,
 )
 
@@ -47,7 +47,7 @@ class AdbConnectionDiscovery:
     def __init__(self):
         self.__started = False
         self.__service_re_filter = DEFAULT_REGEX_FILTER
-        self.__service_type = DEFAULT_SERVICE_TYPE
+        self.__service_type = CONNECT_SERVICE_TYPE
         self.__zeroconf: Optional[Zeroconf] = None
         self.__finalize: Optional[weakref.finalize] = None
         self.__browser: Optional[ServiceBrowser] = None
