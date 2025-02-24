@@ -29,6 +29,7 @@ pytest-socket = "^0.7.0"
 
 [tool.poetry.group.doc.dependencies]
 mkdocs = "^1.6.1"
+mkdocs-material = "^9.6.5"
 
 [build-system]
 requires = ["poetry-core"]

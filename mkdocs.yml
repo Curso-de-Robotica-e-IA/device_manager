@@ -1,0 +1,16 @@
+site_name: Device Manager
+repo_url: https://github.com/Curso-de-Robotica-e-IA/device_manager
+repo_name: RRIA/device_manager
+edit_uri: tree/documentation/docs
+
+theme:
+  name: material
+  language: en
+  logo: assets/logo.png
+  favicon: assets/logo.png
+
+markdown_extensions:
+  - attr_list
+
+extra_css:
+  - stylesheets/extra.css
