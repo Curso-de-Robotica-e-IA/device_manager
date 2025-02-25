@@ -25,10 +25,11 @@ class AdbConnectionDiscovery:
     information found by the Zeroconf instance.
 
     Properties:
-        service_browser_started (bool): Check if the ServiceBrowser has been
-            started.
-        browser (Optional[ServiceBrowser]): The actual ServiceBrowser instance.
-        zeroconf_status (bool): Check if the Zeroconf instance is active.
+        - `service_browser_started` (bool): Check if the ServiceBrowser has
+            been started.
+        - `browser` (Optional[ServiceBrowser]): The actual ServiceBrowser
+            instance.
+        - `zeroconf_status` (bool): Check if the Zeroconf instance is active.
 
     Methods:
         start: Start the ServiceBrowser to listen to the mDNS services.

@@ -26,13 +26,14 @@ class AdbPairing:
     instance.
 
     Properties:
-        service_browser_started (bool): Check if the ServiceBrowser has been
-            started.
-        browser (Optional[ServiceBrowser]): The actual ServiceBrowser instance.
-        zeroconf_status (bool): Check if the Zeroconf instance is active.
-        qrcode_string (str): Get the qrcode string.
-        qrcode (qrcode.QRCode): Get the qrcode object.
-        qrcode_image (qrcode.image.base.BaseImage): Get the qrcode image.
+        - `service_browser_started` (bool): Check if the ServiceBrowser has
+            been started.
+        - `browser` (Optional[ServiceBrowser]): The actual ServiceBrowser
+            instance.
+        - `zeroconf_status` (bool): Check if the Zeroconf instance is active.
+        - `qrcode_string` (str): Get the qrcode string.
+        - `qrcode` (qrcode.QRCode): Get the qrcode object.
+        - `qrcode_image` (qrcode.image.base.BaseImage): Get the qrcode image.
 
     Methods:
         update_qrcode: Update the qrcode image.
@@ -167,7 +168,8 @@ class AdbPairing:
 
         Args:
             new_password (bool, optional): Indicates that a new password must
-            be generated before the new QRCode is created. Defaults to False.
+                be generated before the new QRCode is created.
+                Defaults to False.
         """
         if new_password:
             self.__passwd = self.__create_password()
@@ -277,7 +279,7 @@ class AdbPairing:
 
         Args:
             max_attempts (int, optional): The max number of retry attempts to
-            detect the pair proccess. Defaults to 3.
+                detect the pair proccess. Defaults to 3.
 
         Returns:
             str: The qrcode string.
