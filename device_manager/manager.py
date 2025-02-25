@@ -17,7 +17,7 @@ DeviceObjects = NamedTuple(
         ('serial_number', str),
         ('device_info', DeviceInfo),
         ('device_actions', DeviceActions),
-    ]
+    ],
 )
 
 
@@ -180,13 +180,13 @@ class DeviceManager:
             **kwargs: Additional arguments to be added to the command.
         """
         command = base_command.copy()
-        command_as_list = custom_command.split(" ")
+        command_as_list = custom_command.split(' ')
         for idx, uri in enumerate(comm_uri_list):
-            command.extend(["-s", uri])
-            command.append("shell")
+            command.extend(['-s', uri])
+            command.append('shell')
             command.extend(command_as_list)
             if idx < len(comm_uri_list) - 1:
-                command.extend(["&&", "adb"])
+                command.extend(['&&', 'adb'])
         if kwargs:
             for key, value in kwargs.items():
                 command.extend([key, value])
@@ -229,9 +229,8 @@ class DeviceManager:
         """
         uris = comm_uris
         if comm_uris is None:
-            uris = [device.current_comm_uri
-                    for device in self.__device_info]
-        base_command = ["adb"]
+            uris = [device.current_comm_uri for device in self.__device_info]
+        base_command = ['adb']
         adb_command = self.build_command_list(
             base_command=base_command,
             comm_uri_list=uris,
@@ -268,8 +267,19 @@ class DeviceManager:
         self.adb_pair = AdbPairing(
             service_name=service_name,
             service_regex_filter=service_regex_filter,
-            subprocess_check_flag=subprocess_check_flag
+            subprocess_check_flag=subprocess_check_flag,
         )
+
+    def is_connected(self, serial_number: str) -> bool:
+        """Checks if a device with the provided serial number is connected.
+
+        Args:
+            serial_number (str): The serial number of the device.
+
+        Returns:
+            bool: True if the device is connected, False otherwise.
+        """
+        return self.connector.is_connected(serial_number)
 
     def __len__(self) -> int:
         """Returns the number of devices currently managed by this class."""
@@ -281,9 +291,13 @@ class DeviceManager:
         device information and device actions.
 
         Supports usage of the `for` loop to iterate over the devices."""
-        device_objects = map(lambda info, actions: DeviceObjects(
-            serial_number=info.serial_number,
-            device_info=info,
-            device_actions=actions,
-        ), self.__device_info, self.__device_actions)
+        device_objects = map(
+            lambda info, actions: DeviceObjects(
+                serial_number=info.serial_number,
+                device_info=info,
+                device_actions=actions,
+            ),
+            self.__device_info,
+            self.__device_actions,
+        )
         return device_objects
