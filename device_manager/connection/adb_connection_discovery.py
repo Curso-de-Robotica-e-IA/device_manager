@@ -185,7 +185,7 @@ class AdbConnectionDiscovery:
         if (
             service_info.serial_number
             not in self.__context.get_online_service()
-        ):  # noqa
+        ):
             return ConnectionInfoStatus.UNKNOWN
 
         services_data = self.__context.get_online_service()
