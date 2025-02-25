@@ -1,5 +1,7 @@
 import subprocess
+
 import uiautomator2 as u2
+
 from device_manager.connection.device_connection import DeviceConnection
 
 

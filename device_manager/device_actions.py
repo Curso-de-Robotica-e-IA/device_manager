@@ -1,5 +1,6 @@
 import subprocess
 from time import sleep
+
 from device_manager.connection.device_connection import DeviceConnection
 
 
