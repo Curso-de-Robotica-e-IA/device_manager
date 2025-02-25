@@ -2,15 +2,47 @@ site_name: Device Manager
 repo_url: https://github.com/Curso-de-Robotica-e-IA/device_manager
 repo_name: RRIA/device_manager
 edit_uri: tree/documentation/docs
+nav:
+  - Home: index.md
+  - Code: 
+    - Base Classes: code/code_index.md
+    - Connection Classes: code/connection.md
 
 theme:
   name: material
   language: en
   logo: assets/logo.png
   favicon: assets/logo.png
+  palette:
+  # Palette toggle for manual mode
+    - scheme: default
+      primary: white
+      toggle:
+        icon: material/toggle-switch
+        name: Dark Mode
+
+  # Palette toggle for manual mode
+    - scheme: slate
+      primary: black
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Light Mode
+
+plugins:
+- mkdocstrings:
+    enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
+    default_handler: python
+    handlers:
+      python:
+        options:
+          show_source: false
 
 markdown_extensions:
   - attr_list
+  # - pymdownx.superfences
+  # - pymdownx.emoji
+  # - pymdownx.tasklist
+  # - pymdownx.tilde
 
 extra_css:
   - stylesheets/extra.css

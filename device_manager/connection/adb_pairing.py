@@ -26,13 +26,14 @@ class AdbPairing:
     instance.
 
     Properties:
-        service_browser_started (bool): Check if the ServiceBrowser has been
-            started.
-        browser (Optional[ServiceBrowser]): The actual ServiceBrowser instance.
-        zeroconf_status (bool): Check if the Zeroconf instance is active.
-        qrcode_string (str): Get the qrcode string.
-        qrcode (qrcode.QRCode): Get the qrcode object.
-        qrcode_image (qrcode.image.base.BaseImage): Get the qrcode image.
+        - `service_browser_started` (bool): Check if the ServiceBrowser has
+            been started.
+        - `browser` (Optional[ServiceBrowser]): The actual ServiceBrowser
+            instance.
+        - `zeroconf_status` (bool): Check if the Zeroconf instance is active.
+        - `qrcode_string` (str): Get the qrcode string.
+        - `qrcode` (qrcode.QRCode): Get the qrcode object.
+        - `qrcode_image` (qrcode.image.base.BaseImage): Get the qrcode image.
 
     Methods:
         update_qrcode: Update the qrcode image.
