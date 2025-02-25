@@ -59,6 +59,8 @@ class DeviceManager:
         execute_adb_command: Executes a custom adb command on all connected
             devices.
         adb_pairing_instance: Creates an instance of the AdbPairing class.
+        is_connected: Checks if a device with the provided serial number is
+            connected.
     """
 
     def __init__(

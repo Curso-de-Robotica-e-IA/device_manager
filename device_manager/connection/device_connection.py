@@ -58,6 +58,7 @@ class DeviceConnection:
             attribute.
         start_connection: Starts the connection process for the selected
             devices.
+        is_connected: Check if the device is connected to the host.
     """
 
     def __init__(
