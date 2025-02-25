@@ -38,10 +38,10 @@ class ObjectManager(Generic[T]):
                 already in the manager.
         """
         if not isinstance(key, str):
-            raise TypeError(f"Key of type {type(key)} not allowed")
+            raise TypeError(f'Key of type {type(key)} not allowed')
         if len(self.__objects) > 0:
             if not isinstance(obj, type(list(self.__objects.values())[0])):
-                raise TypeError(f"Object of type {type(obj)} not allowed")
+                raise TypeError(f'Object of type {type(obj)} not allowed')
         self[key] = obj
 
     def remove(self, key: str):

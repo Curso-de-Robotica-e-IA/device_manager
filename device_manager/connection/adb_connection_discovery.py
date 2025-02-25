@@ -55,8 +55,7 @@ class AdbConnectionDiscovery:
         self.__context = MDnsContext()
 
     def start(self) -> None:
-        """Start the ServiceBrowser to listen to the mDNS services.
-        """
+        """Start the ServiceBrowser to listen to the mDNS services."""
         if not self.__started:
             self.__zeroconf = Zeroconf()
             self.__browser = ServiceBrowser(
@@ -73,7 +72,7 @@ class AdbConnectionDiscovery:
                 """Callback function to update the __started attribute and
                 the __browser attribute, once the Zeroconf service has been
                 finalized."""
-                print("Zeroconf finalized")
+                print('Zeroconf finalized')
                 self.__browser = None
                 self.__started = False
 
@@ -183,7 +182,10 @@ class AdbConnectionDiscovery:
         if service_info.serial_number in self.__context.get_offline_service():
             return ConnectionInfoStatus.DOWN
 
-        if service_info.serial_number not in self.__context.get_online_service():  # noqa
+        if (
+            service_info.serial_number
+            not in self.__context.get_online_service()
+        ):  # noqa
             return ConnectionInfoStatus.UNKNOWN
 
         services_data = self.__context.get_online_service()
@@ -195,6 +197,5 @@ class AdbConnectionDiscovery:
         return ConnectionInfoStatus.CHANGED
 
     def stop_discovery_listener(self) -> None:
-        """Stop the ServiceBrowser and close the Zeroconf instance.
-        """
+        """Stop the ServiceBrowser and close the Zeroconf instance."""
         self.__zeroconf.close()

@@ -9,7 +9,9 @@ def mock_zeroconf(mocker):
     zeroconf.service_info = mocker.MagicMock()
     zeroconf.service_info.adresses = ['127.0.0.1']
     zeroconf.service_info.port = 5555
-    zeroconf.service_info.name = 'adb-emulator-5555._adb-tls-connect._tcp.local.'  # noqa
+    zeroconf.service_info.name = (
+        'adb-emulator-5555._adb-tls-connect._tcp.local.'
+    )
     zeroconf.service_info.server = 'test-server'
     zeroconf.get_service_info = mocker.MagicMock(
         return_value=zeroconf.service_info,

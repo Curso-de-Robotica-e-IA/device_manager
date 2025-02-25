@@ -21,12 +21,12 @@ class ConnectionManager:
     ) -> None:
         self.__subprocess_check_flag = subprocess_check_flag
         subprocess.run(
-            ["adb", "kill-server"],
+            ['adb', 'kill-server'],
             check=self.__subprocess_check_flag,
         )
         self.__discovery = AdbConnectionDiscovery()
         subprocess.run(
-            ["adb", "start-server"],
+            ['adb', 'start-server'],
             check=self.__subprocess_check_flag,
         )
         self.__discovery.start()
@@ -52,14 +52,14 @@ class ConnectionManager:
             bool: True if the device is connected, False otherwise.
         """
         result = subprocess.run(
-            ["adb", "devices"],
+            ['adb', 'devices'],
             capture_output=True,
             text=True,
             check=subprocess_check_flag,
         )
-        devices_lines = str(result.stdout).split("\n")
+        devices_lines = str(result.stdout).split('\n')
         for info_line in devices_lines:
-            if comm_uri in info_line and "offline" not in info_line:
+            if comm_uri in info_line and 'offline' not in info_line:
                 return True
         return False
 
@@ -110,17 +110,17 @@ class ConnectionManager:
         """
         info = self.__discovery.get_service_info_for(serial_num)
         if info is None:
-            print("Device service not online or located")
+            print('Device service not online or located')
         else:
-            comm_uri = f"{info.ip}:{info.port}"
+            comm_uri = f'{info.ip}:{info.port}'
             result = subprocess.run(
-                ["adb", "connect", comm_uri],
+                ['adb', 'connect', comm_uri],
                 capture_output=True,
                 text=True,
                 check=self.__subprocess_check_flag,
             )
-            if f"failed to connect to {comm_uri}" in result.stdout:
-                print("Fail to connect device")
+            if f'failed to connect to {comm_uri}' in result.stdout:
+                print('Fail to connect device')
         return info
 
     def check_wireless_adb_service_for(
@@ -150,12 +150,11 @@ class ConnectionManager:
         Returns:
             Optional[ServiceInfo]: The service information of the device.
         """
-        comm_uri = f"{info.ip}:{info.port}"
+        comm_uri = f'{info.ip}:{info.port}'
         if self.check_devices_adb_connection(comm_uri):
             return info
         return self.device_connect(info.serial_number)
 
     def close_discovery(self) -> None:
-        """Close the discovery listener.
-        """
+        """Close the discovery listener."""
         self.__discovery.stop_discovery_listener()

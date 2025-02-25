@@ -85,9 +85,18 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "input", "swipe",
-                 str(x), str(y), str(x), str(y)],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'input',
+                    'swipe',
+                    str(x),
+                    str(y),
+                    str(x),
+                    str(y),
+                ],
                 shell=True,
                 check=self.subprocess_check_flag,
             )
@@ -109,9 +118,19 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "input", "swipe",
-                 str(x1), str(y1), str(x2), str(y2), str(time)],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'input',
+                    'swipe',
+                    str(x1),
+                    str(y1),
+                    str(x2),
+                    str(y2),
+                    str(time),
+                ],
                 shell=True,
                 check=self.subprocess_check_flag,
             )
@@ -130,9 +149,16 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "am", "start", "-n",
-                 f"{package_name}/{activity_name}"],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'am',
+                    'start',
+                    '-n',
+                    f'{package_name}/{activity_name}',
+                ],
                 shell=True,
                 check=self.subprocess_check_flag,
             )
@@ -150,8 +176,15 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "am", "force-stop", package_name],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'am',
+                    'force-stop',
+                    package_name,
+                ],
                 shell=True,
                 check=self.subprocess_check_flag,
             )
@@ -167,8 +200,15 @@ class DeviceActions:
         ):
             uri = self.current_comm_uri
             subprocess.run(
-                ["adb", '-s', uri, "shell", "am", "start",
-                 "com.rria.gravity/com.rria.gravity.MainActivity"],
+                [
+                    'adb',
+                    '-s',
+                    uri,
+                    'shell',
+                    'am',
+                    'start',
+                    'com.rria.gravity/com.rria.gravity.MainActivity',
+                ],
                 check=self.subprocess_check_flag,
             )
             sleep(2)
@@ -186,8 +226,15 @@ class DeviceActions:
         ):
             uri = self.current_comm_uri
             subprocess.run(
-                ["adb", '-s', uri, "shell", "am", "force-stop",
-                 "com.rria.gravity"],
+                [
+                    'adb',
+                    '-s',
+                    uri,
+                    'shell',
+                    'am',
+                    'force-stop',
+                    'com.rria.gravity',
+                ],
                 check=self.subprocess_check_flag,
             )
 
@@ -201,8 +248,15 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "input", "keyevent", "26"],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'input',
+                    'keyevent',
+                    '26',
+                ],
                 check=self.subprocess_check_flag,
             )
 
@@ -216,8 +270,15 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "input", "keyevent", "82"],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'input',
+                    'keyevent',
+                    '82',
+                ],
                 check=self.subprocess_check_flag,
             )
 
@@ -231,7 +292,14 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "input", "keyevent", "3"],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'input',
+                    'keyevent',
+                    '3',
+                ],
                 check=self.subprocess_check_flag,
             )

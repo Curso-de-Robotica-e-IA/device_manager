@@ -73,8 +73,13 @@ class DeviceInfo:
             force_reconnect=True,
         ):
             result = subprocess.run(
-                ['adb', '-s', self.current_comm_uri, 'shell',
-                 '"dumpsys activity activities | grep topResumedActivity"'],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    '"dumpsys activity activities | grep topResumedActivity"',
+                ],
                 capture_output=True,
                 text=True,
                 check=self.subprocess_check_flag,
@@ -94,16 +99,20 @@ class DeviceInfo:
             force_reconnect=True,
         ):
             output = subprocess.run(
-                ['adb', '-s', self.current_comm_uri, 'shell',
-                 '"dumpsys deviceidle | grep mScreenOn"'],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    '"dumpsys deviceidle | grep mScreenOn"',
+                ],
                 capture_output=True,
                 text=True,
                 check=self.subprocess_check_flag,
             )
             output = output.stdout.strip()
-            output = output.split("=")
-            if "true" in output:
-
+            output = output.split('=')
+            if 'true' in output:
                 return True
 
             return False
@@ -119,16 +128,20 @@ class DeviceInfo:
             force_reconnect=True,
         ):
             output = subprocess.run(
-                ['adb', '-s', self.current_comm_uri, 'shell',
-                 '"dumpsys deviceidle | grep mScreenLocked"'],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    '"dumpsys deviceidle | grep mScreenLocked"',
+                ],
                 capture_output=True,
                 text=True,
                 check=self.subprocess_check_flag,
             )
             output = output.stdout.strip()
-            output = output.split("=")
-            if "true" in output:
-
+            output = output.split('=')
+            if 'true' in output:
                 return True
 
             return False
