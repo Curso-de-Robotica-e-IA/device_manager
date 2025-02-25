@@ -167,8 +167,10 @@ class DeviceManager:
 
         Args:
             command (str): The adb command to execute.
-            comm_uri (List[str]): The serial numbers of the devices to execute
-                the command on.
+            comm_uris (Optional[List[str]]): The serial numbers of the
+                devices to execute the command on. Defaults to None.
+                In this case, the command will be executed on all
+                connected devices.
             subprocess_check_flag (bool, optional): A flag to check if the
                 subprocess execution was successful, passed to the subprocess
                 `check` argument. Defaults to False.

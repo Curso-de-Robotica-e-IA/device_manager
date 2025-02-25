@@ -4,6 +4,7 @@ repo_name: RRIA/device_manager
 edit_uri: tree/documentation/docs
 nav:
   - Home: index.md
+  - Usage: usage.md
   - Code: 
     - Base Classes: code/code_index.md
     - Connection Classes: code/connection.md
@@ -13,6 +14,17 @@ theme:
   language: en
   logo: assets/logo.png
   favicon: assets/logo.png
+  features:
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+    - search.share
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
   palette:
   # Palette toggle for manual mode
     - scheme: default
@@ -29,6 +41,8 @@ theme:
         name: Light Mode
 
 plugins:
+- search
+- offline
 - mkdocstrings:
     enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
     default_handler: python
@@ -39,10 +53,15 @@ plugins:
 
 markdown_extensions:
   - attr_list
-  # - pymdownx.superfences
-  # - pymdownx.emoji
-  # - pymdownx.tasklist
-  # - pymdownx.tilde
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
 
 extra_css:
   - stylesheets/extra.css
