@@ -47,9 +47,10 @@ class AdbPairing:
             instance.
         pair: Pair the devices using the mDNS listener.
     """
+
     def __init__(
         self,
-        service_name: str = "robot-celular",
+        service_name: str = 'robot-celular',
         service_regex_filter: Optional[str] = None,
         subprocess_check_flag: bool = False,
     ) -> None:
@@ -111,7 +112,7 @@ class AdbPairing:
         Returns:
             str: The qrcode string.
         """
-        return f"WIFI:T:ADB;S:{self.__name};P:{self.__passwd};;"
+        return f'WIFI:T:ADB;S:{self.__name};P:{self.__passwd};;'
 
     @property
     def qrcode(self) -> qrcode.QRCode:
@@ -141,7 +142,7 @@ class AdbPairing:
             str: The password.
         """
         alphabet = string.ascii_letters + string.digits
-        return "".join(secrets.choice(alphabet) for _ in range(8))
+        return ''.join(secrets.choice(alphabet) for _ in range(8))
 
     def __qrcode(self) -> None:
         """Create the qrcode image.
@@ -157,8 +158,8 @@ class AdbPairing:
         )
         self.__qr.add_data(s)
         self.__qr_image = self.__qr.make_image(
-            fill_color="black",
-            back_color="white",
+            fill_color='black',
+            back_color='white',
         )
 
     def update_qrcode(self, new_password: bool = False) -> None:
@@ -176,8 +177,7 @@ class AdbPairing:
         self.__qrcode()
 
     def start(self) -> None:
-        """Start the ServiceBrowser to listen to the mDNS services.
-        """
+        """Start the ServiceBrowser to listen to the mDNS services."""
         if not self.__started:
             self.__zeroconf = Zeroconf()
             self.__browser = ServiceBrowser(
@@ -194,7 +194,7 @@ class AdbPairing:
                 """Callback function to update the __started attribute and
                 the __browser attribute, once the Zeroconf service has been
                 finalized."""
-                print("Zeroconf finalized")
+                print('Zeroconf finalized')
                 self.__browser = None
                 self.__started = False
 
@@ -205,8 +205,7 @@ class AdbPairing:
             self.__started = True
 
     def qrcode_prompt_show(self) -> None:
-        """Show the qrcode in the terminal.
-        """
+        """Show the qrcode in the terminal."""
         self.__qr.print_ascii(tty=True)
 
     def qrcode_cv_window_show(self) -> None:
@@ -214,7 +213,7 @@ class AdbPairing:
         It expects the user to close the window to continue the execution of
         the script.
         """
-        cv.imshow("pair", self.__get_img_cv())
+        cv.imshow('pair', self.__get_img_cv())
         cv.waitKey(0)
         cv.destroyAllWindows()
 
@@ -226,7 +225,7 @@ class AdbPairing:
             cv.typing.MatLike: The qrcode image in a format that can be used by
                 the openCV library.
         """
-        img_rgb = self.__qr_image.convert("RGB")
+        img_rgb = self.__qr_image.convert('RGB')
         img_mat = cv.cvtColor(np.array(img_rgb), cv.COLOR_RGB2BGR)
 
         return cv.resize(img_mat, (400, 400))
@@ -252,21 +251,20 @@ class AdbPairing:
         success = False
         online_services = self.__context.get_online_service().items()
         for elem in online_services:
-            comm_uri = f"{elem[1].ip}:{elem[1].port}"
+            comm_uri = f'{elem[1].ip}:{elem[1].port}'
             result = subprocess.run(
-                ["adb", "pair", comm_uri, self.__passwd],
+                ['adb', 'pair', comm_uri, self.__passwd],
                 capture_output=True,
                 text=True,
                 check=self.__subprocess_check_flag,
             )
-            if f"Successfully paired to {comm_uri}" in result.stdout:
+            if f'Successfully paired to {comm_uri}' in result.stdout:
                 success = True
 
         return success
 
     def stop_pair_listener(self) -> None:
-        """Stop the ServiceBrowser and close the Zeroconf instance.
-        """
+        """Stop the ServiceBrowser and close the Zeroconf instance."""
         self.__zeroconf.close()
 
     @contextmanager
@@ -287,6 +285,7 @@ class AdbPairing:
         Yields:
             Generator[str, None, None]: The qrcode string.
         """
+
         def coro():
             try:
                 self.start()

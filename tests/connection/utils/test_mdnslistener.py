@@ -110,12 +110,13 @@ def test_add_service(mdns_listener, mock_zeroconf, mock_mdns_context):
         'test-name',
     )
     info = ServiceInfo(
-            serial_number='emulator',
-            ip='127.0.0.1',
-            port=5555,
-        )
+        serial_number='emulator',
+        ip='127.0.0.1',
+        port=5555,
+    )
     mock_mdns_context.add_service.assert_called_once_with(
-        info.serial_number, info,
+        info.serial_number,
+        info,
     )
 
 
@@ -130,12 +131,13 @@ def test_update_service(mdns_listener, mock_zeroconf, mock_mdns_context):
         'test-name',
     )
     info = ServiceInfo(
-            serial_number='emulator',
-            ip='127.0.0.1',
-            port=5555,
-        )
+        serial_number='emulator',
+        ip='127.0.0.1',
+        port=5555,
+    )
     mock_mdns_context.update_service.assert_called_once_with(
-        info.serial_number, info,
+        info.serial_number,
+        info,
     )
 
 
@@ -150,10 +152,11 @@ def test_remove_service(mdns_listener, mock_zeroconf, mock_mdns_context):
         'test-name',
     )
     info = ServiceInfo(
-            serial_number='emulator',
-            ip='127.0.0.1',
-            port=5555,
-        )
+        serial_number='emulator',
+        ip='127.0.0.1',
+        port=5555,
+    )
     mock_mdns_context.to_offline_service.assert_called_once_with(
-        info.serial_number, info,
+        info.serial_number,
+        info,
     )

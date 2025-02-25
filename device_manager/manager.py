@@ -4,7 +4,10 @@ from typing import Iterable, List, NamedTuple, Optional, Tuple
 
 from device_manager.components.object_manager import ObjectManager
 from device_manager.connection.adb_pairing import AdbPairing
-from device_manager.connection.device_connection import DeviceConnection
+from device_manager.connection.device_connection import (
+    DEFAULT_FIXED_PORT,
+    DeviceConnection,
+)
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
 
@@ -14,7 +17,7 @@ DeviceObjects = NamedTuple(
         ('serial_number', str),
         ('device_info', DeviceInfo),
         ('device_actions', DeviceActions),
-    ]
+    ],
 )
 
 
@@ -23,10 +26,54 @@ class DeviceManager:
     each of their reference internally. It is able to retrieve the associated
     `DeviceInfo` and `DeviceAction` for each device, by accessing this
     class as a dict, using the device serial used for connection as key.
+
+    Args:
+        subprocess_check_flag (bool, optional): A flag to check if the
+            subprocess execution was successful, passed to the subprocess
+            `check` argument. Defaults to False.
+            Check the subprocess documentation for more information.
+        fixed_port (int, optional): The fixed port to be used by the devices.
+            Defaults to DEFAULT_FIXED_PORT.
+
+    Attributes:
+        `connected_devices` (List[str]): The list of serial numbers of the
+            devices that are currently connected.
+        `connector` (DeviceConnection): The `DeviceConnection` object used to
+            manage the device connections.
+        `adb_pair` (Optional[AdbPairing]): The `AdbPairing` object used to
+            manage the pairing of devices.
+
+    Properties:
+        - `connected_devices` (List[str]): The list of serial numbers of the
+            devices that are currently connected.
+
+    Methods:
+        connect_devices: Connects to the devices with the provided serial
+            numbers.
+        get_device_info: Retrieves the device information associated with a
+            given serial number.
+        get_device_actions: Retrieves the device actions associated with a
+            given serial number.
+        build_command_list: Builds a list of commands to be executed on
+            multiple devices.
+        execute_adb_command: Executes a custom adb command on all connected
+            devices.
+        adb_pairing_instance: Creates an instance of the AdbPairing class.
+        is_connected: Checks if a device with the provided serial number is
+            connected.
     """
 
-    def __init__(self):
-        self.connector = DeviceConnection()
+    def __init__(
+        self,
+        subprocess_check_flag: bool = False,
+        fixed_port: int = DEFAULT_FIXED_PORT,
+    ):
+        self.subprocess_check = subprocess_check_flag
+        self._devices_fixed_port = fixed_port
+        self.connector = DeviceConnection(
+            subprocess_check_flag=self.subprocess_check,
+            fixed_port=self._devices_fixed_port,
+        )
         self.adb_pair: Optional[AdbPairing] = None
         self.__device_info: ObjectManager[DeviceInfo] = ObjectManager()
         self.__device_actions: ObjectManager[DeviceActions] = ObjectManager()
@@ -58,10 +105,12 @@ class DeviceManager:
                     dev_info = DeviceInfo(
                         self.connector,
                         serial,
+                        subprocess_check_flag=self.subprocess_check,
                     )
                     dev_actions = DeviceActions(
                         self.connector,
                         serial,
+                        subprocess_check_flag=self.subprocess_check,
                     )
                     self.__device_info.add(serial, dev_info)
                     self.__device_actions.add(serial, dev_actions)
@@ -133,13 +182,13 @@ class DeviceManager:
             **kwargs: Additional arguments to be added to the command.
         """
         command = base_command.copy()
-        command_as_list = custom_command.split(" ")
+        command_as_list = custom_command.split(' ')
         for idx, uri in enumerate(comm_uri_list):
-            command.extend(["-s", uri])
-            command.append("shell")
+            command.extend(['-s', uri])
+            command.append('shell')
             command.extend(command_as_list)
             if idx < len(comm_uri_list) - 1:
-                command.extend(["&&", "adb"])
+                command.extend(['&&', 'adb'])
         if kwargs:
             for key, value in kwargs.items():
                 command.extend([key, value])
@@ -182,9 +231,8 @@ class DeviceManager:
         """
         uris = comm_uris
         if comm_uris is None:
-            uris = [device.current_comm_uri
-                    for device in self.__device_info]
-        base_command = ["adb"]
+            uris = [device.current_comm_uri for device in self.__device_info]
+        base_command = ['adb']
         adb_command = self.build_command_list(
             base_command=base_command,
             comm_uri_list=uris,
@@ -221,8 +269,19 @@ class DeviceManager:
         self.adb_pair = AdbPairing(
             service_name=service_name,
             service_regex_filter=service_regex_filter,
-            subprocess_check_flag=subprocess_check_flag
+            subprocess_check_flag=subprocess_check_flag,
         )
+
+    def is_connected(self, serial_number: str) -> bool:
+        """Checks if a device with the provided serial number is connected.
+
+        Args:
+            serial_number (str): The serial number of the device.
+
+        Returns:
+            bool: True if the device is connected, False otherwise.
+        """
+        return self.connector.is_connected(serial_number)
 
     def __len__(self) -> int:
         """Returns the number of devices currently managed by this class."""
@@ -234,9 +293,13 @@ class DeviceManager:
         device information and device actions.
 
         Supports usage of the `for` loop to iterate over the devices."""
-        device_objects = map(lambda info, actions: DeviceObjects(
-            serial_number=info.serial_number,
-            device_info=info,
-            device_actions=actions,
-        ), self.__device_info, self.__device_actions)
+        device_objects = map(
+            lambda info, actions: DeviceObjects(
+                serial_number=info.serial_number,
+                device_info=info,
+                device_actions=actions,
+            ),
+            self.__device_info,
+            self.__device_actions,
+        )
         return device_objects

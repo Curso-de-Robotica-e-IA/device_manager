@@ -15,21 +15,21 @@ from device_manager.connection.utils.mdns_context import (
     ServiceInfo,
 )
 
-r'''re_filter -> This string is used to filter the services found by the mDNS
+r"""re_filter -> This string is used to filter the services found by the mDNS
 listener. It is used to extract the serial number from the service name.
-"adb\-(\w+)\-\w+\\" is the default value.'''
-DEFAULT_REGEX_FILTER = r"adb\-(\w+)\-\w+\\?"
+"adb\-(\w+)\-\w+\\" is the default value."""
+DEFAULT_REGEX_FILTER = r'adb\-(\w+)\-\w+\\?'
 
 
 '''service_type -> In summary, this string is used to identify a specific type
 of service (ADB TLS pairing) that can be discovered on the local network
 using DNS-SD. "_adb-tls-pairing._tcp.local."'''
-CONNECT_SERVICE_TYPE = "_adb-tls-connect._tcp.local."
+CONNECT_SERVICE_TYPE = '_adb-tls-connect._tcp.local.'
 
-'''This string is used to identify a specific type of service (ADB TLS pairing)
+"""This string is used to identify a specific type of service (ADB TLS pairing)
 that can be discovered on the local network using DNS-SD.
-'''
-PAIRING_SERVICE_TYPE = "_adb-tls-pairing._tcp.local."
+"""
+PAIRING_SERVICE_TYPE = '_adb-tls-pairing._tcp.local.'
 
 
 class MDnsListener(ServiceListener):
@@ -119,18 +119,18 @@ class MDnsListener(ServiceListener):
             Optional[ServiceInfo]: The extracted service information.
         """
         try:
-            ip = f"{socket.inet_ntoa(info.addresses[0])}"
+            ip = f'{socket.inet_ntoa(info.addresses[0])}'
             port = info.port
             if self.__re_filter is None:
-                return ServiceInfo(info.name.split(".")[0], ip, port)
+                return ServiceInfo(info.name.split('.')[0], ip, port)
             match_result = re.match(
-                rf"{self.__re_filter}.{self.__type_filter}", info.name
+                rf'{self.__re_filter}.{self.__type_filter}', info.name
             )
             if match_result:
                 serial_num = match_result.group(1)
                 return ServiceInfo(serial_num, ip, port)
             else:
-                print(f"AdbMDns not match: {info.name}")
+                print(f'AdbMDns not match: {info.name}')
         except Exception as e:  # pragma: no cover
             print(e)
             raise e

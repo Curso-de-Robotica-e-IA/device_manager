@@ -26,6 +26,7 @@ class MDnsContext:
         update_service(key_data, data): Update a service in the online list.
         to_offline_service(key_data, data): Move a service to the offline list.
     """
+
     def __init__(self):
         self.__services_info_online = {}
         self.__services_info_offline = {}

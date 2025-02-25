@@ -1,5 +1,6 @@
 import subprocess
 from time import sleep
+
 from device_manager.connection.device_connection import DeviceConnection
 
 
@@ -10,13 +11,48 @@ class DeviceActions:
     Args:
         device_connection (DeviceConnection): the `DeviceConnection` object.
         serial_number (str): the serial number associated with the device.
+        subprocess_check_flag (bool): the flag to check the subprocess
+            execution status. Defaults to False.
+            Check the subprocess documentation for more information
+
+    Attributes:
+        current_comm_uri (str): the current communication URI for the device.
+
+    Properties:
+        - `serial_number` (str): The serial number associated with
+            the device.
+
+    Methods:
+        click_by_coordinates(x: int, y: int) -> None:
+            Simulates a click at the provided (x, y) coordinates.
+        swipe(x1: int, y1: int, x2: int, y2: int, time: int) -> None:
+            Inputs a swipe gesture on the device screen using the provided
+            coordinates and time duration.
+        open_app(package_name: str, activity_name: str) -> None:
+            Opens an application on the device using the provided package
+            name and activity name.
+        close_app(package_name: str) -> None:
+            Closes an application on the device using the provided package
+            name.
+        open_gravity_sensor() -> None:
+            Starts the gravity sensor application.
+        stop_gravity_sensor() -> None:
+            Stops the gravity sensor application.
+        turn_on_screen() -> None:
+            Turns on the device screen.
+        unlock_screen() -> None:
+            Unlocks the device screen.
+        home_button() -> None:
+            Simulates the Home button press on the device
     """
 
     def __init__(
         self,
         device_connection: DeviceConnection,
         serial_number: str,
+        subprocess_check_flag: bool = False,
     ):
+        self.subprocess_check_flag = subprocess_check_flag
         self.device_connection = device_connection
         self.__serial_number = serial_number
         self.current_comm_uri = self.device_connection.build_comm_uri(
@@ -49,10 +85,20 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "input", "swipe",
-                 str(x), str(y), str(x), str(y)],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'input',
+                    'swipe',
+                    str(x),
+                    str(y),
+                    str(x),
+                    str(y),
+                ],
                 shell=True,
+                check=self.subprocess_check_flag,
             )
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, time: int) -> None:
@@ -72,10 +118,21 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "input", "swipe",
-                 str(x1), str(y1), str(x2), str(y2), str(time)],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'input',
+                    'swipe',
+                    str(x1),
+                    str(y1),
+                    str(x2),
+                    str(y2),
+                    str(time),
+                ],
                 shell=True,
+                check=self.subprocess_check_flag,
             )
 
     def open_app(self, package_name: str, activity_name: str) -> None:
@@ -92,10 +149,18 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "am", "start", "-n",
-                 f"{package_name}/{activity_name}"],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'am',
+                    'start',
+                    '-n',
+                    f'{package_name}/{activity_name}',
+                ],
                 shell=True,
+                check=self.subprocess_check_flag,
             )
 
     def close_app(self, package_name: str) -> None:
@@ -111,9 +176,17 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "am", "force-stop", package_name],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'am',
+                    'force-stop',
+                    package_name,
+                ],
                 shell=True,
+                check=self.subprocess_check_flag,
             )
 
     # Remove
@@ -127,9 +200,16 @@ class DeviceActions:
         ):
             uri = self.current_comm_uri
             subprocess.run(
-                ["adb", '-s', uri, "shell", "am", "start",
-                 "com.rria.gravity/com.rria.gravity.MainActivity"],
-                check=True,
+                [
+                    'adb',
+                    '-s',
+                    uri,
+                    'shell',
+                    'am',
+                    'start',
+                    'com.rria.gravity/com.rria.gravity.MainActivity',
+                ],
+                check=self.subprocess_check_flag,
             )
             sleep(2)
 
@@ -146,9 +226,16 @@ class DeviceActions:
         ):
             uri = self.current_comm_uri
             subprocess.run(
-                ["adb", '-s', uri, "shell", "am", "force-stop",
-                 "com.rria.gravity"],
-                check=True,
+                [
+                    'adb',
+                    '-s',
+                    uri,
+                    'shell',
+                    'am',
+                    'force-stop',
+                    'com.rria.gravity',
+                ],
+                check=self.subprocess_check_flag,
             )
 
     def turn_on_screen(self):
@@ -161,8 +248,16 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "input", "keyevent", "26"],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'input',
+                    'keyevent',
+                    '26',
+                ],
+                check=self.subprocess_check_flag,
             )
 
     def unlock_screen(self):
@@ -175,8 +270,16 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "input", "keyevent", "82"],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'input',
+                    'keyevent',
+                    '82',
+                ],
+                check=self.subprocess_check_flag,
             )
 
     def home_button(self):
@@ -189,6 +292,14 @@ class DeviceActions:
             force_reconnect=True,
         ):
             subprocess.run(
-                ["adb", "-s", self.current_comm_uri,
-                 "shell", "input", "keyevent", "3"],
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'input',
+                    'keyevent',
+                    '3',
+                ],
+                check=self.subprocess_check_flag,
             )

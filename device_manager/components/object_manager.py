@@ -1,6 +1,5 @@
 from types import MappingProxyType
-from typing import TypeVar, Generic, Dict, Optional
-
+from typing import Dict, Generic, Optional, TypeVar
 
 T = TypeVar('T')
 
@@ -39,11 +38,11 @@ class ObjectManager(Generic[T]):
                 already in the manager.
         """
         if not isinstance(key, str):
-            raise TypeError(f"Key of type {type(key)} not allowed")
+            raise TypeError(f'Key of type {type(key)} not allowed')
         if len(self.__objects) > 0:
             if not isinstance(obj, type(list(self.__objects.values())[0])):
-                raise TypeError(f"Object of type {type(obj)} not allowed")
-        self.__setitem__(key, obj)
+                raise TypeError(f'Object of type {type(obj)} not allowed')
+        self[key] = obj
 
     def remove(self, key: str):
         """Remove an object from the manager.
@@ -52,7 +51,7 @@ class ObjectManager(Generic[T]):
             key (str): The key of the object to remove.
         """
         if key in self.__objects:
-            self.__delitem__(key)
+            del self[key]
 
     def get(self, key: str) -> T:
         """Get an object from the manager.
@@ -63,7 +62,7 @@ class ObjectManager(Generic[T]):
         Returns:
             T: The object associated with the key.
         """
-        return self.__getitem__(key)
+        return self[key]
 
     def edit(self, key: str, new_obj: T):
         """Edit an object in the manager.
@@ -73,7 +72,7 @@ class ObjectManager(Generic[T]):
             new_obj (T): The new object to replace the existing object.
         """
         if key in self.__objects:
-            self.__setitem__(key, new_obj)
+            self[key] = new_obj
 
     def __len__(self):
         """Get the number of objects in the manager.
