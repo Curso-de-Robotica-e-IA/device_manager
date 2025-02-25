@@ -1,9 +1,10 @@
 import pytest
+
 from device_manager.components.object_manager import ObjectManager
 
 
 @pytest.mark.parametrize(
-    'key, value',
+    ('key', 'value'),
     [
         ('one', 1),
         ('two', 2),
@@ -25,8 +26,8 @@ def test_object_manager_key_not_string():
 
 def test_object_manager_add_holds_just_one_type():
     manager = ObjectManager()
+    manager.add('one', 1)
     with pytest.raises(TypeError):
-        manager.add('one', 1)
         manager.add('two', '2')
 
 
@@ -58,7 +59,7 @@ def test_object_manager_dunder_len():
     manager.add('one', 1)
     manager.add('two', 2)
 
-    assert len(manager) == 2
+    assert len(manager) == 2  # noqa: PLR2004
 
 
 def test_object_manager_dunder_iter():
