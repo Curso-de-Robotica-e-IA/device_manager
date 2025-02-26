@@ -10,7 +10,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 zeroconf = "^0.140.1"
 numpy = "^2.2.2"
 opencv-python = "^4.11.0.86"

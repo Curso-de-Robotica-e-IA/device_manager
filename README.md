@@ -14,6 +14,12 @@ In the root of the repository, run the following commands:
 poetry install
 ```
 
+or, if you want to serve the documentation locally:
+```
+poetry install --with doc
+```
+
+
 ```bash
 poetry build -f wheel
 ```
