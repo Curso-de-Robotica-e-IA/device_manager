@@ -25,6 +25,16 @@ class AdbPairing:
     Zeroconf
     instance.
 
+    Args:
+        service_name (str, optional): The service name to listen to. Defaults
+            to 'robot-celular'.
+        service_regex_filter (Optional[str], optional): The regex filter to
+            apply to the service name. Defaults to None.
+        subprocess_check_flag (bool, optional): Indicates if the subprocess
+            must raise an exception if the command fails. Defaults to False.
+        password (Optional[str], optional): The password to pair the devices.
+            If None, a random password is generated. Defaults to None.
+
     Properties:
         - `service_browser_started` (bool): Check if the ServiceBrowser has
             been started.
@@ -34,6 +44,7 @@ class AdbPairing:
         - `qrcode_string` (str): Get the qrcode string.
         - `qrcode` (qrcode.QRCode): Get the qrcode object.
         - `qrcode_image` (qrcode.image.base.BaseImage): Get the qrcode image.
+        - `password` (str): Get the password.
 
     Methods:
         update_qrcode: Update the qrcode image.
@@ -46,6 +57,10 @@ class AdbPairing:
         stop_pair_listener: Stop the ServiceBrowser and close the Zeroconf
             instance.
         pair: Pair the devices using the mDNS listener.
+
+    Class Methods:
+        generate_qrcode_string: Generate the qrcode string using the service
+            name and password.
     """
 
     def __init__(
@@ -53,11 +68,15 @@ class AdbPairing:
         service_name: str = 'robot-celular',
         service_regex_filter: Optional[str] = None,
         subprocess_check_flag: bool = False,
+        password: Optional[str] = None,
     ) -> None:
         self.__name = service_name
         self.__qr = None
         self.__qr_image = None
-        self.__passwd = self.__create_password()
+        if password is not None:
+            self.__passwd = password
+        else:
+            self.__passwd = self.__create_password()
         self.__qrcode()
         self.__service_re_filter = service_regex_filter
         self.__service_type = PAIRING_SERVICE_TYPE
@@ -97,6 +116,19 @@ class AdbPairing:
             return False
         return self.__finalize.alive
 
+    @staticmethod
+    def generate_qrcode_string(service_name: str, password: str) -> str:
+        """Generate the qrcode string using the service name and password.
+
+        Args:
+            service_name (str): The service name.
+            password (str): The password.
+
+        Returns:
+            str: The qrcode string.
+        """
+        return f'WIFI:T:ADB;S:{service_name};P:{password};;'
+
     @property
     def qrcode_string(self) -> str:
         """Get the qrcode string.
@@ -112,7 +144,16 @@ class AdbPairing:
         Returns:
             str: The qrcode string.
         """
-        return f'WIFI:T:ADB;S:{self.__name};P:{self.__passwd};;'
+        return self.generate_qrcode_string(self.__name, self.__passwd)
+
+    @property
+    def password(self) -> str:
+        """Get the password.
+
+        Returns:
+            str: The password.
+        """
+        return self.__passwd
 
     @property
     def qrcode(self) -> qrcode.QRCode:
@@ -175,6 +216,19 @@ class AdbPairing:
         if new_password:
             self.__passwd = self.__create_password()
         self.__qrcode()
+
+    def set_password(self, password: str, update_qrcode: bool = True) -> None:
+        """Explicitly sets the internal password attribute, and updates the
+        qrcode values.
+
+        Args:
+            password (str): The new password.
+            update_qrcode (bool, optional): Indicates that the qrcode image
+                must be updated. Defaults to True.
+        """
+        self.__passwd = password
+        if update_qrcode:
+            self.update_qrcode(new_password=False)
 
     def start(self) -> None:
         """Start the ServiceBrowser to listen to the mDNS services."""
