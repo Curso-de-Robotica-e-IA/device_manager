@@ -98,3 +98,5 @@ format = 'ruff check . --fix && ruff format .'
 pre_test = 'task format'
 test = 'pytest -vv --cov=device_manager --cov-report=term-missing -p no:warnings --disable-socket'
 post_test = 'coverage html'
+docs = "mkdocs serve"
+bdocs = "mkdocs build"
