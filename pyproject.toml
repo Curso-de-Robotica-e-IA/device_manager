@@ -17,21 +17,25 @@ dependencies = [
     "rich>=13.9.4"
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.3.4",
-    "taskipy>=1.14.1",
-    "pytest-cov>=6.0.0",
-    "pytest-mock>=3.14.0",
-    "ruff>=0.9.6",
-    "pytest-socket>=0.7.0"
-]
-doc = [
-    "mkdocs>=1.6.1",
-    "mkdocs-material>=9.6.5",
-    "pymdown-extensions>=10.14.3",
-    "mkdocstrings-python>=1.16.2"
-]
+[tool.poetry.group.doc]
+optional = true
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+taskipy = "^1.14.1"
+pytest-cov = "^6.0.0"
+pytest-mock = "^3.14.0"
+ruff = "^0.9.6"
+pytest-socket = "^0.7.0"
+
+[tool.poetry.group.doc.dependencies]
+mkdocs = "^1.6.1"
+mkdocs-material = "^9.6.5"
+pymdown-extensions = "^10.14.3"
+mkdocstrings-python = "^1.16.2"
 
 [project.urls]
 homepage = "https://github.com/Curso-de-Robotica-e-IA/device_manager/tree/documentation"
