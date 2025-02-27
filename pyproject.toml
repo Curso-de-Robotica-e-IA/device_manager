@@ -1,22 +1,27 @@
-[tool.poetry]
+[project]
 name = "device_manager"
-version = "0.1.0"
+version = "0.2.0"
 description = ""
-authors = ["Bruno Pinheiro <bopj@softex.cin.ufpe.br>"]
-license = "GNU AFFERO GENERAL PUBLIC LICENSE v3.0"
+authors = [
+    { name = "Bruno Pinheiro", email = "bopj@softex.cin.ufpe.br" }
+]
+license = { text = "GNU AFFERO GENERAL PUBLIC LICENSE v3.0" }
 readme = "README.md"
-packages = [
-    { include = "device_manager" },
+requires-python = ">=3.10, <3.14"
+dependencies = [
+    "zeroconf>=0.140.1",
+    "numpy>=2.2.2",
+    "opencv-python>=4.11.0.86",
+    "qrcode>=8.0",
+    "uiautomator2>=3.2.8",
+    "rich>=13.9.4"
 ]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-zeroconf = "^0.140.1"
-numpy = "^2.2.2"
-opencv-python = "^4.11.0.86"
-qrcode = "^8.0"
-uiautomator2 = "^3.2.8"
-rich = "^13.9.4"
+[tool.poetry.group.doc]
+optional = true
+
+[tool.poetry.group.dev]
+optional = true
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
@@ -26,12 +31,14 @@ pytest-mock = "^3.14.0"
 ruff = "^0.9.6"
 pytest-socket = "^0.7.0"
 
-
 [tool.poetry.group.doc.dependencies]
 mkdocs = "^1.6.1"
 mkdocs-material = "^9.6.5"
 pymdown-extensions = "^10.14.3"
 mkdocstrings-python = "^1.16.2"
+
+[project.urls]
+homepage = "https://github.com/Curso-de-Robotica-e-IA/device_manager/tree/documentation"
 
 [build-system]
 requires = ["poetry-core"]
@@ -96,3 +103,5 @@ format = 'ruff check . --fix && ruff format .'
 pre_test = 'task format'
 test = 'pytest -vv --cov=device_manager --cov-report=term-missing -p no:warnings --disable-socket'
 post_test = 'coverage html'
+docs = "mkdocs serve"
+bdocs = "mkdocs build"
