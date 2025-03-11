@@ -232,17 +232,17 @@ class DeviceConnection:
             check=self.__subprocess_check_flag,
         ).stdout
         self.console.print(devices_connected)
-        all_connected = False
-        for serial_number in self.connection_info.keys():
+        serial_numbers = self.connection_info.keys()
+        if len(serial_numbers) == 0:
+            return False
+        all_connected = [False] * len(serial_numbers)
+        for idx, serial_number in enumerate(serial_numbers):
             result = self.is_connected(
                 serial_number=serial_number,
                 devices_connected=devices_connected,
             )
-            if not result:
-                return False
-            if result:
-                all_connected = True
-        return all_connected
+            all_connected[idx] = result
+        return all(all_connected)
 
     def build_comm_uri(self, serial_number: str) -> str:
         """
