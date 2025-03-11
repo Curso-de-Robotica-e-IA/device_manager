@@ -205,6 +205,8 @@ class DeviceConnection:
             ).stdout
 
         device = self.connection_info.get(serial_number)
+        if device is None:
+            return False
         substr = f'{device.ip}:{device.port}\tdevice'
 
         result = False
@@ -230,6 +232,7 @@ class DeviceConnection:
             check=self.__subprocess_check_flag,
         ).stdout
         self.console.print(devices_connected)
+        all_connected = False
         for serial_number in self.connection_info.keys():
             result = self.is_connected(
                 serial_number=serial_number,
@@ -237,7 +240,9 @@ class DeviceConnection:
             )
             if not result:
                 return False
-        return True
+            if result:
+                all_connected = True
+        return all_connected
 
     def build_comm_uri(self, serial_number: str) -> str:
         """
