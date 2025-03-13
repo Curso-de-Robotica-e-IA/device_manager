@@ -2,20 +2,22 @@ import secrets
 import string
 import subprocess
 from contextlib import contextmanager
-from typing import Generator, Optional
+from typing import Generator, List, Optional, Sequence, Tuple, Union
 from weakref import finalize
 
 import cv2 as cv
 import numpy as np
 import qrcode
 from qrcode.main import GenericImage
-from zeroconf import ServiceBrowser, Zeroconf
+from zeroconf import InterfaceChoice, IPVersion, ServiceBrowser, Zeroconf
 
 from device_manager.connection.utils.mdns_context import MDnsContext
 from device_manager.connection.utils.mdns_listener import (
     PAIRING_SERVICE_TYPE,
     MDnsListener,
 )
+
+InterfacesType = Union[Sequence[Union[str, int, Tuple[Tuple[str, int, int], int]]], InterfaceChoice]  # noqa
 
 
 class AdbPairing:
@@ -34,6 +36,8 @@ class AdbPairing:
             must raise an exception if the command fails. Defaults to False.
         password (Optional[str], optional): The password to pair the devices.
             If None, a random password is generated. Defaults to None.
+        max_zerconf_instances (int, optional): The max number of Zeroconf
+            instances that can be created. Defaults to 10.
 
     Properties:
         - `service_browser_started` (bool): Check if the ServiceBrowser has
@@ -69,6 +73,7 @@ class AdbPairing:
         service_regex_filter: Optional[str] = None,
         subprocess_check_flag: bool = False,
         password: Optional[str] = None,
+        max_zerconf_instances: int = 10,
     ) -> None:
         self.__name = service_name
         self.__qr = None
@@ -86,6 +91,8 @@ class AdbPairing:
         self.__subprocess_check_flag = subprocess_check_flag
         self.__browser: Optional[ServiceBrowser] = None
         self.__finalize: Optional[finalize] = None
+        self.__max_zc_instances = max_zerconf_instances
+        self._zeroconf_zombies: List[Zeroconf] = list()
 
     @property
     def service_browser_started(self) -> bool:
@@ -230,19 +237,85 @@ class AdbPairing:
         if update_qrcode:
             self.update_qrcode(new_password=False)
 
-    def start(self) -> None:
-        """Start the ServiceBrowser to listen to the mDNS services."""
-        if not self.__started:
-            self.__zeroconf = Zeroconf()
-            self.__browser = ServiceBrowser(
-                self.__zeroconf,
-                self.__service_type,
-                MDnsListener(
-                    self.__context,
-                    self.__service_re_filter,
-                    self.__service_type,
-                ),
+    def __new_zeroconf_instance(
+        self,
+        interfaces: InterfacesType = InterfaceChoice.Default,
+        unicast: bool = False,
+        ip_version: Optional[IPVersion] = None,
+    ) -> None:
+        """Creates a new Zeroconf instance and appends the old instance to the
+        __zeroconf_zombies list, if the list is not full (defined by the
+        __max_zc_instances attribute)
+
+        Args:
+            interfaces (InterfacesType, optional): The interfaces to listen to.
+                Defaults to InterfaceChoice.Default.
+            unicast (bool, optional): Indicates if the mDNS listener should
+                listen to unicast packets. Defaults to False.
+            ip_version (Optional[IPVersion], optional): The IP version to use.
+                Defaults to None.
+        """
+        if len(self._zeroconf_zombies) < self.__max_zc_instances:
+            if self.__zeroconf is not None:
+                self._zeroconf_zombies.append(self.__zeroconf)
+                self.__zeroconf = None
+            self.__zeroconf = Zeroconf(
+                interfaces=interfaces,
+                unicast=unicast,
+                ip_version=ip_version,
+                apple_p2p=False,
             )
+
+    def start(
+        self,
+        interfaces: InterfacesType = InterfaceChoice.Default,
+        unicast: bool = False,
+        ip_version: Optional[IPVersion] = None,
+    ) -> None:
+        """Start the ServiceBrowser to listen to the mDNS services.
+        This functions accepts the interfaces, unicast, and ip_version
+        arguments to pass to the Zerocof constructor.
+
+        If the Zeroconf instance is None, a new instance is created. The
+        ServiceBrowser is created with the Zeroconf instance and the
+        MDnsListener instance. The Zeroconf instance is finalized when the
+        ServiceBrowser is finalized.
+
+        If class attribute `is_async` is True, the Zeroconf instance is created
+        as an AsyncZeroconf instance.
+
+        If you manually call this method, you must call the
+        `stop_pair_listener` method to stop the ServiceBrowser and close the
+        Zeroconf instance.
+
+        Args:
+            interfaces (InterfacesType, optional): The interfaces to listen to.
+                Defaults to InterfaceChoice.Default.
+            unicast (bool, optional): Indicates if the mDNS listener should
+                listen to unicast packets. Defaults to False.
+            ip_version (Optional[IPVersion], optional): The IP version to use.
+                Defaults to None.
+        """
+        if not self.__started:
+            self.__new_zeroconf_instance(
+                interfaces=interfaces,
+                unicast=unicast,
+                ip_version=ip_version
+            )
+            try:
+                self.__browser = ServiceBrowser(
+                    self.__zeroconf,
+                    self.__service_type,
+                    MDnsListener(
+                        self.__context,
+                        self.__service_re_filter,
+                        self.__service_type,
+                    ),
+                )
+            except RuntimeError as e:
+                # Keeps the traceback, but explains what happened
+                raise RuntimeError(
+                    'Maximum number of Zeroconf instances reached.') from e
 
             def atexit() -> None:
                 """Callback function to update the __started attribute and
@@ -319,6 +392,8 @@ class AdbPairing:
 
     def stop_pair_listener(self) -> None:
         """Stop the ServiceBrowser and close the Zeroconf instance."""
+        self.__browser = None
+        self.__started = False
         self.__zeroconf.close()
 
     @contextmanager
