@@ -5,8 +5,6 @@ from contextlib import contextmanager
 from typing import Generator, List, Optional, Sequence, Tuple, Union
 from weakref import finalize
 
-import cv2 as cv
-import numpy as np
 import qrcode
 from qrcode.main import GenericImage
 from zeroconf import InterfaceChoice, IPVersion, ServiceBrowser, Zeroconf
@@ -16,6 +14,7 @@ from device_manager.connection.utils.mdns_listener import (
     PAIRING_SERVICE_TYPE,
     MDnsListener,
 )
+from device_manager.utils.qrcode import QRCode
 
 InterfacesType = Union[Sequence[Union[str, int, Tuple[Tuple[str, int, int], int]]], InterfaceChoice]  # noqa
 
@@ -76,13 +75,16 @@ class AdbPairing:
         max_zerconf_instances: int = 10,
     ) -> None:
         self.__name = service_name
-        self.__qr = None
-        self.__qr_image = None
         if password is not None:
             self.__passwd = password
         else:
             self.__passwd = self.__create_password()
-        self.__qrcode()
+        self.__qrcode = QRCode(
+            qrcode_data=self.generate_qrcode_string(
+                service_name=self.__name,
+                password=self.__passwd,
+            )
+        )
         self.__service_re_filter = service_regex_filter
         self.__service_type = PAIRING_SERVICE_TYPE
         self.__zeroconf: Optional[Zeroconf] = None
@@ -169,7 +171,7 @@ class AdbPairing:
         Returns:
             qrcode.QRCode: The qrcode object.
         """
-        return self.__qr
+        return self.__qrcode.qrcode_object
 
     @property
     def qrcode_image(self) -> GenericImage:
@@ -178,7 +180,7 @@ class AdbPairing:
         Returns:
             GenericImage: The qrcode image.
         """
-        return self.__qr_image
+        return self.__qrcode.qr_image
 
     @staticmethod
     def __create_password() -> str:
@@ -192,24 +194,6 @@ class AdbPairing:
         alphabet = string.ascii_letters + string.digits
         return ''.join(secrets.choice(alphabet) for _ in range(8))
 
-    def __qrcode(self) -> None:
-        """Create the qrcode image.
-        The qrcode image is generated using the qrcode library. The qrcode
-        string is generated using the method `qrcode_string`.
-        """
-        s = self.qrcode_string
-        self.__qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=20,
-            border=2,
-        )
-        self.__qr.add_data(s)
-        self.__qr_image = self.__qr.make_image(
-            fill_color='black',
-            back_color='white',
-        )
-
     def update_qrcode(self, new_password: bool = False) -> None:
         """Update the qrcode image.
         The qrcode image is updated using the qrcode library. The qrcode
@@ -222,7 +206,9 @@ class AdbPairing:
         """
         if new_password:
             self.__passwd = self.__create_password()
-        self.__qrcode()
+        self.__qrcode = QRCode(
+            qrcode_data=self.qrcode_string
+        )
 
     def set_password(self, password: str, update_qrcode: bool = True) -> None:
         """Explicitly sets the internal password attribute, and updates the
@@ -330,32 +316,6 @@ class AdbPairing:
                 atexit,
             )
             self.__started = True
-
-    def qrcode_prompt_show(self) -> None:
-        """Show the qrcode in the terminal."""
-        self.__qr.print_ascii(tty=True)
-
-    def qrcode_cv_window_show(self) -> None:
-        """Show the qrcode in a window, using the openCV library.
-        It expects the user to close the window to continue the execution of
-        the script.
-        """
-        cv.imshow('pair', self.__get_img_cv())
-        cv.waitKey(0)
-        cv.destroyAllWindows()
-
-    def __get_img_cv(self) -> cv.typing.MatLike:
-        """Get the qrcode image in a format that can be used by the openCV
-        library.
-
-        Returns:
-            cv.typing.MatLike: The qrcode image in a format that can be used by
-                the openCV library.
-        """
-        img_rgb = self.__qr_image.convert('RGB')
-        img_mat = cv.cvtColor(np.array(img_rgb), cv.COLOR_RGB2BGR)
-
-        return cv.resize(img_mat, (400, 400))
 
     def has_device_to_pairing(self) -> bool:
         """Check if there are devices to pair.
