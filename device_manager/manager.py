@@ -78,6 +78,113 @@ class DeviceManager:
         self.__device_info: ObjectManager[DeviceInfo] = ObjectManager()
         self.__device_actions: ObjectManager[DeviceActions] = ObjectManager()
 
+    def __getitem__(
+        self,
+        serial_number: str,
+    ) -> Optional[Tuple[DeviceInfo, DeviceActions]]:
+        """Get the device information and actions associated with a
+        serial number. If the serial number is not found, None is returned.
+
+        Args:
+            serial_number (str): The serial number of the device.
+
+        Returns:
+            Optional[Tuple[DeviceInfo, DeviceActions]]: The device information
+            and actions associated with the serial number.
+        """
+        try:
+            info = self.__device_info.get(serial_number)
+            actions = self.__device_actions.get(serial_number)
+            return info, actions
+        except KeyError:
+            return None
+
+    def __len__(self) -> int:
+        """Returns the number of devices currently managed by this class."""
+        return len(self.__device_info)
+
+    def __iter__(self) -> Iterable[DeviceObjects]:
+        """Iterates over the devices being managed by this class.
+        Returns an iterator with a tuple containing the device serial number,
+        device information and device actions.
+
+        Supports usage of the `for` loop to iterate over the devices."""
+        device_objects = map(
+            lambda info, actions: DeviceObjects(
+                serial_number=info.serial_number,
+                device_info=info,
+                device_actions=actions,
+            ),
+            self.__device_info,
+            self.__device_actions,
+        )
+        return device_objects
+
+    def __delitem__(self, key: str) -> None:
+        """Removes a device from the manager.
+
+        Args:
+            key (str): The serial number of the device to remove.
+        """
+        del self.__device_info[key]
+        del self.__device_actions[key]
+
+    def __contains__(self, key: str) -> bool:
+        """Checks if a device with the provided serial number is managed.
+
+        Args:
+            key (str): The serial number of the device to check.
+
+        Returns:
+            bool: True if the device is managed, False otherwise.
+        """
+        return key in self.__device_info
+
+    def __repr__(self) -> str:
+        """Returns a string representation of the class.
+
+        Returns:
+            str: The string representation of the class.
+        """
+        return f'device_manager.DeviceManager({len(self)} devices: {list(self.__device_info.keys())})'  # noqa
+
+    def __str__(self) -> str:
+        return f'DeviceManager({len(self)} devices: {list(self.__device_info.keys())})'  # noqa
+
+    @staticmethod
+    def build_command_list(
+        base_command: List[str],
+        comm_uri_list: List[str],
+        custom_command: str,
+        **kwargs,
+    ) -> List[str]:
+        """Builds a list of commands to be executed on multiple devices.
+        This method is used to build a list of commands that will be executed
+        on multiple devices. The command is built using the base command
+        provided, the list of communication URIs, the custom command to be
+        executed, and any additional arguments that should be added to the
+        command.
+
+        Args:
+            base_command (List[str]): The base command to be executed.
+            comm_uri_list (List[str]): The list of communication URIs for the
+                devices.
+            custom_command (str): The custom command to be executed.
+            **kwargs: Additional arguments to be added to the command.
+        """
+        command = base_command.copy()
+        command_as_list = custom_command.split(' ')
+        for idx, uri in enumerate(comm_uri_list):
+            command.extend(['-s', uri])
+            command.append('shell')
+            command.extend(command_as_list)
+            if idx < len(comm_uri_list) - 1:
+                command.extend(['&&', 'adb'])
+        if kwargs:
+            for key, value in kwargs.items():
+                command.extend([key, value])
+        return command
+
     @property
     def connected_devices(self) -> List[str]:
         """Returns the list of serial numbers of the devices that are
@@ -138,61 +245,6 @@ class DeviceManager:
             DeviceActions: The device actions object.
         """
         return self.__device_actions.get(serial_number)
-
-    def __getitem__(
-        self,
-        serial_number: str,
-    ) -> Optional[Tuple[DeviceInfo, DeviceActions]]:
-        """Get the device information and actions associated with a
-        serial number. If the serial number is not found, None is returned.
-
-        Args:
-            serial_number (str): The serial number of the device.
-
-        Returns:
-            Optional[Tuple[DeviceInfo, DeviceActions]]: The device information
-            and actions associated with the serial number.
-        """
-        try:
-            info = self.__device_info.get(serial_number)
-            actions = self.__device_actions.get(serial_number)
-            return info, actions
-        except KeyError:
-            return None
-
-    @staticmethod
-    def build_command_list(
-        base_command: List[str],
-        comm_uri_list: List[str],
-        custom_command: str,
-        **kwargs,
-    ) -> List[str]:
-        """Builds a list of commands to be executed on multiple devices.
-        This method is used to build a list of commands that will be executed
-        on multiple devices. The command is built using the base command
-        provided, the list of communication URIs, the custom command to be
-        executed, and any additional arguments that should be added to the
-        command.
-
-        Args:
-            base_command (List[str]): The base command to be executed.
-            comm_uri_list (List[str]): The list of communication URIs for the
-                devices.
-            custom_command (str): The custom command to be executed.
-            **kwargs: Additional arguments to be added to the command.
-        """
-        command = base_command.copy()
-        command_as_list = custom_command.split(' ')
-        for idx, uri in enumerate(comm_uri_list):
-            command.extend(['-s', uri])
-            command.append('shell')
-            command.extend(command_as_list)
-            if idx < len(comm_uri_list) - 1:
-                command.extend(['&&', 'adb'])
-        if kwargs:
-            for key, value in kwargs.items():
-                command.extend([key, value])
-        return command
 
     def execute_adb_command(
         self,
@@ -283,23 +335,8 @@ class DeviceManager:
         """
         return self.connector.is_connected(serial_number)
 
-    def __len__(self) -> int:
-        """Returns the number of devices currently managed by this class."""
-        return len(self.__device_info)
-
-    def __iter__(self) -> Iterable[DeviceObjects]:
-        """Iterates over the devices being managed by this class.
-        Returns an iterator with a tuple containing the device serial number,
-        device information and device actions.
-
-        Supports usage of the `for` loop to iterate over the devices."""
-        device_objects = map(
-            lambda info, actions: DeviceObjects(
-                serial_number=info.serial_number,
-                device_info=info,
-                device_actions=actions,
-            ),
-            self.__device_info,
-            self.__device_actions,
-        )
-        return device_objects
+    def clear(self) -> None:
+        """Clears the internal object managers, removing all devices.
+        """
+        self.__device_info = ObjectManager()
+        self.__device_actions = ObjectManager()

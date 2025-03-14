@@ -1,21 +1,21 @@
-import secrets
-import string
 import subprocess
 from contextlib import contextmanager
-from typing import Generator, Optional
+from typing import Generator, List, Optional, Sequence, Tuple, Union
 from weakref import finalize
 
-import cv2 as cv
-import numpy as np
 import qrcode
 from qrcode.main import GenericImage
-from zeroconf import ServiceBrowser, Zeroconf
+from zeroconf import InterfaceChoice, IPVersion, ServiceBrowser, Zeroconf
 
 from device_manager.connection.utils.mdns_context import MDnsContext
 from device_manager.connection.utils.mdns_listener import (
     PAIRING_SERVICE_TYPE,
     MDnsListener,
 )
+from device_manager.utils.qrcode import QRCode
+from device_manager.utils.util_functions import create_password
+
+InterfacesType = Union[Sequence[Union[str, int, Tuple[Tuple[str, int, int], int]]], InterfaceChoice]  # noqa
 
 
 class AdbPairing:
@@ -34,6 +34,8 @@ class AdbPairing:
             must raise an exception if the command fails. Defaults to False.
         password (Optional[str], optional): The password to pair the devices.
             If None, a random password is generated. Defaults to None.
+        max_zeroconf_instances (int, optional): The max number of Zeroconf
+            instances that can be created. Defaults to 10.
 
     Properties:
         - `service_browser_started` (bool): Check if the ServiceBrowser has
@@ -63,59 +65,6 @@ class AdbPairing:
             name and password.
     """
 
-    def __init__(
-        self,
-        service_name: str = 'robot-celular',
-        service_regex_filter: Optional[str] = None,
-        subprocess_check_flag: bool = False,
-        password: Optional[str] = None,
-    ) -> None:
-        self.__name = service_name
-        self.__qr = None
-        self.__qr_image = None
-        if password is not None:
-            self.__passwd = password
-        else:
-            self.__passwd = self.__create_password()
-        self.__qrcode()
-        self.__service_re_filter = service_regex_filter
-        self.__service_type = PAIRING_SERVICE_TYPE
-        self.__zeroconf: Optional[Zeroconf] = None
-        self.__context = MDnsContext()
-        self.__started = False
-        self.__subprocess_check_flag = subprocess_check_flag
-        self.__browser: Optional[ServiceBrowser] = None
-        self.__finalize: Optional[finalize] = None
-
-    @property
-    def service_browser_started(self) -> bool:
-        """Check if the ServiceBrowser has been started.
-
-        Returns:
-            bool: True if the ServiceBrowser has been started, False otherwise.
-        """
-        return self.__started
-
-    @property
-    def browser(self) -> Optional[ServiceBrowser]:
-        """Returns the actual ServiceBrowser instance, if it exists.
-
-        Returns:
-            ServiceBrowser: The ServiceBrowser instance.
-        """
-        return self.__browser
-
-    @property
-    def zeroconf_status(self) -> bool:
-        """Check if the Zeroconf instance is active.
-
-        Returns:
-            bool: True if the Zeroconf instance is active, False otherwise.
-        """
-        if self.__finalize is None:
-            return False
-        return self.__finalize.alive
-
     @staticmethod
     def generate_qrcode_string(service_name: str, password: str) -> str:
         """Generate the qrcode string using the service name and password.
@@ -128,6 +77,65 @@ class AdbPairing:
             str: The qrcode string.
         """
         return f'WIFI:T:ADB;S:{service_name};P:{password};;'
+
+    def __init__(
+        self,
+        service_name: str = 'robot-celular',
+        service_regex_filter: Optional[str] = None,
+        subprocess_check_flag: bool = False,
+        password: Optional[str] = None,
+        max_zeroconf_instances: int = 10,
+    ) -> None:
+        self._name = service_name
+        if password is not None:
+            self._passwd = password
+        else:
+            self._passwd = create_password()
+        self._qrcode = QRCode(
+            qrcode_data=self.generate_qrcode_string(
+                service_name=self._name,
+                password=self._passwd,
+            )
+        )
+        self._service_re_filter = service_regex_filter
+        self._service_type = PAIRING_SERVICE_TYPE
+        self._zeroconf: Optional[Zeroconf] = None
+        self._context = MDnsContext()
+        self._started = False
+        self._subprocess_check_flag = subprocess_check_flag
+        self._browser: Optional[ServiceBrowser] = None
+        self._finalize: Optional[finalize] = None
+        self._max_zc_instances = max_zeroconf_instances
+        self._zeroconf_zombies: List[Zeroconf] = list()
+
+    @property
+    def service_browser_started(self) -> bool:
+        """Check if the ServiceBrowser has been started.
+
+        Returns:
+            bool: True if the ServiceBrowser has been started, False otherwise.
+        """
+        return self._started
+
+    @property
+    def browser(self) -> Optional[ServiceBrowser]:
+        """Returns the actual ServiceBrowser instance, if it exists.
+
+        Returns:
+            ServiceBrowser: The ServiceBrowser instance.
+        """
+        return self._browser
+
+    @property
+    def zeroconf_status(self) -> bool:
+        """Check if the Zeroconf instance is active.
+
+        Returns:
+            bool: True if the Zeroconf instance is active, False otherwise.
+        """
+        if self._finalize is None:
+            return False
+        return self._finalize.alive
 
     @property
     def qrcode_string(self) -> str:
@@ -144,7 +152,7 @@ class AdbPairing:
         Returns:
             str: The qrcode string.
         """
-        return self.generate_qrcode_string(self.__name, self.__passwd)
+        return self.generate_qrcode_string(self._name, self._passwd)
 
     @property
     def password(self) -> str:
@@ -153,7 +161,7 @@ class AdbPairing:
         Returns:
             str: The password.
         """
-        return self.__passwd
+        return self._passwd
 
     @property
     def qrcode(self) -> qrcode.QRCode:
@@ -162,7 +170,7 @@ class AdbPairing:
         Returns:
             qrcode.QRCode: The qrcode object.
         """
-        return self.__qr
+        return self._qrcode.qrcode_object
 
     @property
     def qrcode_image(self) -> GenericImage:
@@ -171,37 +179,7 @@ class AdbPairing:
         Returns:
             GenericImage: The qrcode image.
         """
-        return self.__qr_image
-
-    @staticmethod
-    def __create_password() -> str:
-        """Create a random password.
-        The password is a string with 8 characters. The characters are
-        alphanumeric.
-
-        Returns:
-            str: The password.
-        """
-        alphabet = string.ascii_letters + string.digits
-        return ''.join(secrets.choice(alphabet) for _ in range(8))
-
-    def __qrcode(self) -> None:
-        """Create the qrcode image.
-        The qrcode image is generated using the qrcode library. The qrcode
-        string is generated using the method `qrcode_string`.
-        """
-        s = self.qrcode_string
-        self.__qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=20,
-            border=2,
-        )
-        self.__qr.add_data(s)
-        self.__qr_image = self.__qr.make_image(
-            fill_color='black',
-            back_color='white',
-        )
+        return self._qrcode.qr_image
 
     def update_qrcode(self, new_password: bool = False) -> None:
         """Update the qrcode image.
@@ -214,8 +192,10 @@ class AdbPairing:
                 Defaults to False.
         """
         if new_password:
-            self.__passwd = self.__create_password()
-        self.__qrcode()
+            self._passwd = create_password()
+        self._qrcode = QRCode(
+            qrcode_data=self.qrcode_string
+        )
 
     def set_password(self, password: str, update_qrcode: bool = True) -> None:
         """Explicitly sets the internal password attribute, and updates the
@@ -226,63 +206,100 @@ class AdbPairing:
             update_qrcode (bool, optional): Indicates that the qrcode image
                 must be updated. Defaults to True.
         """
-        self.__passwd = password
+        self._passwd = password
         if update_qrcode:
             self.update_qrcode(new_password=False)
 
-    def start(self) -> None:
-        """Start the ServiceBrowser to listen to the mDNS services."""
-        if not self.__started:
-            self.__zeroconf = Zeroconf()
-            self.__browser = ServiceBrowser(
-                self.__zeroconf,
-                self.__service_type,
-                MDnsListener(
-                    self.__context,
-                    self.__service_re_filter,
-                    self.__service_type,
-                ),
+    def _new_zeroconf_instance(
+        self,
+        interfaces: InterfacesType = InterfaceChoice.Default,
+        unicast: bool = False,
+        ip_version: Optional[IPVersion] = None,
+    ) -> None:
+        """Creates a new Zeroconf instance and appends the old instance to the
+        __zeroconf_zombies list, if the list is not full (defined by the
+        __max_zc_instances attribute)
+
+        Args:
+            interfaces (InterfacesType, optional): The interfaces to listen to.
+                Defaults to InterfaceChoice.Default.
+            unicast (bool, optional): Indicates if the mDNS listener should
+                listen to unicast packets. Defaults to False.
+            ip_version (Optional[IPVersion], optional): The IP version to use.
+                Defaults to None.
+        """
+        if len(self._zeroconf_zombies) <= self._max_zc_instances:
+            if self._zeroconf is not None:
+                self._zeroconf_zombies.append(self._zeroconf)
+                self._zeroconf = None
+            self._zeroconf = Zeroconf(
+                interfaces=interfaces,
+                unicast=unicast,
+                ip_version=ip_version,
+                apple_p2p=False,
             )
+
+    def start(
+        self,
+        interfaces: InterfacesType = InterfaceChoice.Default,
+        unicast: bool = False,
+        ip_version: Optional[IPVersion] = None,
+    ) -> None:
+        """Start the ServiceBrowser to listen to the mDNS services.
+        This functions accepts the interfaces, unicast, and ip_version
+        arguments to pass to the Zerocof constructor.
+
+        If the Zeroconf instance is None, a new instance is created. The
+        ServiceBrowser is created with the Zeroconf instance and the
+        MDnsListener instance. The Zeroconf instance is finalized when the
+        ServiceBrowser is finalized.
+
+        If you manually call this method, you must call the
+        `stop_pair_listener` method to stop the ServiceBrowser and close the
+        Zeroconf instance.
+
+        Args:
+            interfaces (InterfacesType, optional): The interfaces to listen to.
+                Defaults to InterfaceChoice.Default.
+            unicast (bool, optional): Indicates if the mDNS listener should
+                listen to unicast packets. Defaults to False.
+            ip_version (Optional[IPVersion], optional): The IP version to use.
+                Defaults to None.
+        """
+        if not self._started:
+            self._new_zeroconf_instance(
+                interfaces=interfaces,
+                unicast=unicast,
+                ip_version=ip_version
+            )
+            try:
+                self._browser = ServiceBrowser(
+                    self._zeroconf,
+                    self._service_type,
+                    MDnsListener(
+                        self._context,
+                        self._service_re_filter,
+                        self._service_type,
+                    ),
+                )
+            except RuntimeError as e:
+                # Keeps the traceback, but explains what happened
+                raise RuntimeError(
+                    'Maximum number of Zeroconf instances reached.') from e
 
             def atexit() -> None:
                 """Callback function to update the __started attribute and
                 the __browser attribute, once the Zeroconf service has been
                 finalized."""
                 print('Zeroconf finalized')
-                self.__browser = None
-                self.__started = False
+                self._browser = None
+                self._started = False
 
-            self.__finalize = finalize(
-                self.__zeroconf,
+            self._finalize = finalize(
+                self._zeroconf,
                 atexit,
             )
-            self.__started = True
-
-    def qrcode_prompt_show(self) -> None:
-        """Show the qrcode in the terminal."""
-        self.__qr.print_ascii(tty=True)
-
-    def qrcode_cv_window_show(self) -> None:
-        """Show the qrcode in a window, using the openCV library.
-        It expects the user to close the window to continue the execution of
-        the script.
-        """
-        cv.imshow('pair', self.__get_img_cv())
-        cv.waitKey(0)
-        cv.destroyAllWindows()
-
-    def __get_img_cv(self) -> cv.typing.MatLike:
-        """Get the qrcode image in a format that can be used by the openCV
-        library.
-
-        Returns:
-            cv.typing.MatLike: The qrcode image in a format that can be used by
-                the openCV library.
-        """
-        img_rgb = self.__qr_image.convert('RGB')
-        img_mat = cv.cvtColor(np.array(img_rgb), cv.COLOR_RGB2BGR)
-
-        return cv.resize(img_mat, (400, 400))
+            self._started = True
 
     def has_device_to_pairing(self) -> bool:
         """Check if there are devices to pair.
@@ -290,7 +307,7 @@ class AdbPairing:
         Returns:
             bool: True if there are devices to pair, False otherwise.
         """
-        return len(self.__context.get_online_service()) > 0
+        return len(self._context.get_online_service()) > 0
 
     def pair_devices(self) -> bool:
         """Attempts to pair with the devices found by the mDNS listener.
@@ -302,24 +319,28 @@ class AdbPairing:
         Returns:
             bool: True if the pairing was successful, False otherwise.
         """
-        success = False
-        online_services = self.__context.get_online_service().items()
+        online_services = list(self._context.get_online_service().items())
+        all_ops = list()
         for elem in online_services:
             comm_uri = f'{elem[1].ip}:{elem[1].port}'
             result = subprocess.run(
-                ['adb', 'pair', comm_uri, self.__passwd],
+                ['adb', 'pair', comm_uri, self._passwd],
                 capture_output=True,
                 text=True,
-                check=self.__subprocess_check_flag,
+                check=self._subprocess_check_flag,
             )
             if f'Successfully paired to {comm_uri}' in result.stdout:
-                success = True
+                all_ops.append(True)
+            else:
+                all_ops.append(False)
 
-        return success
+        return all(all_ops)
 
     def stop_pair_listener(self) -> None:
         """Stop the ServiceBrowser and close the Zeroconf instance."""
-        self.__zeroconf.close()
+        self._zeroconf.close()
+        self._browser = None
+        self._started = False
 
     @contextmanager
     def pair(self, max_attempts: int = 3) -> Generator[str, None, None]:
