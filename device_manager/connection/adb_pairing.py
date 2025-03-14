@@ -319,9 +319,9 @@ class AdbPairing:
         Returns:
             bool: True if the pairing was successful, False otherwise.
         """
-        online_services = self._context.get_online_service().items()
-        all_ops = [False] * len(online_services)
-        for idx, elem in enumerate(online_services):
+        online_services = list(self._context.get_online_service().items())
+        all_ops = list()
+        for elem in online_services:
             comm_uri = f'{elem[1].ip}:{elem[1].port}'
             result = subprocess.run(
                 ['adb', 'pair', comm_uri, self._passwd],
@@ -330,7 +330,9 @@ class AdbPairing:
                 check=self._subprocess_check_flag,
             )
             if f'Successfully paired to {comm_uri}' in result.stdout:
-                all_ops[idx] = True
+                all_ops.append(True)
+            else:
+                all_ops.append(False)
 
         return all(all_ops)
 

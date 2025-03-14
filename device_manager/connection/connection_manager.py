@@ -88,7 +88,7 @@ class ConnectionManager:
         """
         adb_pairing = AdbPairing()
         adb_pairing.start()
-        adb_pairing.qrcode_cv_window_show()
+        adb_pairing._qrcode.qrcode_cv_window_show()
         start_time = time()
         while (
             not adb_pairing.has_device_to_pairing()
