@@ -354,7 +354,8 @@ class DeviceConnection:
         """Connects to all devices in the `connection_info` attribute.
         This method expects that all the devices added to the `connection_info`
         attribute are available and with the correct port set."""
-        for serial_number in self.connection_info.keys():
+        serial_numbers = self.connection_info.keys()
+        for serial_number in serial_numbers:
             self.__connect_with_fix_port(serial_number)
 
     def start_connection(self, selected_devices: List[str]) -> bool:
