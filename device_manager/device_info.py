@@ -3,6 +3,9 @@ import subprocess
 import uiautomator2 as u2
 
 from device_manager.connection.device_connection import DeviceConnection
+from device_manager.utils.util_functions import grep
+
+UNEXPECTED_ADB_OUTPUT = 'Unexpected output from ADB command'
 
 
 class DeviceInfo:
@@ -72,21 +75,26 @@ class DeviceInfo:
             self.__serial_number,
             force_reconnect=True,
         ):
-            result = subprocess.run(
+            output = subprocess.run(
                 [
                     'adb',
                     '-s',
                     self.current_comm_uri,
                     'shell',
-                    '"dumpsys activity activities | grep topResumedActivity"',
+                    'dumpsys',
+                    'activity',
+                    'activities',
                 ],
                 capture_output=True,
                 text=True,
                 check=self.subprocess_check_flag,
-            )
-            output = result.stdout
-
-            return output
+            ).stdout
+            greplines = grep(output, 'mResumedActivity')
+            try:
+                result = greplines[0].split(':')
+                return result[1].strip()
+            except IndexError:
+                return 'No activity resumed'
 
     def is_screen_on(self) -> bool:
         """This method checks if the associated device screen is on.
@@ -104,18 +112,21 @@ class DeviceInfo:
                     '-s',
                     self.current_comm_uri,
                     'shell',
-                    '"dumpsys deviceidle | grep mScreenOn"',
+                    'dumpsys',
+                    'deviceidle',
                 ],
                 capture_output=True,
                 text=True,
                 check=self.subprocess_check_flag,
-            )
-            output = output.stdout.strip()
-            output = output.split('=')
-            if 'true' in output:
+            ).stdout
+            greplines = grep(output, 'mScreenOn')
+            assert len(greplines) == 1
+            result = greplines[0].split('=')
+            if 'true' in result:
                 return True
-
-            return False
+            elif 'false' in result:
+                return False
+            raise ValueError(UNEXPECTED_ADB_OUTPUT)
 
     def is_device_locked(self) -> bool:
         """This method checks if the associated device is locked.
@@ -133,18 +144,25 @@ class DeviceInfo:
                     '-s',
                     self.current_comm_uri,
                     'shell',
-                    '"dumpsys deviceidle | grep mScreenLocked"',
+                    'dumpsys',
+                    'deviceidle',
                 ],
                 capture_output=True,
                 text=True,
                 check=self.subprocess_check_flag,
-            )
-            output = output.stdout.strip()
-            output = output.split('=')
-            if 'true' in output:
-                return True
+            ).stdout
 
-            return False
+            grep_lines = grep(output, 'mScreenLocked')
+            if len(grep_lines) != 1:
+                raise ValueError(UNEXPECTED_ADB_OUTPUT)
+
+            result = grep_lines[0].split('=')
+            if 'true' in result:
+                return True
+            elif 'false' in result:
+                return False
+
+            raise ValueError(UNEXPECTED_ADB_OUTPUT)
 
     def get_screen_gui_xml(self) -> str:
         """This method retrieves the .xml that represents the current state

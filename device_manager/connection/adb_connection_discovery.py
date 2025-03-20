@@ -1,3 +1,4 @@
+import logging
 import weakref
 from contextlib import contextmanager
 from typing import Dict, Optional
@@ -16,6 +17,8 @@ from device_manager.connection.utils.mdns_listener import (
     DEFAULT_REGEX_FILTER,
     MDnsListener,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AdbConnectionDiscovery:
@@ -72,7 +75,7 @@ class AdbConnectionDiscovery:
                 """Callback function to update the __started attribute and
                 the __browser attribute, once the Zeroconf service has been
                 finalized."""
-                print('Zeroconf finalized')
+                logger.debug('Finalizing Zeroconf instance.')
                 self.__browser = None
                 self.__started = False
 

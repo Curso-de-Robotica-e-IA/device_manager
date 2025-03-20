@@ -1,3 +1,4 @@
+import logging
 import subprocess
 from time import sleep, time
 from typing import Dict, Optional
@@ -10,6 +11,8 @@ from device_manager.connection.utils.connection_status import (
     ConnectionInfoStatus,
 )
 from device_manager.connection.utils.service_info import ServiceInfo
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
@@ -110,7 +113,7 @@ class ConnectionManager:
         """
         info = self.__discovery.get_service_info_for(serial_num)
         if info is None:
-            print('Device service not online or located')
+            logger.warning('Device service not online or located')
         else:
             comm_uri = f'{info.ip}:{info.port}'
             result = subprocess.run(
@@ -120,7 +123,7 @@ class ConnectionManager:
                 check=self.__subprocess_check_flag,
             )
             if f'failed to connect to {comm_uri}' in result.stdout:
-                print('Fail to connect device')
+                logger.warning('Fail to connect device')
         return info
 
     def check_wireless_adb_service_for(
