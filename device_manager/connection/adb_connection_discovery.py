@@ -18,7 +18,6 @@ from device_manager.connection.utils.mdns_listener import (
     MDnsListener,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
