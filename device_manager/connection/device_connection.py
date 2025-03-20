@@ -1,7 +1,7 @@
+import logging
 import subprocess
 from typing import List, Optional
 
-from rich import print
 from rich.console import Console
 from rich.prompt import Prompt
 
@@ -15,6 +15,8 @@ from device_manager.connection.utils.mdns_context import (
 )
 
 DEFAULT_FIXED_PORT = 5555
+
+logger = logging.getLogger(__name__)
 
 
 class DeviceConnection:
@@ -91,9 +93,9 @@ class DeviceConnection:
         if not paired:
             self.console.print('Scan QRCode to pair and close window')
             if self.connection.device_pairing(5):
-                print('Success in pairing new host!')
+                self.console.print('Success in pairing new host!')
             else:
-                print('Failed in pairing new host!')
+                self.console.print('Failed in pairing new host!')
 
     def select_devices_to_connect(self) -> List[str]:
         """Prompts the user to select devices to connect to.
@@ -283,7 +285,7 @@ class DeviceConnection:
             if connection is not None:
                 success = True
             else:
-                print(
+                logger.warning(
                     f'ADB Connection for device {device_serial_number} failed',
                 )
 

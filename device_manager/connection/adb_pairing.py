@@ -1,3 +1,4 @@
+import logging
 import subprocess
 from contextlib import contextmanager
 from typing import Generator, List, Optional, Sequence, Tuple, Union
@@ -16,6 +17,8 @@ from device_manager.utils.qrcode import QRCode
 from device_manager.utils.util_functions import create_password
 
 InterfacesType = Union[Sequence[Union[str, int, Tuple[Tuple[str, int, int], int]]], InterfaceChoice]  # noqa
+
+logger = logging.getLogger(__name__)
 
 
 class AdbPairing:
@@ -291,7 +294,7 @@ class AdbPairing:
                 """Callback function to update the __started attribute and
                 the __browser attribute, once the Zeroconf service has been
                 finalized."""
-                print('Zeroconf finalized')
+                logger.debug('Finalizing Zeroconf instance.')
                 self._browser = None
                 self._started = False
 
