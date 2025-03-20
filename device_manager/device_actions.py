@@ -1,5 +1,5 @@
 import subprocess
-from time import sleep
+from typing import Optional
 
 from device_manager.connection.device_connection import DeviceConnection
 
@@ -91,9 +91,7 @@ class DeviceActions:
                     self.current_comm_uri,
                     'shell',
                     'input',
-                    'swipe',
-                    str(x),
-                    str(y),
+                    'tap',
                     str(x),
                     str(y),
                 ],
@@ -135,20 +133,50 @@ class DeviceActions:
                 check=self.subprocess_check_flag,
             )
 
-    def open_app(self, package_name: str, activity_name: str) -> None:
+    def _open_app_one_arg(self, package_activity: str) -> None:
         """Opens an application on the device using the provided package
-        name and activity name.
+        name and activity name. This method is used when the package name
+        and activity name are combined into a single string argument.
+
+        Args:
+            package_activity (str): The package name and activity name
+                of the application.
+                Ex.: 'com.android.deskclock/.DeskClockTabActivity'
+        """
+        subprocess.run(
+            [
+                'adb',
+                '-s',
+                self.current_comm_uri,
+                'shell',
+                'am',
+                'start',
+                '-n',
+                package_activity,
+            ],
+            shell=True,
+            check=self.subprocess_check_flag,
+        )
+
+    def _open_app_two_args(
+        self,
+        package_name: str,
+        activity_name: str,
+    ) -> None:
+        """Opens an application on the device using the provided package
+        name and activity name. This method is used when the package name
+        and activity name are provided as separate string arguments.
+
+        Usage Example:
+        ```
+        open_app('com.android.deskclock', '.DeskClockTabActivity')
+        ```
 
         Args:
             package_name (str): The package name of the application.
             activity_name (str): The activity name of the application.
         """
-
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            subprocess.run(
+        subprocess.run(
                 [
                     'adb',
                     '-s',
@@ -162,6 +190,28 @@ class DeviceActions:
                 shell=True,
                 check=self.subprocess_check_flag,
             )
+
+    def open_app(
+        self,
+        package_name: str,
+        activity_name: Optional[str] = None,
+    ) -> None:
+        """Opens an application on the device using the provided package
+        name and activity name.
+
+        Args:
+            package_name (str): The package name of the application.
+            activity_name (str): The activity name of the application.
+        """
+
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            if activity_name is None:
+                self._open_app_one_arg(package_name)
+            else:
+                self._open_app_two_args(package_name, activity_name)
 
     def close_app(self, package_name: str) -> None:
         """Closes an application on the device using the provided package
@@ -186,55 +236,6 @@ class DeviceActions:
                     package_name,
                 ],
                 shell=True,
-                check=self.subprocess_check_flag,
-            )
-
-    # Remove
-    def open_gravity_sensor(self) -> None:
-        """
-        This method start the app gravity sensor.
-        """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            uri = self.current_comm_uri
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    uri,
-                    'shell',
-                    'am',
-                    'start',
-                    'com.rria.gravity/com.rria.gravity.MainActivity',
-                ],
-                check=self.subprocess_check_flag,
-            )
-            sleep(2)
-
-    # Remove
-    def stop_gravity_sensor(self) -> None:
-        """
-        This method executes an ADB (Android Debug Bridge) command to clear the
-        application data of the specified package, effectively stopping the
-        gravity sensor service.
-        """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            uri = self.current_comm_uri
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    uri,
-                    'shell',
-                    'am',
-                    'force-stop',
-                    'com.rria.gravity',
-                ],
                 check=self.subprocess_check_flag,
             )
 
@@ -265,6 +266,7 @@ class DeviceActions:
         This method executes the adb `keyevent 82`, which represents
         the `unlock screen` action.
         """
+        self.turn_on_screen()
         if self.device_connection.validate_connection(
             self.__serial_number,
             force_reconnect=True,
