@@ -6,13 +6,13 @@ from device_manager.utils.util_functions import (
 
 def test_create_password():
     password = create_password()
-    assert len(password) == 8
+    assert len(password) == 8  # noqa
     assert password.isalnum()
 
 
 def test_create_password_size():
     password = create_password(16)
-    assert len(password) == 16
+    assert len(password) == 16  # noqa
     assert password.isalnum()
 
 

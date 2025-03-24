@@ -16,7 +16,10 @@ from device_manager.connection.utils.mdns_listener import (
 from device_manager.utils.qrcode import QRCode
 from device_manager.utils.util_functions import create_password
 
-InterfacesType = Union[Sequence[Union[str, int, Tuple[Tuple[str, int, int], int]]], InterfaceChoice]  # noqa
+InterfacesType = Union[
+    Sequence[Union[str, int, Tuple[Tuple[str, int, int], int]]],
+    InterfaceChoice,
+]  # noqa
 
 logger = logging.getLogger(__name__)
 
@@ -196,9 +199,7 @@ class AdbPairing:
         """
         if new_password:
             self._passwd = create_password()
-        self._qrcode = QRCode(
-            qrcode_data=self.qrcode_string
-        )
+        self._qrcode = QRCode(qrcode_data=self.qrcode_string)
 
     def set_password(self, password: str, update_qrcode: bool = True) -> None:
         """Explicitly sets the internal password attribute, and updates the
@@ -271,9 +272,7 @@ class AdbPairing:
         """
         if not self._started:
             self._new_zeroconf_instance(
-                interfaces=interfaces,
-                unicast=unicast,
-                ip_version=ip_version
+                interfaces=interfaces, unicast=unicast, ip_version=ip_version
             )
             try:
                 self._browser = ServiceBrowser(
@@ -288,7 +287,8 @@ class AdbPairing:
             except RuntimeError as e:
                 # Keeps the traceback, but explains what happened
                 raise RuntimeError(
-                    'Maximum number of Zeroconf instances reached.') from e
+                    'Maximum number of Zeroconf instances reached.'
+                ) from e
 
             def atexit() -> None:
                 """Callback function to update the __started attribute and

@@ -301,7 +301,6 @@ class DeviceManager:
         )
         return subprocess.run(
             adb_command,
-            shell=True,
             check=subprocess_check_flag,
         )
 
@@ -344,7 +343,6 @@ class DeviceManager:
         return self.connector.is_connected(serial_number)
 
     def clear(self) -> None:
-        """Clears the internal object managers, removing all devices.
-        """
+        """Clears the internal object managers, removing all devices."""
         self.__device_info = ObjectManager()
         self.__device_actions = ObjectManager()

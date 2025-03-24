@@ -95,7 +95,6 @@ class DeviceActions:
                     str(x),
                     str(y),
                 ],
-                shell=True,
                 check=self.subprocess_check_flag,
             )
 
@@ -129,7 +128,6 @@ class DeviceActions:
                     str(y2),
                     str(time),
                 ],
-                shell=True,
                 check=self.subprocess_check_flag,
             )
 
@@ -154,7 +152,6 @@ class DeviceActions:
                 '-n',
                 package_activity,
             ],
-            shell=True,
             check=self.subprocess_check_flag,
         )
 
@@ -177,19 +174,18 @@ class DeviceActions:
             activity_name (str): The activity name of the application.
         """
         subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'shell',
-                    'am',
-                    'start',
-                    '-n',
-                    f'{package_name}/{activity_name}',
-                ],
-                shell=True,
-                check=self.subprocess_check_flag,
-            )
+            [
+                'adb',
+                '-s',
+                self.current_comm_uri,
+                'shell',
+                'am',
+                'start',
+                '-n',
+                f'{package_name}/{activity_name}',
+            ],
+            check=self.subprocess_check_flag,
+        )
 
     def open_app(
         self,
@@ -235,7 +231,6 @@ class DeviceActions:
                     'force-stop',
                     package_name,
                 ],
-                shell=True,
                 check=self.subprocess_check_flag,
             )
 

@@ -10,7 +10,10 @@ from device_manager.asyncio.async_mdns_listener import AsyncMDnsListener
 from device_manager.asyncio.async_zeroconf import AsyncZeroconf
 from device_manager.connection.adb_pairing import AdbPairing
 
-InterfacesType = Union[Sequence[Union[str, int, Tuple[Tuple[str, int, int], int]]], InterfaceChoice]  # noqa
+InterfacesType = Union[
+    Sequence[Union[str, int, Tuple[Tuple[str, int, int], int]]],
+    InterfaceChoice,
+]  # noqa
 
 
 logger = logging.getLogger(__name__)
@@ -91,7 +94,8 @@ class AsyncAdbPairing(AdbPairing):
                 )
             except RuntimeError as e:
                 raise RuntimeError(
-                    'Maximum number of Zeroconf instances reached.') from e
+                    'Maximum number of Zeroconf instances reached.'
+                ) from e
 
             def atexit() -> None:
                 logger.debug('Finalizing Zeroconf instance.')

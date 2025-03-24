@@ -12,9 +12,23 @@ def test_manager_build_command_list():
     )
 
     expected = [
-        'adb', '-s', '127.0.0.1:5555', 'shell', 'am', 'start', '-n',
-        r'dummyCmd\.dummyActv', '&&', 'adb', '-s', '127.0.0.2:5555', 'shell',
-        'am', 'start', '-n', r'dummyCmd\.dummyActv'
+        'adb',
+        '-s',
+        '127.0.0.1:5555',
+        'shell',
+        'am',
+        'start',
+        '-n',
+        r'dummyCmd\.dummyActv',
+        '&&',
+        'adb',
+        '-s',
+        '127.0.0.2:5555',
+        'shell',
+        'am',
+        'start',
+        '-n',
+        r'dummyCmd\.dummyActv',
     ]
 
     assert result == expected
