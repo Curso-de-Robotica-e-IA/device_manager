@@ -3,8 +3,7 @@ from device_manager.connection.utils.mdns_listener import MDnsListener
 
 
 class AsyncMDnsListener(MDnsListener):
-    """Asynchronous implementation of the MDnsListener.
-    """
+    """Asynchronous implementation of the MDnsListener."""
 
     async def update_service(
         self,
@@ -67,4 +66,4 @@ class AsyncMDnsListener(MDnsListener):
             await self.__service_context.add_service(
                 info.serial_number,
                 info,
-                )
+            )
