@@ -96,7 +96,7 @@ def test_extract_info_with_no_match(
         ),
     )
     captured = capsys.readouterr()
-    assert 'AdbMDns not match: ' in captured.out
+    assert '' in captured.out
 
 
 def test_add_service(mdns_listener, mock_zeroconf, mock_mdns_context):

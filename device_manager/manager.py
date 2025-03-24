@@ -284,7 +284,15 @@ class DeviceManager:
         uris = comm_uris
         if comm_uris is None:
             uris = [device.current_comm_uri for device in self.__device_info]
+        if not isinstance(uris, (list, tuple)):
+            raise TypeError(
+                f'comm_uris must be a list, tuple or None, got {type(comm_uris)}',  # noqa
+            )
         base_command = ['adb']
+        if command.startswith('adb'):
+            command = command[3:]
+        if command.startswith('shell'):
+            command = command[5:]
         adb_command = self.build_command_list(
             base_command=base_command,
             comm_uri_list=uris,
@@ -293,7 +301,6 @@ class DeviceManager:
         )
         return subprocess.run(
             adb_command,
-            shell=True,
             check=subprocess_check_flag,
         )
 
@@ -336,7 +343,6 @@ class DeviceManager:
         return self.connector.is_connected(serial_number)
 
     def clear(self) -> None:
-        """Clears the internal object managers, removing all devices.
-        """
+        """Clears the internal object managers, removing all devices."""
         self.__device_info = ObjectManager()
         self.__device_actions = ObjectManager()
