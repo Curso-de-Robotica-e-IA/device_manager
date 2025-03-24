@@ -261,7 +261,6 @@ class DeviceActions:
         This method executes the adb `keyevent 82`, which represents
         the `unlock screen` action.
         """
-        self.turn_on_screen()
         if self.device_connection.validate_connection(
             self.__serial_number,
             force_reconnect=True,
