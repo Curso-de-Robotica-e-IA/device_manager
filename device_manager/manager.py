@@ -293,14 +293,16 @@ class DeviceManager:
             command = command[3:]
         if command.startswith('shell'):
             command = command[5:]
-        adb_command = self.build_command_list(
+        adb_command_list = self.build_command_list(
             base_command=base_command,
             comm_uri_list=uris,
             custom_command=command,
             **kwargs,
         )
+        adb_command = ' '.join(adb_command_list)
         return subprocess.run(
             adb_command,
+            shell=True,
             check=subprocess_check_flag,
         )
 
