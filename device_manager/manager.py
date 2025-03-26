@@ -12,7 +12,6 @@ from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
 from device_manager.utils.dm_warnings import check_adb_dependencies_version
 
-print('Hello')
 check_adb_dependencies_version()
 
 DeviceObjects = NamedTuple(
