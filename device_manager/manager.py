@@ -10,6 +10,10 @@ from device_manager.connection.device_connection import (
 )
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
+from device_manager.utils.dm_warnings import check_adb_dependencies_version
+
+print('Hello')
+check_adb_dependencies_version()
 
 DeviceObjects = NamedTuple(
     'DeviceObjects',
@@ -67,6 +71,7 @@ class DeviceManager:
         self,
         subprocess_check_flag: bool = False,
         fixed_port: int = DEFAULT_FIXED_PORT,
+        check_adb_versions: bool = True,
     ):
         self.subprocess_check = subprocess_check_flag
         self._devices_fixed_port = fixed_port
