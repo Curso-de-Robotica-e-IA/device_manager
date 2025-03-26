@@ -123,7 +123,7 @@ class ConnectionManager:
                 check=self.__subprocess_check_flag,
             )
             if f'failed to connect to {comm_uri}' in result.stdout:
-                logger.warning('Fail to connect device')
+                logger.warning('Failed to connect device')
         return info
 
     def check_wireless_adb_service_for(
