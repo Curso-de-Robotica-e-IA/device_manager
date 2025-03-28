@@ -37,6 +37,7 @@ This is an automatic documentation of the code base. It includes all the classes
             - swipe
             - open_app
             - close_app
+            - install_apk
             - turn_on_screen
             - unlock_screen
             - home_button

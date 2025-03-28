@@ -1,4 +1,5 @@
 import subprocess
+from pathlib import Path
 from typing import Optional
 
 from device_manager.connection.device_connection import DeviceConnection
@@ -34,10 +35,8 @@ class DeviceActions:
         close_app(package_name: str) -> None:
             Closes an application on the device using the provided package
             name.
-        open_gravity_sensor() -> None:
-            Starts the gravity sensor application.
-        stop_gravity_sensor() -> None:
-            Stops the gravity sensor application.
+        install_apk(apk_path: str, replace: bool = False) -> None:
+            Installs an APK file on the device.
         turn_on_screen() -> None:
             Turns on the device screen.
         unlock_screen() -> None:
@@ -230,6 +229,39 @@ class DeviceActions:
                     'am',
                     'force-stop',
                     package_name,
+                ],
+                check=self.subprocess_check_flag,
+            )
+
+    def install_apk(
+        self,
+        apk_path: str,
+        replace: bool = False,
+    ) -> None:
+        """Installs an APK file on the device.
+
+        Args:
+            apk_path (str): The path to the APK file.
+            replace (bool): Whether to replace the existing APK file.
+                Defaults to False.
+        """
+        path = Path(apk_path)
+        if not path.exists():
+            raise FileNotFoundError(f'File not found: {apk_path}')
+
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            apk_file_path = (path.resolve()).as_posix()
+            subprocess.run(
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'install',
+                    '-r' if replace else '',
+                    apk_file_path,
                 ],
                 check=self.subprocess_check_flag,
             )
