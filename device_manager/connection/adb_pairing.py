@@ -337,6 +337,9 @@ class AdbPairing:
             else:
                 all_ops.append(False)
 
+        if len(all_ops) == 0:
+            return False
+
         return all(all_ops)
 
     def stop_pair_listener(self) -> None:

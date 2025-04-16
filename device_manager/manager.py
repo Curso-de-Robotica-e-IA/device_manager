@@ -70,7 +70,6 @@ class DeviceManager:
         self,
         subprocess_check_flag: bool = False,
         fixed_port: int = DEFAULT_FIXED_PORT,
-        check_adb_versions: bool = True,
     ):
         self.subprocess_check = subprocess_check_flag
         self._devices_fixed_port = fixed_port

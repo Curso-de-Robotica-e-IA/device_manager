@@ -48,7 +48,7 @@ class MDnsListener(ServiceListener):
             extract the serial number from the service name. Defaults to None.
         service_type (str, optional): The service type to filter the services
             found by the mDNS listener. Defaults to
-            "_adb-tls-pairing._tcp.local.".
+                "_adb-tls-pairing._tcp.local.".
 
     methods:
         update_service: Updates the service information in the service context.
@@ -121,6 +121,8 @@ class MDnsListener(ServiceListener):
         Returns:
             Optional[ServiceInfo]: The extracted service information.
         """
+        if info is None:
+            return None
         try:
             ip = f'{socket.inet_ntoa(info.addresses[0])}'
             port = info.port
@@ -133,7 +135,10 @@ class MDnsListener(ServiceListener):
                 serial_num = match_result.group(1)
                 return ServiceInfo(serial_num, ip, port)
             else:
-                logger.warning(f'AdbMDns not match: {info.name}')
+                logger.warning(
+                    f'AdbMDns not match: {info.name}',
+                    extra={'info': info},
+                )
         except Exception as e:  # pragma: no cover
             logger.error(e)
             raise e
