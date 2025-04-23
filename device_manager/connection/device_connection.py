@@ -413,7 +413,6 @@ class DeviceConnection:
                 capture_output=True,
                 text=True,
             )
-            print(result)
             if result.stdout == f'disconnected {selected_uri}\n':
                 all_ops[idx] = True
                 self.connection_info.remove(serial_num)
