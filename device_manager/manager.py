@@ -10,6 +10,9 @@ from device_manager.connection.device_connection import (
 )
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
+from device_manager.utils.dm_warnings import check_adb_dependencies_version
+
+check_adb_dependencies_version()
 
 DeviceObjects = NamedTuple(
     'DeviceObjects',
@@ -293,14 +296,16 @@ class DeviceManager:
             command = command[3:]
         if command.startswith('shell'):
             command = command[5:]
-        adb_command = self.build_command_list(
+        adb_command_list = self.build_command_list(
             base_command=base_command,
             comm_uri_list=uris,
             custom_command=command,
             **kwargs,
         )
+        adb_command = ' '.join(adb_command_list)
         return subprocess.run(
             adb_command,
+            shell=True,
             check=subprocess_check_flag,
         )
 

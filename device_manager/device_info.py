@@ -89,12 +89,12 @@ class DeviceInfo:
                 text=True,
                 check=self.subprocess_check_flag,
             ).stdout
-            greplines = grep(output, 'mResumedActivity')
+            greplines = grep(output, 'mCurrentFocus')
             try:
                 result = greplines[0].split(':')
                 return result[1].strip()
             except IndexError:
-                return 'No activity resumed'
+                return 'No activity'
 
     def is_screen_on(self) -> bool:
         """This method checks if the associated device screen is on.
