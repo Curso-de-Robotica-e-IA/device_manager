@@ -89,6 +89,9 @@ class ConnectionManager:
         Returns:
             bool: True if the device was paired, False otherwise.
         """
+        logger.warning(
+            msg='This method is being deprecated. Check the documentation on how to pair devices.',  # noqa
+        )
         adb_pairing = AdbPairing()
         adb_pairing.start()
         adb_pairing._qrcode.qrcode_cv_window_show()
@@ -125,6 +128,9 @@ class ConnectionManager:
             if f'failed to connect to {comm_uri}' in result.stdout:
                 logger.warning('Failed to connect device')
         return info
+
+    def device_disconnect(self, serial_num: str) -> None:
+        ...
 
     def check_wireless_adb_service_for(
         self,

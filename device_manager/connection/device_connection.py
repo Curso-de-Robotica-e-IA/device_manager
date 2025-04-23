@@ -60,7 +60,10 @@ class DeviceConnection:
             attribute.
         start_connection: Starts the connection process for the selected
             devices.
+        stop_connection: Disconnects the selected devices from the host.
         is_connected: Check if the device is connected to the host.
+        disconnect: Kills the ADB server, effectively disconnecting the current
+            session with the specified device.
     """
 
     def __init__(
@@ -380,6 +383,46 @@ class DeviceConnection:
         self.disconnect()
         self.connect_all_devices()
         return self.check_connections()
+
+    def stop_connection(self, selected_devices: List[str]) -> bool:
+        """Disconnects the selected devices from the host.
+        This method runs the ADB command to disconnect the selected devices
+        from the host. It checks if the devices are selected and raises a
+        ValueError if no devices are selected. It returns True if all devices
+        are disconnected successfully, and False otherwise.
+
+        Args:
+            selected_devices (List[str]): A list of serial numbers of the
+                devices to disconnect from the host.
+
+        Raises:
+            ValueError: If no devices are selected to disconnect.
+
+        Returns:
+            bool: True if all devices are disconnected successfully, False
+                otherwise.
+        """
+        if len(selected_devices) == 0:
+            raise ValueError('No devices selected to disconnect')
+        all_ops = [None] * len(selected_devices)
+        for idx, serial_num in enumerate(selected_devices):
+            selected_uri = self.build_comm_uri(serial_num)
+            result = subprocess.run(
+                ['adb', 'disconnect', selected_uri],
+                check=self.__subprocess_check_flag,
+                capture_output=True,
+                text=True,
+            )
+            print(result)
+            if result.stdout == f'disconnected {selected_uri}\n':
+                all_ops[idx] = True
+                self.connection_info.remove(serial_num)
+            else:
+                all_ops[idx] = False
+
+        if all(all_ops):
+            return True
+        return False
 
     def __fix_adb_port(self, serial_number: str):
         """Fix the ADB port by setting it to the `fixed_port` attribute value.
