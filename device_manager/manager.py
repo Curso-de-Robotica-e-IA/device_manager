@@ -64,6 +64,8 @@ class DeviceManager:
         adb_pairing_instance: Creates an instance of the AdbPairing class.
         is_connected: Checks if a device with the provided serial number is
             connected.
+        disconnect_devices: Disconnects the devices with the provided serial
+            numbers.
     """
 
     def __init__(
@@ -224,6 +226,25 @@ class DeviceManager:
                     )
                     self.__device_info.add(serial, dev_info)
                     self.__device_actions.add(serial, dev_actions)
+        return success_op
+
+    def disconnect_devices(self, *serial_number: str) -> bool:
+        """Disconnects the devices with the provided serial numbers.
+        This method will stop the connection to the devices and remove
+        the associated DeviceInfo and DeviceActions objects from the
+        internal object manager objects.
+
+        Returns:
+            bool: True if the disconnection was successful, False otherwise.
+        """
+        serial_number_list = list(serial_number)
+        success_op = self.connector.stop_connection(serial_number_list)
+        if success_op:
+            for serial in serial_number_list:
+                sbn = self.connector.connection_info.get(serial)
+                if sbn is None:  # Should Be None
+                    self.__device_info.remove(serial)
+                    self.__device_actions.remove(serial)
         return success_op
 
     def get_device_info(self, serial_number: str) -> DeviceInfo:

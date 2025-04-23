@@ -39,3 +39,24 @@ This documentation is automatically generated from the code base.
             - connection_status_for_device
             - stop_discovery_listener
     show_root_heading: true
+
+## DeviceConnection Class
+::: device_manager.connection.device_connection.DeviceConnection
+    handler: python
+    options:
+        members:
+            - check_pairing
+            - select_devices_to_connect
+            - prompt_device_connection
+            - visible_devices
+            - close
+            - is_connected
+            - check_connections
+            - build_comm_uri
+            - establish_first_connection
+            - validate_connection
+            - connect_all_devices
+            - start_connection
+            - stop_connection
+            - disconnect
+    show_root_heading: true
