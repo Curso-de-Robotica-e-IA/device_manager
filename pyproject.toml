@@ -1,6 +1,6 @@
 [project]
 name = "device_manager"
-version = "1.1.0"
+version = "1.2.0"
 description = ""
 authors = [
     { name = "Bruno Pinheiro", email = "bopj@softex.cin.ufpe.br" }

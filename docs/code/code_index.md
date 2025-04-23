@@ -8,6 +8,7 @@ This is an automatic documentation of the code base. It includes all the classes
         members:
             - connected_devices
             - connect_devices
+            - disconnect_devices
             - get_device_info
             - get_device_actions
             - build_command_list
