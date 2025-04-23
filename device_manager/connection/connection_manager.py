@@ -129,9 +129,6 @@ class ConnectionManager:
                 logger.warning('Failed to connect device')
         return info
 
-    def device_disconnect(self, serial_num: str) -> None:
-        ...
-
     def check_wireless_adb_service_for(
         self,
         info: ServiceInfo,
