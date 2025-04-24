@@ -455,9 +455,8 @@ class DeviceConnection:
         subprocess_check_flag: bool = False,
     ):
         """
-        This method checks the device connection and executes an ADB command to
-        kill the ADB server, effectively disconnecting the current session with
-        the specified device.
+        This method executes an ADB command to kill the ADB server, effectively
+        disconnecting the current session with all devices.
 
         Args:
             subprocess_check_flag (bool, optional): A flag to check if the
