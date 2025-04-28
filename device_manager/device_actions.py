@@ -2,6 +2,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from device_manager.action_modules.camera_actions import CameraActions
 from device_manager.connection.device_connection import DeviceConnection
 
 
@@ -56,6 +57,13 @@ class DeviceActions:
         self.__serial_number = serial_number
         self.current_comm_uri = self.device_connection.build_comm_uri(
             self.__serial_number,
+        )
+        self.camera = CameraActions(
+            device_connection=self.device_connection,
+            serial_number=self.__serial_number,
+            subprocess_check_flag=self.subprocess_check_flag,
+            comm_uri=self.current_comm_uri,
+            validate_connection_callback=self.validate_connection,
         )
 
     @property
