@@ -48,7 +48,7 @@ This is an automatic documentation of the code base. It includes all the classes
 The `DeviceActions` class also has a property called `camera`, that is an instance of the `CameraActions` class. This class is used to perform actions related to the camera.
 
 ### CameraActions Class
-::: device_manager.action_modules.camera_actions.CameraActions
+::: device_manager.actions.camera_actions.CameraActions
     handler: python
     options:
         members:

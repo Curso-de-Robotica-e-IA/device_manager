@@ -2,7 +2,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from device_manager.action_modules.camera_actions import CameraActions
+from device_manager.actions.camera_actions import CameraActions
 from device_manager.connection.device_connection import DeviceConnection
 
 
