@@ -278,7 +278,7 @@ class DeviceConnection:
         """
         success = False
         connection = None
-        for _ in range(3):
+        for _ in range(5):
             if not success:
                 self.console.print('Trying to connect ...')
                 connection = self.connection.device_connect(

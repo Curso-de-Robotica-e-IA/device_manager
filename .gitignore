@@ -170,4 +170,7 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+
+# Local testing files that should not be included in the repository
 ignore_me.py
+testing_output/*
