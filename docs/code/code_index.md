@@ -26,6 +26,7 @@ This is an automatic documentation of the code base. It includes all the classes
             - is_screen_on
             - is_device_locked
             - get_screen_gui_xml
+            - get_properties
     show_root_heading: true
 
 ## DeviceActions Class
@@ -42,4 +43,19 @@ This is an automatic documentation of the code base. It includes all the classes
             - turn_on_screen
             - unlock_screen
             - home_button
+    show_root_heading: true
+
+The `DeviceActions` class also has a property called `camera`, that is an instance of the `CameraActions` class. This class is used to perform actions related to the camera.
+
+### CameraActions Class
+::: device_manager.action_modules.camera_actions.CameraActions
+    handler: python
+    options:
+        members:
+            - open
+            - open_video
+            - close
+            - take_picture
+            - clear_pictures
+            - pull_pictures
     show_root_heading: true
