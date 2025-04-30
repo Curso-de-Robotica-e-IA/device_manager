@@ -1,4 +1,5 @@
 import subprocess
+from typing import Dict, List, Optional, TypedDict
 
 import uiautomator2 as u2
 
@@ -6,6 +7,14 @@ from device_manager.connection.device_connection import DeviceConnection
 from device_manager.utils.util_functions import grep
 
 UNEXPECTED_ADB_OUTPUT = 'Unexpected output from ADB command'
+
+
+class DeviceProperties(TypedDict):
+    """TypedDict for device properties."""
+    serial_number: str
+    brand: str
+    model: str
+    android_version: str
 
 
 class DeviceInfo:
@@ -177,3 +186,53 @@ class DeviceInfo:
         ):
             device = u2.connect(self.current_comm_uri)
             return device.dump_hierarchy()
+
+    def get_properties(
+        self,
+        extra_keys: Optional[List[str]] = None,
+    ) -> Dict[str, str]:
+        """This method retrieves the properties of the device, and returns a
+        dictionary containing the properties. By default, it retrieves the
+        serial number, brand, model, and Android version. If extra keys are
+        provided, it will also retrieve those properties.
+        The properties are obtained by executing the `adb shell getprop`
+        command, so the extra keys must be valid properties, without the
+        trailing brackets (`[]`).
+
+        Args:
+            extra_keys (Optional[List[str]]): A list of extra keys to retrieve
+                from the device properties. Defaults to None.
+
+        Returns:
+            Dict[str, str]: A dictionary containing the properties of the
+                device.
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            output = subprocess.run(
+                ['adb', '-s', self.current_comm_uri, 'shell', 'getprop'],
+                capture_output=True,
+                text=True,
+                check=self.subprocess_check_flag,
+            ).stdout
+            prop_dict = dict()
+            EXPECTED_LENGTH = 2
+            for line in output.splitlines():
+                key_value = line.split(': ', 1)
+                if len(key_value) == EXPECTED_LENGTH:
+                    key_ = key_value[0][1:-1]
+                    value_ = key_value[1][1:-1]
+                    prop_dict[key_] = value_
+            base_result = {
+                'serial_number': prop_dict['ro.serialno'],
+                'brand': prop_dict['ro.product.manufacturer'],
+                'model': prop_dict['ro.product.model'],
+                'android_version': prop_dict['ro.build.version.release'],
+            }
+            if extra_keys is not None:
+                for key in extra_keys:
+                    if key in prop_dict:
+                        base_result[key] = prop_dict[key]
+            return DeviceProperties(**base_result)

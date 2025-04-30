@@ -2,6 +2,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from device_manager.actions.camera_actions import CameraActions
 from device_manager.connection.device_connection import DeviceConnection
 
 
@@ -57,6 +58,13 @@ class DeviceActions:
         self.current_comm_uri = self.device_connection.build_comm_uri(
             self.__serial_number,
         )
+        self.camera = CameraActions(
+            device_connection=self.device_connection,
+            serial_number=self.__serial_number,
+            subprocess_check_flag=self.subprocess_check_flag,
+            comm_uri=self.current_comm_uri,
+            validate_connection_callback=self.validate_connection,
+        )
 
     @property
     def serial_number(self) -> str:
@@ -67,6 +75,17 @@ class DeviceActions:
         """
         return self.__serial_number
 
+    def validate_connection(self) -> bool:
+        """Validates the connection to the device.
+
+        Returns:
+            bool: True if the connection is valid, False otherwise.
+        """
+        return self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        )
+
     def click_by_coordinates(self, x: int, y: int) -> None:
         """
         This method validates the device connection and then uses an ADB
@@ -74,15 +93,15 @@ class DeviceActions:
         provided (x, y)coordinates.
         The swipe coordinates are the same for the start and end
         points to ensure it functions as a click.
-        :param x:The x-coordinate on the screen where the click should occur.
-        :param y:The y-coordinate on the screen where the click should occur.
-        :return:
+
+        Args:
+            x (int): The x-coordinate on the screen where the click should
+                occur.
+            y (int): The y-coordinate on the screen where the click should
+                occur.
         """
 
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
+        if self.validate_connection():
             subprocess.run(
                 [
                     'adb',
@@ -109,10 +128,7 @@ class DeviceActions:
             time (int): The duration of the swipe gesture.
         """
 
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
+        if self.validate_connection():
             subprocess.run(
                 [
                     'adb',
@@ -199,10 +215,7 @@ class DeviceActions:
             activity_name (str): The activity name of the application.
         """
 
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
+        if self.validate_connection():
             if activity_name is None:
                 self._open_app_one_arg(package_name)
             else:
@@ -216,10 +229,7 @@ class DeviceActions:
             package_name (str): The package name of the application.
         """
 
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
+        if self.validate_connection():
             subprocess.run(
                 [
                     'adb',
@@ -249,10 +259,7 @@ class DeviceActions:
         if not path.exists():
             raise FileNotFoundError(f'File not found: {apk_path}')
 
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
+        if self.validate_connection():
             apk_file_path = (path.resolve()).as_posix()
             subprocess.run(
                 [
@@ -271,10 +278,7 @@ class DeviceActions:
         This method executes the adb `keyevent 26`, which represents
         the `wakeup screen` action.
         """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
+        if self.validate_connection():
             subprocess.run(
                 [
                     'adb',
@@ -293,10 +297,7 @@ class DeviceActions:
         This method executes the adb `keyevent 82`, which represents
         the `unlock screen` action.
         """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
+        if self.validate_connection():
             subprocess.run(
                 [
                     'adb',
@@ -315,10 +316,7 @@ class DeviceActions:
         This method executes the adb `keyevent 3`, which represents
         the `Home` phone button.
         """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
+        if self.validate_connection():
             subprocess.run(
                 [
                     'adb',
