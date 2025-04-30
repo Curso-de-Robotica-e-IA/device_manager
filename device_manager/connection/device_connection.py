@@ -15,6 +15,7 @@ from device_manager.connection.utils.mdns_context import (
 )
 
 DEFAULT_FIXED_PORT = 5555
+MAX_CONNECTION_RETRIES = 5
 
 logger = logging.getLogger(__name__)
 
@@ -265,12 +266,18 @@ class DeviceConnection:
         device = self.connection_info.get(serial_number)
         return f'{device.ip}:{device.port}'
 
-    def establish_first_connection(self, device_serial_number: str) -> bool:
+    def establish_first_connection(
+        self,
+        device_serial_number: str,
+        max_retries: int = MAX_CONNECTION_RETRIES,
+    ) -> bool:
         """Attempts to establish an ADB connection with the specified device.
 
         Args:
             device_serial_number (str): The serial number of the device to
                 connect to.
+            max_retries (int, optional): The maximum number of connection
+                attempts. Defaults to 5.
 
         Returns:
             bool: True if the connection is successfully established, False
@@ -278,7 +285,7 @@ class DeviceConnection:
         """
         success = False
         connection = None
-        for _ in range(3):
+        for _ in range(max_retries):
             if not success:
                 self.console.print('Trying to connect ...')
                 connection = self.connection.device_connect(
