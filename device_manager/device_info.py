@@ -218,10 +218,10 @@ class DeviceInfo:
                 check=self.subprocess_check_flag,
             ).stdout
             prop_dict = dict()
-            expected_length = 2
+            EXPECTED_LENGTH = 2
             for line in output.splitlines():
                 key_value = line.split(': ', 1)
-                if len(key_value) == expected_length:
+                if len(key_value) == EXPECTED_LENGTH:
                     key_ = key_value[0][1:-1]
                     value_ = key_value[1][1:-1]
                     prop_dict[key_] = value_
