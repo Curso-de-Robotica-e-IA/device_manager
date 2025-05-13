@@ -109,7 +109,7 @@ class DeviceInfo:
             result = re.findall(package_pattern, greplines[0])
             if len(result) == 0:
                 return 'No activity'
-            return "/".join(result)
+            return '/'.join(result)
 
     def is_screen_on(self) -> bool:
         """This method checks if the associated device screen is on.
