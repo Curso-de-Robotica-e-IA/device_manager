@@ -1,3 +1,4 @@
+import re
 import subprocess
 from typing import Dict, List, Optional, TypedDict
 
@@ -11,6 +12,7 @@ UNEXPECTED_ADB_OUTPUT = 'Unexpected output from ADB command'
 
 class DeviceProperties(TypedDict):
     """TypedDict for device properties."""
+
     serial_number: str
     brand: str
     model: str
@@ -99,11 +101,15 @@ class DeviceInfo:
                 check=self.subprocess_check_flag,
             ).stdout
             greplines = grep(output, 'mCurrentFocus')
-            try:
-                result = greplines[0].split(':')
-                return result[1].strip()
-            except IndexError:
+            if len(greplines) == 0:
                 return 'No activity'
+            package_pattern = re.compile(
+                r'com\.[a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*'
+            )
+            result = re.findall(package_pattern, greplines[0])
+            if len(result) == 0:
+                return 'No activity'
+            return '/'.join(result)
 
     def is_screen_on(self) -> bool:
         """This method checks if the associated device screen is on.
@@ -236,3 +242,66 @@ class DeviceInfo:
                     if key in prop_dict:
                         base_result[key] = prop_dict[key]
             return DeviceProperties(**base_result)
+
+    def app_property(
+        self,
+        package_name: str,
+        property_name: str,
+    ):
+        """Gets a property of an application on the device using the
+        provided package name and property name.
+
+        Args:
+            package_name (str): The package name of the application.
+            property_name (str): The property name to retrieve.
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            result = subprocess.run(
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'dumpsys',
+                    'package',
+                    package_name,
+                ],
+                check=self.subprocess_check_flag,
+                text=True,
+                capture_output=True,
+            ).stdout
+            grep_lines = grep(result, property_name)
+            if len(grep_lines) > 0:
+                value = grep_lines[0].strip().split('=')[1]
+                return value
+
+    def get_screen_dimensions(self) -> tuple[int, int]:
+        """Gets the dimensions of the device screen.
+
+        Returns:
+            tuple[int, int]: The width and height of the device screen.
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            result = subprocess.run(
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'wm',
+                    'size',
+                ],
+                check=self.subprocess_check_flag,
+                text=True,
+                capture_output=True,
+            ).stdout
+            grep_lines = grep(result, 'Physical size:')
+            if len(grep_lines) > 0:
+                dimensions = grep_lines[0].split(':')[1].strip().split('x')
+                return int(dimensions[0]), int(dimensions[1])

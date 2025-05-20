@@ -275,6 +275,7 @@ class DeviceManager:
         command: str,
         comm_uris: Optional[List[str]] = None,
         subprocess_check_flag: bool = False,
+        capture_output: bool = False,
         **kwargs,
     ) -> CompletedProcess:
         """Executes a custom adb command on all connected devices.
@@ -300,6 +301,8 @@ class DeviceManager:
                 subprocess execution was successful, passed to the subprocess
                 `check` argument. Defaults to False.
                 Check the subprocess documentation for more information.
+            capture_output (bool, optional): A flag to capture the output of
+                the command. Defaults to False.
             **kwargs: Additional arguments to be added to the command.
 
         Returns:
@@ -328,6 +331,8 @@ class DeviceManager:
             adb_command,
             shell=True,
             check=subprocess_check_flag,
+            capture_output=capture_output,
+            text=capture_output if capture_output else None,
         )
 
     def adb_pairing_instance(
