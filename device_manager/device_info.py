@@ -277,3 +277,31 @@ class DeviceInfo:
             if len(grep_lines) > 0:
                 value = grep_lines[0].strip().split('=')[1]
                 return value
+
+    def get_screen_dimensions(self) -> tuple[int, int]:
+        """Gets the dimensions of the device screen.
+
+        Returns:
+            tuple[int, int]: The width and height of the device screen.
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            result = subprocess.run(
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'shell',
+                    'wm',
+                    'size',
+                ],
+                check=self.subprocess_check_flag,
+                text=True,
+                capture_output=True,
+            ).stdout
+            grep_lines = grep(result, 'Physical size:')
+            if len(grep_lines) > 0:
+                dimensions = grep_lines[0].split(':')[1].strip().split('x')
+                return int(dimensions[0]), int(dimensions[1])
