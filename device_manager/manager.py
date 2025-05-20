@@ -181,7 +181,6 @@ class DeviceManager:
         command_as_list = custom_command.split(' ')
         for idx, uri in enumerate(comm_uri_list):
             command.extend(['-s', uri])
-            command.append('shell')
             command.extend(command_as_list)
             if idx < len(comm_uri_list) - 1:
                 command.extend(['&&', 'adb'])
@@ -282,10 +281,9 @@ class DeviceManager:
         Additional arguments and keyword arguments can be provided to
         customize the command, which will be added to the end of the command
         string.
-        This function already adds the `adb shell` part of the shell command.
 
-        Passing a command such as `input keyevent 3` will produce the
-        following command: `adb shell input keyevent 3`, applied with the
+        Passing a command such as `pull remote local` will produce the
+        following command: `adb pull remote local`, applied with the
         `-s` flag for each device.
 
         You can execute a command on a set of specific devices by providing
@@ -318,8 +316,6 @@ class DeviceManager:
         base_command = ['adb']
         if command.startswith('adb'):
             command = command[3:]
-        if command.startswith('shell'):
-            command = command[5:]
         adb_command_list = self.build_command_list(
             base_command=base_command,
             comm_uri_list=uris,
@@ -333,6 +329,57 @@ class DeviceManager:
             check=subprocess_check_flag,
             capture_output=capture_output,
             text=capture_output if capture_output else None,
+        )
+
+    def execute_adb_shell_command(
+        self,
+        command: str,
+        comm_uris: Optional[List[str]] = None,
+        subprocess_check_flag: bool = False,
+        capture_output: bool = False,
+        **kwargs,
+    ) -> CompletedProcess:
+        """Executes a custom adb command on all connected devices.
+        Additional arguments and keyword arguments can be provided to
+        customize the command, which will be added to the end of the command
+        string.
+        This function already adds the `adb shell` part of the shell command.
+
+        Passing a command such as `input keyevent 3` will produce the
+        following command: `adb shell input keyevent 3`, applied with the
+        `-s` flag for each device.
+
+        You can execute a command on a set of specific devices by providing
+        the serial numbers as additional arguments.
+
+        Args:
+            command (str): The adb command to execute.
+            comm_uris (Optional[List[str]]): The serial numbers of the
+                devices to execute the command on. Defaults to None.
+                In this case, the command will be executed on all
+                connected devices.
+            subprocess_check_flag (bool, optional): A flag to check if the
+                subprocess execution was successful, passed to the subprocess
+                `check` argument. Defaults to False.
+                Check the subprocess documentation for more information.
+            capture_output (bool, optional): A flag to capture the output of
+                the command. Defaults to False.
+            **kwargs: Additional arguments to be added to the command.
+
+        Returns:
+            CompletedProcess: The result of the command execution.
+        """
+        if command.startswith('adb'):
+            command = command[3:]
+        if command.startswith('shell'):
+            command = command[6:]
+        command = f'shell {command}'
+        return self.execute_adb_command(
+            command=command,
+            comm_uris=comm_uris,
+            subprocess_check_flag=subprocess_check_flag,
+            capture_output=capture_output,
+            **kwargs,
         )
 
     def adb_pairing_instance(
