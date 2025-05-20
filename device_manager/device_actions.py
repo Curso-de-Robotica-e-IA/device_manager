@@ -329,3 +329,51 @@ class DeviceActions:
                 ],
                 check=self.subprocess_check_flag,
             )
+
+    def push_file(
+        self,
+        local_path: str,
+        remote_path: str,
+    ) -> None:
+        """Pushes a file from the local machine to the device.
+
+        Args:
+            local_path (str): The path to the file on the local machine.
+            remote_path (str): The destination path on the device.
+        """
+        if self.validate_connection():
+            subprocess.run(
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'push',
+                    local_path,
+                    remote_path,
+                ],
+                check=self.subprocess_check_flag,
+            )
+
+    def pull_file(
+        self,
+        remote_path: str,
+        local_path: str,
+    ) -> None:
+        """Pulls a file from the device to the local machine.
+
+        Args:
+            remote_path (str): The path to the file on the device.
+            local_path (str): The destination path on the local machine.
+        """
+        if self.validate_connection():
+            subprocess.run(
+                [
+                    'adb',
+                    '-s',
+                    self.current_comm_uri,
+                    'pull',
+                    remote_path,
+                    local_path,
+                ],
+                check=self.subprocess_check_flag,
+            )
