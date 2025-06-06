@@ -1,11 +1,9 @@
-import pytest  # noqa
-
-from device_manager import DeviceManager
+from device_manager.adb_executor import build_command_list
 
 
 def test_manager_build_command_list():
-    adb_cmd = r'am start -n dummyCmd\.dummyActv'
-    result = DeviceManager.build_command_list(
+    adb_cmd = r'shell am start -n dummyCmd\.dummyActv'
+    result = build_command_list(
         base_command=['adb'],
         comm_uri_list=['127.0.0.1:5555', '127.0.0.2:5555'],
         custom_command=adb_cmd,

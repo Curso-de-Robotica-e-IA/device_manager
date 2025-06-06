@@ -1,9 +1,10 @@
-import subprocess
 from pathlib import Path
 from typing import Optional
 
 from device_manager.actions.camera_actions import CameraActions
+from device_manager.adb_executor import execute_adb_command
 from device_manager.connection.device_connection import DeviceConnection
+from device_manager.enumerations.adb_keyevents import ADBKeyEvent
 
 
 class DeviceActions:
@@ -102,18 +103,11 @@ class DeviceActions:
         """
 
         if self.validate_connection():
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'shell',
-                    'input',
-                    'tap',
-                    str(x),
-                    str(y),
-                ],
-                check=self.subprocess_check_flag,
+            execute_adb_command(
+                command=f'input tap {x} {y}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
             )
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, time: int) -> None:
@@ -129,21 +123,11 @@ class DeviceActions:
         """
 
         if self.validate_connection():
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'shell',
-                    'input',
-                    'swipe',
-                    str(x1),
-                    str(y1),
-                    str(x2),
-                    str(y2),
-                    str(time),
-                ],
-                check=self.subprocess_check_flag,
+            execute_adb_command(
+                command=f'input swipe {x1} {y1} {x2} {y2} {time}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
             )
 
     def _open_app_one_arg(self, package_activity: str) -> None:
@@ -156,18 +140,11 @@ class DeviceActions:
                 of the application.
                 Ex.: 'com.android.deskclock/.DeskClockTabActivity'
         """
-        subprocess.run(
-            [
-                'adb',
-                '-s',
-                self.current_comm_uri,
-                'shell',
-                'am',
-                'start',
-                '-n',
-                package_activity,
-            ],
-            check=self.subprocess_check_flag,
+        execute_adb_command(
+            command=f'am start -n {package_activity}',
+            comm_uris=[self.current_comm_uri],
+            shell=True,
+            subprocess_check_flag=self.subprocess_check_flag,
         )
 
     def _open_app_two_args(
@@ -188,18 +165,11 @@ class DeviceActions:
             package_name (str): The package name of the application.
             activity_name (str): The activity name of the application.
         """
-        subprocess.run(
-            [
-                'adb',
-                '-s',
-                self.current_comm_uri,
-                'shell',
-                'am',
-                'start',
-                '-n',
-                f'{package_name}/{activity_name}',
-            ],
-            check=self.subprocess_check_flag,
+        execute_adb_command(
+            command=f'am start -n {package_name}/{activity_name}',
+            comm_uris=[self.current_comm_uri],
+            shell=True,
+            subprocess_check_flag=self.subprocess_check_flag,
         )
 
     def open_app(
@@ -230,17 +200,11 @@ class DeviceActions:
         """
 
         if self.validate_connection():
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'shell',
-                    'am',
-                    'force-stop',
-                    package_name,
-                ],
-                check=self.subprocess_check_flag,
+            execute_adb_command(
+                command=f'am force-stop {package_name}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
             )
 
     def install_apk(
@@ -261,73 +225,52 @@ class DeviceActions:
 
         if self.validate_connection():
             apk_file_path = (path.resolve()).as_posix()
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'install',
-                    '-r' if replace else '',
-                    apk_file_path,
-                ],
-                check=self.subprocess_check_flag,
+            command = f'install {apk_file_path}'
+            if replace:
+                command = f'install -r {apk_file_path}'
+            execute_adb_command(
+                command=command,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
             )
 
     def turn_on_screen(self):
         """
-        This method executes the adb `keyevent 26`, which represents
+        This method executes the adb `keyevent KEYCODE_POWER`, which represents
         the `wakeup screen` action.
         """
         if self.validate_connection():
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'shell',
-                    'input',
-                    'keyevent',
-                    '26',
-                ],
-                check=self.subprocess_check_flag,
+            execute_adb_command(
+                command=f'input keyevent {ADBKeyEvent.KEYCODE_POWER.value}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
             )
 
     def unlock_screen(self):
         """
-        This method executes the adb `keyevent 82`, which represents
+        This method executes the adb `keyevent KEYCODE_MENU`, which represents
         the `unlock screen` action.
         """
         if self.validate_connection():
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'shell',
-                    'input',
-                    'keyevent',
-                    '82',
-                ],
-                check=self.subprocess_check_flag,
+            execute_adb_command(
+                command=f'input keyevent {ADBKeyEvent.KEYCODE_MENU.value}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
             )
 
     def home_button(self):
         """
-        This method executes the adb `keyevent 3`, which represents
+        This method executes the adb `keyevent KEYCODE_HOME`, which represents
         the `Home` phone button.
         """
         if self.validate_connection():
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'shell',
-                    'input',
-                    'keyevent',
-                    '3',
-                ],
-                check=self.subprocess_check_flag,
+            execute_adb_command(
+                command=f'input keyevent {ADBKeyEvent.KEYCODE_HOME.value}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
             )
 
     def push_file(
@@ -342,16 +285,10 @@ class DeviceActions:
             remote_path (str): The destination path on the device.
         """
         if self.validate_connection():
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'push',
-                    local_path,
-                    remote_path,
-                ],
-                check=self.subprocess_check_flag,
+            execute_adb_command(
+                command=f'push {local_path} {remote_path}',
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
             )
 
     def pull_file(
@@ -366,14 +303,8 @@ class DeviceActions:
             local_path (str): The destination path on the local machine.
         """
         if self.validate_connection():
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'pull',
-                    remote_path,
-                    local_path,
-                ],
-                check=self.subprocess_check_flag,
+            execute_adb_command(
+                command=f'pull {remote_path} {local_path}',
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
             )
