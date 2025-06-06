@@ -1,9 +1,9 @@
 import re
-import subprocess
 from typing import Dict, List, Optional, TypedDict
 
 import uiautomator2 as u2
 
+from device_manager.adb_executor import execute_adb_command
 from device_manager.connection.device_connection import DeviceConnection
 from device_manager.utils.util_functions import grep
 
@@ -86,19 +86,12 @@ class DeviceInfo:
             self.__serial_number,
             force_reconnect=True,
         ):
-            output = subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'shell',
-                    'dumpsys',
-                    'activity',
-                    'activities',
-                ],
+            output = execute_adb_command(
+                command='dumpsys activity activities',
+                shell=True,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
-                text=True,
-                check=self.subprocess_check_flag,
             ).stdout
             greplines = grep(output, 'mCurrentFocus')
             if len(greplines) == 0:
@@ -121,18 +114,12 @@ class DeviceInfo:
             self.__serial_number,
             force_reconnect=True,
         ):
-            output = subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'shell',
-                    'dumpsys',
-                    'deviceidle',
-                ],
+            output = execute_adb_command(
+                command='dumpsys deviceidle',
+                shell=True,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
-                text=True,
-                check=self.subprocess_check_flag,
             ).stdout
             greplines = grep(output, 'mScreenOn')
             assert len(greplines) == 1
@@ -153,20 +140,13 @@ class DeviceInfo:
             self.__serial_number,
             force_reconnect=True,
         ):
-            output = subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'shell',
-                    'dumpsys',
-                    'deviceidle',
-                ],
+            output = execute_adb_command(
+                command='dumpsys deviceidle',
+                shell=True,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
-                text=True,
-                check=self.subprocess_check_flag,
             ).stdout
-
             grep_lines = grep(output, 'mScreenLocked')
             if len(grep_lines) != 1:
                 raise ValueError(UNEXPECTED_ADB_OUTPUT)
@@ -217,11 +197,12 @@ class DeviceInfo:
             self.__serial_number,
             force_reconnect=True,
         ):
-            output = subprocess.run(
-                ['adb', '-s', self.current_comm_uri, 'shell', 'getprop'],
+            output = execute_adb_command(
+                command='getprop',
+                shell=True,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
-                text=True,
-                check=self.subprocess_check_flag,
             ).stdout
             prop_dict = dict()
             EXPECTED_LENGTH = 2
@@ -259,18 +240,11 @@ class DeviceInfo:
             self.__serial_number,
             force_reconnect=True,
         ):
-            result = subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'shell',
-                    'dumpsys',
-                    'package',
-                    package_name,
-                ],
-                check=self.subprocess_check_flag,
-                text=True,
+            result = execute_adb_command(
+                command=f'dumpsys package {package_name}',
+                shell=True,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
             ).stdout
             grep_lines = grep(result, property_name)
@@ -288,17 +262,11 @@ class DeviceInfo:
             self.__serial_number,
             force_reconnect=True,
         ):
-            result = subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.current_comm_uri,
-                    'shell',
-                    'wm',
-                    'size',
-                ],
-                check=self.subprocess_check_flag,
-                text=True,
+            result = execute_adb_command(
+                command='wm size',
+                shell=True,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
             ).stdout
             grep_lines = grep(result, 'Physical size:')

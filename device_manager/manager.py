@@ -1,7 +1,7 @@
-import subprocess
 from subprocess import CompletedProcess
 from typing import Iterable, List, NamedTuple, Optional, Tuple
 
+from device_manager.adb_executor import execute_adb_command
 from device_manager.components.object_manager import ObjectManager
 from device_manager.connection.adb_pairing import AdbPairing
 from device_manager.connection.device_connection import (
@@ -156,39 +156,6 @@ class DeviceManager:
     def __str__(self) -> str:
         return f'DeviceManager({len(self)} devices: {list(self.__device_info.keys())})'  # noqa
 
-    @staticmethod
-    def build_command_list(
-        base_command: List[str],
-        comm_uri_list: List[str],
-        custom_command: str,
-        **kwargs,
-    ) -> List[str]:
-        """Builds a list of commands to be executed on multiple devices.
-        This method is used to build a list of commands that will be executed
-        on multiple devices. The command is built using the base command
-        provided, the list of communication URIs, the custom command to be
-        executed, and any additional arguments that should be added to the
-        command.
-
-        Args:
-            base_command (List[str]): The base command to be executed.
-            comm_uri_list (List[str]): The list of communication URIs for the
-                devices.
-            custom_command (str): The custom command to be executed.
-            **kwargs: Additional arguments to be added to the command.
-        """
-        command = base_command.copy()
-        command_as_list = custom_command.split(' ')
-        for idx, uri in enumerate(comm_uri_list):
-            command.extend(['-s', uri])
-            command.extend(command_as_list)
-            if idx < len(comm_uri_list) - 1:
-                command.extend(['&&', 'adb'])
-        if kwargs:
-            for key, value in kwargs.items():
-                command.extend([key, value])
-        return command
-
     @property
     def connected_devices(self) -> List[str]:
         """Returns the list of serial numbers of the devices that are
@@ -273,6 +240,7 @@ class DeviceManager:
         self,
         command: str,
         comm_uris: Optional[List[str]] = None,
+        shell: bool = True,
         subprocess_check_flag: bool = False,
         capture_output: bool = False,
         **kwargs,
@@ -295,6 +263,7 @@ class DeviceManager:
                 devices to execute the command on. Defaults to None.
                 In this case, the command will be executed on all
                 connected devices.
+            shell (bool, optional): A flag to indicate if the command should
             subprocess_check_flag (bool, optional): A flag to check if the
                 subprocess execution was successful, passed to the subprocess
                 `check` argument. Defaults to False.
@@ -313,70 +282,10 @@ class DeviceManager:
             raise TypeError(
                 f'comm_uris must be a list, tuple or None, got {type(comm_uris)}',  # noqa
             )
-        base_command = ['adb']
-        if command.startswith('adb'):
-            command = command[3:]
-        adb_command_list = self.build_command_list(
-            base_command=base_command,
-            comm_uri_list=uris,
-            custom_command=command,
-            **kwargs,
-        )
-        adb_command = ' '.join(adb_command_list)
-        return subprocess.run(
-            adb_command,
-            shell=True,
-            check=subprocess_check_flag,
-            capture_output=capture_output,
-            text=capture_output if capture_output else None,
-        )
-
-    def execute_adb_shell_command(
-        self,
-        command: str,
-        comm_uris: Optional[List[str]] = None,
-        subprocess_check_flag: bool = False,
-        capture_output: bool = False,
-        **kwargs,
-    ) -> CompletedProcess:
-        """Executes a custom adb command on all connected devices.
-        Additional arguments and keyword arguments can be provided to
-        customize the command, which will be added to the end of the command
-        string.
-        This function already adds the `adb shell` part of the shell command.
-
-        Passing a command such as `input keyevent 3` will produce the
-        following command: `adb shell input keyevent 3`, applied with the
-        `-s` flag for each device.
-
-        You can execute a command on a set of specific devices by providing
-        the serial numbers as additional arguments.
-
-        Args:
-            command (str): The adb command to execute.
-            comm_uris (Optional[List[str]]): The serial numbers of the
-                devices to execute the command on. Defaults to None.
-                In this case, the command will be executed on all
-                connected devices.
-            subprocess_check_flag (bool, optional): A flag to check if the
-                subprocess execution was successful, passed to the subprocess
-                `check` argument. Defaults to False.
-                Check the subprocess documentation for more information.
-            capture_output (bool, optional): A flag to capture the output of
-                the command. Defaults to False.
-            **kwargs: Additional arguments to be added to the command.
-
-        Returns:
-            CompletedProcess: The result of the command execution.
-        """
-        if command.startswith('adb'):
-            command = command[3:]
-        if command.startswith('shell'):
-            command = command[6:]
-        command = f'shell {command}'
-        return self.execute_adb_command(
+        return execute_adb_command(
             command=command,
-            comm_uris=comm_uris,
+            comm_uris=uris,
+            shell=shell,
             subprocess_check_flag=subprocess_check_flag,
             capture_output=capture_output,
             **kwargs,
