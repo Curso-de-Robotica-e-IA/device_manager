@@ -5,6 +5,7 @@ import uiautomator2 as u2
 
 from device_manager.adb_executor import execute_adb_command
 from device_manager.connection.device_connection import DeviceConnection
+from device_manager.infos.app import AppInfo
 from device_manager.utils.util_functions import grep
 
 UNEXPECTED_ADB_OUTPUT = 'Unexpected output from ADB command'
@@ -224,34 +225,6 @@ class DeviceInfo:
                         base_result[key] = prop_dict[key]
             return DeviceProperties(**base_result)
 
-    def app_property(
-        self,
-        package_name: str,
-        property_name: str,
-    ):
-        """Gets a property of an application on the device using the
-        provided package name and property name.
-
-        Args:
-            package_name (str): The package name of the application.
-            property_name (str): The property name to retrieve.
-        """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            result = execute_adb_command(
-                command=f'dumpsys package {package_name}',
-                shell=True,
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
-                capture_output=True,
-            ).stdout
-            grep_lines = grep(result, property_name)
-            if len(grep_lines) > 0:
-                value = grep_lines[0].strip().split('=')[1]
-                return value
-
     def get_screen_dimensions(self) -> tuple[int, int]:
         """Gets the dimensions of the device screen.
 
@@ -273,3 +246,19 @@ class DeviceInfo:
             if len(grep_lines) > 0:
                 dimensions = grep_lines[0].split(':')[1].strip().split('x')
                 return int(dimensions[0]), int(dimensions[1])
+
+    def app(self, package: str) -> AppInfo:
+        """Returns an instance of AppInfo for the specified package.
+
+        Args:
+            package (str): The package name of the application.
+
+        Returns:
+            AppInfo: An instance of AppInfo for the specified package.
+        """
+        return AppInfo(
+            package=package,
+            device_connection=self.device_connection,
+            serial_number=self.__serial_number,
+            subprocess_check_flag=self.subprocess_check_flag,
+        )

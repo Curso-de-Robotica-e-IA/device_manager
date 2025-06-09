@@ -5,6 +5,7 @@ from device_manager.adb_executor import execute_adb_command
 from device_manager.connection.device_connection import DeviceConnection
 from device_manager.enumerations.adb_keyevents import ADBKeyEvent
 from device_manager.enumerations.camera import CameraIntents
+from device_manager.utils.util_functions import grep
 
 
 class CameraActions:
@@ -62,6 +63,24 @@ class CameraActions:
         else:
             raise RuntimeError(
                 'Device connection is not valid. Cannot close camera.',
+            )
+
+    def package(self) -> str:
+        """Returns the package name of the camera application."""
+        if self.validate_connection_callback():
+            result = execute_adb_command(
+                command=f'cmd package resolve-activity --brief -a {CameraIntents.ACTION_IMAGE_CAPTURE}',  # noqa: E501
+                comm_uris=[self.comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+                capture_output=True,
+            ).stdout
+            activity = grep(result, 'com.(.*)/')[0].strip()
+            package = activity.split('/')[0]
+            return package
+        else:
+            raise RuntimeError(
+                'Device connection is not valid. Cannot get camera package.',
             )
 
     def take_picture(self) -> None:
