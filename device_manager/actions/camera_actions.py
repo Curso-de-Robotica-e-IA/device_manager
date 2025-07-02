@@ -145,7 +145,7 @@ class CameraActions:
                     subprocess_check_flag=self.subprocess_check_flag,
                     capture_output=True,
                 )
-                files = result.stdout.decode().splitlines()
+                files = result.stdout.splitlines()
                 files = files[:amount]
                 for file in files:
                     execute_adb_command(
