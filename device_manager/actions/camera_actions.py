@@ -1,9 +1,11 @@
-import subprocess
 from pathlib import Path
 from typing import Callable, Union
 
+from device_manager.adb_executor import execute_adb_command
 from device_manager.connection.device_connection import DeviceConnection
 from device_manager.enumerations.adb_keyevents import ADBKeyEvent
+from device_manager.enumerations.camera import CameraIntents
+from device_manager.utils.util_functions import grep
 
 
 class CameraActions:
@@ -24,18 +26,11 @@ class CameraActions:
     def open(self) -> None:
         """Opens the camera application."""
         if self.validate_connection_callback():
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.comm_uri,
-                    'shell',
-                    'am',
-                    'start',
-                    '-a',
-                    'android.media.action.STILL_IMAGE_CAMERA',
-                ],
-                check=self.subprocess_check_flag,
+            execute_adb_command(
+                command=f'am start -a {CameraIntents.ACTION_STILL_IMAGE_CAMERA}',  # noqa: E501
+                comm_uris=[self.comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
             )
         else:
             raise RuntimeError(
@@ -45,18 +40,11 @@ class CameraActions:
     def open_video(self) -> None:
         """Opens the camera application in video mode."""
         if self.validate_connection_callback():
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.comm_uri,
-                    'shell',
-                    'am',
-                    'start',
-                    '-a',
-                    'android.media.action.VIDEO_CAMERA',
-                ],
-                check=self.subprocess_check_flag,
+            execute_adb_command(
+                command=f'am start -a {CameraIntents.ACTION_VIDEO_CAMERA}',
+                comm_uris=[self.comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
             )
         else:
             raise RuntimeError(
@@ -66,37 +54,43 @@ class CameraActions:
     def close(self) -> None:
         """Closes the camera application."""
         if self.validate_connection_callback():
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.comm_uri,
-                    'shell',
-                    'am',
-                    'force-stop',
-                    'com.android.camera',
-                ],
-                check=self.subprocess_check_flag,
+            execute_adb_command(
+                command='am force-stop com.android.camera',
+                comm_uris=[self.comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
             )
         else:
             raise RuntimeError(
                 'Device connection is not valid. Cannot close camera.',
             )
 
+    def package(self) -> str:
+        """Returns the package name of the camera application."""
+        if self.validate_connection_callback():
+            result = execute_adb_command(
+                command=f'cmd package resolve-activity --brief -a {CameraIntents.ACTION_IMAGE_CAPTURE}',  # noqa: E501
+                comm_uris=[self.comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+                capture_output=True,
+            ).stdout
+            activity = grep(result, 'com.(.*)/')[0].strip()
+            package = activity.split('/')[0]
+            return package
+        else:
+            raise RuntimeError(
+                'Device connection is not valid. Cannot get camera package.',
+            )
+
     def take_picture(self) -> None:
         """Takes a picture using the camera."""
         if self.validate_connection_callback():
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.comm_uri,
-                    'shell',
-                    'input',
-                    'keyevent',
-                    ADBKeyEvent.KEYCODE_ENTER.value,
-                ],
-                check=self.subprocess_check_flag,
+            execute_adb_command(
+                command=f'input keyevent {ADBKeyEvent.KEYCODE_ENTER.value}',
+                comm_uris=[self.comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
             )
         else:
             raise RuntimeError(
@@ -106,17 +100,11 @@ class CameraActions:
     def clear_pictures(self) -> None:
         """Clears the pictures from the device."""
         if self.validate_connection_callback():
-            subprocess.run(
-                [
-                    'adb',
-                    '-s',
-                    self.comm_uri,
-                    'shell',
-                    'rm',
-                    '-rf',
-                    '/sdcard/DCIM/Camera/*',
-                ],
-                check=self.subprocess_check_flag,
+            execute_adb_command(
+                command='rm -rf /sdcard/DCIM/Camera/*',
+                comm_uris=[self.comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
             )
         else:
             raise RuntimeError(
@@ -150,33 +138,20 @@ class CameraActions:
             ) from e
         try:
             if self.validate_connection_callback():
-                result = subprocess.run(
-                    [
-                        'adb',
-                        '-s',
-                        self.comm_uri,
-                        'shell',
-                        'ls',
-                        '-t',
-                        '/sdcard/DCIM/Camera',
-                    ],
-                    check=self.subprocess_check_flag,
+                result = execute_adb_command(
+                    command='ls -t /sdcard/DCIM/Camera',
+                    comm_uris=[self.comm_uri],
+                    shell=True,
+                    subprocess_check_flag=self.subprocess_check_flag,
                     capture_output=True,
                 )
-                print(result)
-                files = result.stdout.decode().splitlines()
+                files = result.stdout.splitlines()
                 files = files[:amount]
                 for file in files:
-                    subprocess.run(
-                        [
-                            'adb',
-                            '-s',
-                            self.comm_uri,
-                            'pull',
-                            f'/sdcard/DCIM/Camera/{file}',
-                            str(destination.resolve()),
-                        ],
-                        check=self.subprocess_check_flag,
+                    execute_adb_command(
+                        command=f'pull /sdcard/DCIM/Camera/{file} {destination.resolve()}',  # noqa: E501
+                        comm_uris=[self.comm_uri],
+                        subprocess_check_flag=self.subprocess_check_flag,
                     )
             else:
                 raise RuntimeError(
