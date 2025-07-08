@@ -6,7 +6,10 @@ from rich.console import Console
 from rich.prompt import Prompt
 
 from device_manager.components.object_manager import ObjectManager
-from device_manager.connection.connection_manager import ConnectionManager
+from device_manager.connection.connection_manager import (
+    ConnectionManager,
+    ConnectionManagerSingleton,
+)
 from device_manager.connection.utils.connection_status import (
     ConnectionInfoStatus,
 )
@@ -74,7 +77,7 @@ class DeviceConnection:
     ):
         self.console = Console()
         self.__subprocess_check_flag = subprocess_check_flag
-        self.connection = ConnectionManager(
+        self.connection = ConnectionManagerSingleton(
             subprocess_check_flag=self.__subprocess_check_flag,
         )
         self.connection_info: ObjectManager[ServiceInfo] = ObjectManager()
