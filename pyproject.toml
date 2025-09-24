@@ -1,10 +1,11 @@
 [project]
 name = "device_manager"
-version = "1.5.0"
+version = "1.6.0"
 description = ""
 authors = [
     { name = "Bruno Pinheiro", email = "bruno.opinheiro@outlook.com" },
-    { name = "Mateus Machado", email = "mateus.gm@gmail.com" }
+    { name = "Mateus Machado", email = "mateus.gm@gmail.com" },
+    { name = "Jairton Falcão", email = "jairtonsff@gmail.com" }
 ]
 license = { text = "GNU AFFERO GENERAL PUBLIC LICENSE v3.0" }
 readme = "README.md"
