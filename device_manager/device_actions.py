@@ -272,6 +272,61 @@ class DeviceActions:
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+    
+    def screen_shot(self, image_name: str = "screen") -> None:
+        """Takes a screenshot of the device screen.
+        """
+        if self.validate_connection():
+            execute_adb_command(
+                command=f'screencap -p /sdcard/{image_name}.png',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+    
+    def remove_file(self, remote_path: str) -> None:
+        """Removes a file from the device.
+
+        Args:
+            remote_path (str): The path to the file on the device.
+        """
+        if self.validate_connection():
+            execute_adb_command(
+                command=f'rm {remote_path}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+
+    def safe_screencap_bytes(self) -> bytes | None:
+        """
+        Takes a screenshot of the device screen and returns the image
+        content as bytes. The method ensures that temporary files are
+
+        Returns:
+            bytes | None: The screenshot image content as bytes, or None
+            if the operation fails.
+        """
+        remote_path = "/sdcard/screen.png"
+        tmp_path = Path("._tmp_screen.png")
+
+        if self.validate_connection():
+            try:
+                self.screen_shot()
+                self.pull_file(remote_path=remote_path, local_path=tmp_path)
+                if not tmp_path.exists() or tmp_path.stat().st_size == 0:
+                    
+                    return None
+
+                with tmp_path.open("rb") as f:
+                    image_bytes = f.read()
+
+                return image_bytes
+
+            finally:
+                self.remove_file(remote_path=remote_path)
+                if tmp_path.exists():
+                    tmp_path.unlink()
 
     def push_file(
         self,
