@@ -28,7 +28,7 @@ jobs:
         run: poetry install --with doc
 
       - name: Build wheel
-        run: poetry build -f wheel
+        run: poetry build
 
       - name: Build zip and docs
         shell: bash
@@ -41,7 +41,8 @@ jobs:
         shell: bash
         run: |
           FILES_WHEEL=$(ls ./dist/*.whl)
+          FILES_TARGZ=$(ls ./dist/*.tar.gz)
           FILES_DOCS=$(ls ./*.zip)
-          gh release create ${{ github.ref}} $FILES_WHEEL $FILES_DOCS --generate-notes
+          gh release create ${{ github.ref}} $FILES_WHEEL $FILES_TARGZ $FILES_DOCS --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
