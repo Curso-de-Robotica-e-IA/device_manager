@@ -5,7 +5,7 @@ from typing import List
 
 def build_command_list(
     base_command: List[str],
-    comm_uri_list: List[str],
+    serial_number_list: List[str],
     custom_command: str,
     **kwargs,
 ) -> List[str]:
@@ -18,17 +18,17 @@ def build_command_list(
 
     Args:
         base_command (List[str]): The base command to be executed.
-        comm_uri_list (List[str]): The list of communication URIs for the
+        serial_number_list (List[str]): The list of communication URIs for the
             devices.
         custom_command (str): The custom command to be executed.
         **kwargs: Additional arguments to be added to the command.
     """
     command = base_command.copy()
     command_as_list = custom_command.split(' ')
-    for idx, uri in enumerate(comm_uri_list):
+    for idx, uri in enumerate(serial_number_list):
         command.extend(['-s', uri])
         command.extend(command_as_list)
-        if idx < len(comm_uri_list) - 1:
+        if idx < len(serial_number_list) - 1:
             command.extend(['&&', 'adb'])
     if kwargs:
         for key, value in kwargs.items():
@@ -38,7 +38,7 @@ def build_command_list(
 
 def execute_adb_command(
     command: str,
-    comm_uris: List[str],
+    serial_number: List[str],
     shell: bool = False,
     subprocess_check_flag: bool = False,
     capture_output: bool = False,
@@ -58,7 +58,7 @@ def execute_adb_command(
 
     Args:
         command (str): The adb command to execute.
-        comm_uris (List[str]): The serial numbers of the
+        serial_number (List[str]): The serial numbers of the
             devices to execute the command on.
         shell (bool, optional): A flag to indicate if the command should
             be executed as adb shell. Defaults to False.
@@ -73,7 +73,7 @@ def execute_adb_command(
     Returns:
         CompletedProcess: The result of the command execution.
     """
-    if not comm_uris:
+    if not serial_number:
         raise ValueError('No devices specified for command execution.')
     base_command = ['adb']
     if command.startswith('adb'):
@@ -83,7 +83,7 @@ def execute_adb_command(
             command = f'shell {command}'
     adb_command_list = build_command_list(
         base_command=base_command,
-        comm_uri_list=comm_uris,
+        serial_number_list=serial_number,
         custom_command=command,
         **kwargs,
     )
