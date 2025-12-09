@@ -14,13 +14,11 @@ class CameraActions:
         device_connection: DeviceConnection,
         serial_number: str,
         subprocess_check_flag: bool,
-        comm_uri: str,
         validate_connection_callback: Callable[[], bool] = lambda: True,
     ) -> None:
         self.device_connection = device_connection
         self.serial_number = serial_number
         self.subprocess_check_flag = subprocess_check_flag
-        self.comm_uri = comm_uri
         self.validate_connection_callback = validate_connection_callback
 
     def open(self) -> None:
@@ -28,7 +26,7 @@ class CameraActions:
         if self.validate_connection_callback():
             execute_adb_command(
                 command=f'am start -a {CameraIntents.ACTION_STILL_IMAGE_CAMERA}',  # noqa: E501
-                comm_uris=[self.comm_uri],
+                serial_number=[self.serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
@@ -42,7 +40,7 @@ class CameraActions:
         if self.validate_connection_callback():
             execute_adb_command(
                 command=f'am start -a {CameraIntents.ACTION_VIDEO_CAMERA}',
-                comm_uris=[self.comm_uri],
+                serial_number=[self.serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
@@ -56,7 +54,7 @@ class CameraActions:
         if self.validate_connection_callback():
             execute_adb_command(
                 command='am force-stop com.android.camera',
-                comm_uris=[self.comm_uri],
+                serial_number=[self.serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
@@ -70,7 +68,7 @@ class CameraActions:
         if self.validate_connection_callback():
             result = execute_adb_command(
                 command=f'cmd package resolve-activity --brief -a {CameraIntents.ACTION_IMAGE_CAPTURE}',  # noqa: E501
-                comm_uris=[self.comm_uri],
+                serial_number=[self.serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
@@ -88,7 +86,7 @@ class CameraActions:
         if self.validate_connection_callback():
             execute_adb_command(
                 command=f'input keyevent {ADBKeyEvent.KEYCODE_ENTER.value}',
-                comm_uris=[self.comm_uri],
+                serial_number=[self.serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
@@ -102,7 +100,7 @@ class CameraActions:
         if self.validate_connection_callback():
             execute_adb_command(
                 command='rm -rf /sdcard/DCIM/Camera/*',
-                comm_uris=[self.comm_uri],
+                serial_number=[self.serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
@@ -140,7 +138,7 @@ class CameraActions:
             if self.validate_connection_callback():
                 result = execute_adb_command(
                     command='ls -t /sdcard/DCIM/Camera',
-                    comm_uris=[self.comm_uri],
+                    serial_number=[self.serial_number],
                     shell=True,
                     subprocess_check_flag=self.subprocess_check_flag,
                     capture_output=True,
@@ -150,7 +148,7 @@ class CameraActions:
                 for file in files:
                     execute_adb_command(
                         command=f'pull /sdcard/DCIM/Camera/{file} {destination.resolve()}',  # noqa: E501
-                        comm_uris=[self.comm_uri],
+                        serial_number=[self.serial_number],
                         subprocess_check_flag=self.subprocess_check_flag,
                     )
             else:
