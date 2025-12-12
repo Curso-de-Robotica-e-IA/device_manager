@@ -8,6 +8,4 @@ __all__ = [
     'DeviceManagerSingleton',
     'DeviceActions',
     'DeviceInfo',
-    'AdbPairing',
-    'AdbConnectionDiscovery',
 ]
