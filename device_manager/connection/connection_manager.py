@@ -17,7 +17,7 @@ class ConnectionManager:
 
     @staticmethod
     def check_devices_adb_connection(
-        comm_uri: str,
+        serial_number: str,
         subprocess_check_flag: bool = False,
     ) -> bool:
         """Check if the device is connected to the adb server.
@@ -25,7 +25,7 @@ class ConnectionManager:
         as `offline` in the output of the `adb devices` command.
 
         Args:
-            comm_uri (string): The communication URI of the device.
+            serial_number (str): The serial number of the device to check.
             subprocess_check_flag (bool, optional): A flag to check if the
                 subprocess execution was successful, passed to the subprocess
                 `check` argument. Defaults to False.
@@ -42,7 +42,7 @@ class ConnectionManager:
         )
         devices_lines = str(result.stdout).split("\n")
         for info_line in devices_lines:
-            if comm_uri in info_line and "offline" not in info_line:
+            if serial_number in info_line and "offline" not in info_line:
                 return True
         return False
 
