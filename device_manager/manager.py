@@ -3,9 +3,7 @@ from typing import Iterable, List, NamedTuple, Optional, Tuple
 
 from device_manager.adb_executor import execute_adb_command
 from device_manager.components.object_manager import ObjectManager
-from device_manager.connection.adb_pairing import AdbPairing
 from device_manager.connection.device_connection import (
-    DEFAULT_FIXED_PORT,
     DeviceConnection,
 )
 from device_manager.device_actions import DeviceActions
@@ -71,15 +69,11 @@ class DeviceManager:
     def __init__(
         self,
         subprocess_check_flag: bool = False,
-        fixed_port: int = DEFAULT_FIXED_PORT,
     ):
         self.subprocess_check = subprocess_check_flag
-        self._devices_fixed_port = fixed_port
         self.connector = DeviceConnection(
             subprocess_check_flag=self.subprocess_check,
-            fixed_port=self._devices_fixed_port,
         )
-        self.adb_pair: Optional[AdbPairing] = None
         self.__device_info: ObjectManager[DeviceInfo] = ObjectManager()
         self.__device_actions: ObjectManager[DeviceActions] = ObjectManager()
 
@@ -175,26 +169,25 @@ class DeviceManager:
         Returns:
             bool: True if the connection was successful, False otherwise.
         """
-        serial_number_list = list(serial_number)
-        success_op = self.connector.start_connection(serial_number_list)
-        if success_op:
-            for serial in self.connector.connection_info.keys():
-                if serial not in self.__device_info.keys():
-                    dev_info = DeviceInfo(
-                        self.connector,
-                        serial,
-                        subprocess_check_flag=self.subprocess_check,
-                    )
-                    dev_actions = DeviceActions(
-                        self.connector,
-                        serial,
-                        subprocess_check_flag=self.subprocess_check,
-                    )
-                    self.__device_info.add(serial, dev_info)
-                    self.__device_actions.add(serial, dev_actions)
-        return success_op
+        serial_number_list = self.connector.check_usb_connections()   
+        for serial in serial_number_list:
+            if serial not in self.__device_info.keys():
+                dev_info = DeviceInfo(
+                    self.connector,
+                    serial,
+                    subprocess_check_flag=self.subprocess_check,
+                )
+                dev_actions = DeviceActions(
+                    self.connector,
+                    serial,
+                    subprocess_check_flag=self.subprocess_check,
+                )
+                self.__device_info.add(serial, dev_info)
+                self.__device_actions.add(serial, dev_actions)
 
-    def disconnect_devices(self, *serial_number: str) -> bool:
+        return True
+
+    def disconnect_devices(self, serial_number: str) -> bool:
         """Disconnects the devices with the provided serial numbers.
         This method will stop the connection to the devices and remove
         the associated DeviceInfo and DeviceActions objects from the
@@ -203,15 +196,10 @@ class DeviceManager:
         Returns:
             bool: True if the disconnection was successful, False otherwise.
         """
-        serial_number_list = list(serial_number)
-        success_op = self.connector.stop_connection(serial_number_list)
-        if success_op:
-            for serial in serial_number_list:
-                sbn = self.connector.connection_info.get(serial)
-                if sbn is None:  # Should Be None
-                    self.__device_info.remove(serial)
-                    self.__device_actions.remove(serial)
-        return success_op
+        serial_number_list = serial_number
+        for serial in serial_number_list:
+            self.__device_info.remove(serial)
+            self.__device_actions.remove(serial)
 
     def get_device_info(self, serial_number: str) -> DeviceInfo:
         """Retrieves the device information associated with a given
@@ -239,12 +227,12 @@ class DeviceManager:
     def execute_adb_command(
         self,
         command: str,
-        comm_uris: Optional[List[str]] = None,
+        serial_numbers: Optional[List[str]] = None,
         shell: bool = True,
         subprocess_check_flag: bool = False,
         capture_output: bool = False,
         **kwargs,
-    ) -> CompletedProcess:
+    ) -> CompletedProcess: #Verificar a função
         """Executes a custom adb command on all connected devices.
         Additional arguments and keyword arguments can be provided to
         customize the command, which will be added to the end of the command
@@ -275,47 +263,20 @@ class DeviceManager:
         Returns:
             CompletedProcess: The result of the command execution.
         """
-        uris = comm_uris
-        if comm_uris is None:
-            uris = [device.current_comm_uri for device in self.__device_info]
-        if not isinstance(uris, (list, tuple)):
+        serials = serial_numbers
+        if serial_numbers is None:
+            serials = self.connector.check_usb_connections()
+        if not isinstance(serials, (list, tuple)):
             raise TypeError(
-                f'comm_uris must be a list, tuple or None, got {type(comm_uris)}',  # noqa
+                f'serial_numbers must be a list, tuple or None, got {type(serial_numbers)}',  # noqa
             )
         return execute_adb_command(
             command=command,
-            comm_uris=uris,
+            serial_numbers=serials,
             shell=shell,
             subprocess_check_flag=subprocess_check_flag,
             capture_output=capture_output,
             **kwargs,
-        )
-
-    def adb_pairing_instance(
-        self,
-        service_name: str = 'robot_celular',
-        service_regex_filter: Optional[str] = None,
-        subprocess_check_flag: bool = False,
-    ) -> None:
-        """Creates an instance of the AdbPairing class. This instance will
-        be available at the `adb_pair` attribute of this class.
-        All of the parameters are passed to the AdbPairing constructor.
-
-        Args:
-            service_name (str, optional): The name of the service in the
-                network. Defaults to 'robot_celular'.
-            service_regex_filter (Optional[str], optional): The filter that
-                will be applied to the mDNSListener operations. Defaults to
-                    None.
-            subprocess_check_flag (bool, optional): A flag to check if the
-                subprocess execution was successful, passed to the subprocess
-                `check` argument. Defaults to False.
-                Check the subprocess documentation for more information.
-        """
-        self.adb_pair = AdbPairing(
-            service_name=service_name,
-            service_regex_filter=service_regex_filter,
-            subprocess_check_flag=subprocess_check_flag,
         )
 
     def is_connected(self, serial_number: str) -> bool:
@@ -327,7 +288,7 @@ class DeviceManager:
         Returns:
             bool: True if the device is connected, False otherwise.
         """
-        return self.connector.is_connected(serial_number)
+        return self.connector.validate_connection(serial_number)
 
     def clear(self) -> None:
         """Clears the internal object managers, removing all devices."""

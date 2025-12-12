@@ -60,9 +60,6 @@ class DeviceInfo:
         self.subprocess_check_flag = subprocess_check_flag
         self.device_connection = device_connection
         self.__serial_number = serial_number
-        self.current_comm_uri = self.device_connection.build_comm_uri(
-            self.__serial_number,
-        )
 
     @property
     def serial_number(self) -> str:
@@ -85,12 +82,11 @@ class DeviceInfo:
 
         if self.device_connection.validate_connection(
             self.__serial_number,
-            force_reconnect=True,
         ):
             output = execute_adb_command(
                 command='dumpsys activity activities',
                 shell=True,
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
             ).stdout
@@ -113,12 +109,11 @@ class DeviceInfo:
         """
         if self.device_connection.validate_connection(
             self.__serial_number,
-            force_reconnect=True,
         ):
             output = execute_adb_command(
                 command='dumpsys deviceidle',
                 shell=True,
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
             ).stdout
@@ -139,12 +134,11 @@ class DeviceInfo:
         """
         if self.device_connection.validate_connection(
             self.__serial_number,
-            force_reconnect=True,
         ):
             output = execute_adb_command(
                 command='dumpsys deviceidle',
                 shell=True,
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
             ).stdout
@@ -169,9 +163,8 @@ class DeviceInfo:
         """
         if self.device_connection.validate_connection(
             self.__serial_number,
-            force_reconnect=True,
         ):
-            device = u2.connect(self.current_comm_uri)
+            device = u2.connect(self.__serial_number)
             return device.dump_hierarchy()
 
     def get_properties(
@@ -196,12 +189,11 @@ class DeviceInfo:
         """
         if self.device_connection.validate_connection(
             self.__serial_number,
-            force_reconnect=True,
         ):
             output = execute_adb_command(
                 command='getprop',
                 shell=True,
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
             ).stdout
@@ -233,12 +225,11 @@ class DeviceInfo:
         """
         if self.device_connection.validate_connection(
             self.__serial_number,
-            force_reconnect=True,
         ):
             result = execute_adb_command(
                 command='wm size',
                 shell=True,
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
             ).stdout

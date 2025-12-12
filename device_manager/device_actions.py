@@ -56,14 +56,9 @@ class DeviceActions:
         self.subprocess_check_flag = subprocess_check_flag
         self.device_connection = device_connection
         self.__serial_number = serial_number
-        self.current_comm_uri = self.device_connection.build_comm_uri(
-            self.__serial_number,
-        )
         self.camera = CameraActions(
-            device_connection=self.device_connection,
             serial_number=self.__serial_number,
             subprocess_check_flag=self.subprocess_check_flag,
-            comm_uri=self.current_comm_uri,
             validate_connection_callback=self.validate_connection,
         )
 
@@ -84,7 +79,6 @@ class DeviceActions:
         """
         return self.device_connection.validate_connection(
             self.__serial_number,
-            force_reconnect=True,
         )
 
     def click_by_coordinates(self, x: int, y: int) -> None:
@@ -105,7 +99,7 @@ class DeviceActions:
         if self.validate_connection():
             execute_adb_command(
                 command=f'input tap {x} {y}',
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
@@ -125,7 +119,7 @@ class DeviceActions:
         if self.validate_connection():
             execute_adb_command(
                 command=f'input swipe {x1} {y1} {x2} {y2} {time}',
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
@@ -142,7 +136,7 @@ class DeviceActions:
         """
         execute_adb_command(
             command=f'am start -n {package_activity}',
-            comm_uris=[self.current_comm_uri],
+            serial_numbers=[self.__serial_number],
             shell=True,
             subprocess_check_flag=self.subprocess_check_flag,
         )
@@ -167,7 +161,7 @@ class DeviceActions:
         """
         execute_adb_command(
             command=f'am start -n {package_name}/{activity_name}',
-            comm_uris=[self.current_comm_uri],
+            serial_numbers=[self.__serial_number],
             shell=True,
             subprocess_check_flag=self.subprocess_check_flag,
         )
@@ -202,7 +196,7 @@ class DeviceActions:
         if self.validate_connection():
             execute_adb_command(
                 command=f'am force-stop {package_name}',
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
@@ -230,7 +224,7 @@ class DeviceActions:
                 command = f'install -r {apk_file_path}'
             execute_adb_command(
                 command=command,
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 subprocess_check_flag=self.subprocess_check_flag,
             )
 
@@ -242,7 +236,7 @@ class DeviceActions:
         if self.validate_connection():
             execute_adb_command(
                 command=f'input keyevent {ADBKeyEvent.KEYCODE_POWER.value}',
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
@@ -255,7 +249,7 @@ class DeviceActions:
         if self.validate_connection():
             execute_adb_command(
                 command=f'input keyevent {ADBKeyEvent.KEYCODE_MENU.value}',
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
@@ -268,7 +262,7 @@ class DeviceActions:
         if self.validate_connection():
             execute_adb_command(
                 command=f'input keyevent {ADBKeyEvent.KEYCODE_HOME.value}',
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
@@ -279,7 +273,7 @@ class DeviceActions:
         if self.validate_connection():
             execute_adb_command(
                 command=f'screencap -p /sdcard/{image_name}.png',
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
@@ -293,7 +287,7 @@ class DeviceActions:
         if self.validate_connection():
             execute_adb_command(
                 command=f'rm {remote_path}',
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
@@ -342,7 +336,7 @@ class DeviceActions:
         if self.validate_connection():
             execute_adb_command(
                 command=f'push {local_path} {remote_path}',
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 subprocess_check_flag=self.subprocess_check_flag,
             )
 
@@ -360,6 +354,6 @@ class DeviceActions:
         if self.validate_connection():
             execute_adb_command(
                 command=f'pull {remote_path} {local_path}',
-                comm_uris=[self.current_comm_uri],
+                serial_numbers=[self.__serial_number],
                 subprocess_check_flag=self.subprocess_check_flag,
             )
