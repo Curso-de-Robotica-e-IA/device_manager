@@ -33,16 +33,12 @@ class DeviceManager:
             subprocess execution was successful, passed to the subprocess
             `check` argument. Defaults to False.
             Check the subprocess documentation for more information.
-        fixed_port (int, optional): The fixed port to be used by the devices.
-            Defaults to DEFAULT_FIXED_PORT.
 
     Attributes:
         `connected_devices` (List[str]): The list of serial numbers of the
             devices that are currently connected.
         `connector` (DeviceConnection): The `DeviceConnection` object used to
             manage the device connections.
-        `adb_pair` (Optional[AdbPairing]): The `AdbPairing` object used to
-            manage the pairing of devices.
 
     Properties:
         - `connected_devices` (List[str]): The list of serial numbers of the
@@ -59,7 +55,6 @@ class DeviceManager:
             multiple devices.
         execute_adb_command: Executes a custom adb command on all connected
             devices.
-        adb_pairing_instance: Creates an instance of the AdbPairing class.
         is_connected: Checks if a device with the provided serial number is
             connected.
         disconnect_devices: Disconnects the devices with the provided serial
@@ -247,10 +242,10 @@ class DeviceManager:
 
         Args:
             command (str): The adb command to execute.
-            comm_uris (Optional[List[str]]): The serial numbers of the
-                devices to execute the command on. Defaults to None.
-                In this case, the command will be executed on all
-                connected devices.
+            serial_numbers (Optional[List[str]], optional): The serial
+                numbers of the devices to execute the command on.
+                If None, the command will be executed on all connected
+                devices. Defaults to None.
             shell (bool, optional): A flag to indicate if the command should
             subprocess_check_flag (bool, optional): A flag to check if the
                 subprocess execution was successful, passed to the subprocess

@@ -12,21 +12,20 @@ def build_command_list(
     """Builds a list of commands to be executed on multiple devices.
     This method is used to build a list of commands that will be executed
     on multiple devices. The command is built using the base command
-    provided, the list of communication URIs, the custom command to be
+    provided, the list of serial numbers, the custom command to be
     executed, and any additional arguments that should be added to the
     command.
 
     Args:
         base_command (List[str]): The base command to be executed.
-        serial_number_list (List[str]): The list of communication URIs for the
-            devices.
+        serial_number_list (List[str]): The list of serial numbers.
         custom_command (str): The custom command to be executed.
         **kwargs: Additional arguments to be added to the command.
     """
     command = base_command.copy()
     command_as_list = custom_command.split(' ')
-    for idx, uri in enumerate(serial_number_list):
-        command.extend(['-s', uri])
+    for idx, serial_number in enumerate(serial_number_list):
+        command.extend(['-s', serial_number])
         command.extend(command_as_list)
         if idx < len(serial_number_list) - 1:
             command.extend(['&&', 'adb'])

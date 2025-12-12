@@ -18,9 +18,6 @@ class DeviceActions:
             execution status. Defaults to False.
             Check the subprocess documentation for more information
 
-    Attributes:
-        current_comm_uri (str): the current communication URI for the device.
-
     Properties:
         - `serial_number` (str): The serial number associated with
             the device.
