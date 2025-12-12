@@ -21,40 +21,18 @@ class DeviceConnection:
                 subprocess execution was successful, passed to the subprocess
                 `check` argument. Defaults to False.
                 Check the subprocess documentation for more information.
-        fixed_port (int, optional): The fixed port to use for the ADB
-            connection. Defaults to 5555.
 
     Attributes:
-        console (Console): A rich console to print messages.
         connection (ConnectionManager): A connection manager to manage the
             ADB connections.
-        connection_info (ObjectManager[ServiceInfo]): An object manager to
-            store the service information of the connected devices.
 
     methods:
-        check_pairing: Checks if a device is already paired with the host.
-        select_devices_to_connect: Prompts the user to select devices to
-            connect to.
-        prompt_device_connection: Prompts the user to select devices to connect
-            to.
-        visible_devices: Returns a list of visible devices in the network.
-        close: Terminates any ongoing device discovery process managed by the
-            `connection_manager`.
-        check_connections: Checks the status of the current connections.
-        build_comm_uri: Constructs a communication URI for the specified
-            device.
-        establish_first_connection: Attempts to establish an ADB connection
-            with the specified device.
+
+        list_all_devices: Lists all devices connected via USB.
+        connected_devices: Lists all currently connected devices.
+        check_authorization: Checks if a device is authorized for ADB
         validate_connection: Validates the current connection with the
             specified device.
-        connect_all_devices: Connects to all devices in the `connection_info`
-            attribute.
-        start_connection: Starts the connection process for the selected
-            devices.
-        stop_connection: Disconnects the selected devices from the host.
-        is_connected: Check if the device is connected to the host.
-        disconnect: Kills the ADB server, effectively disconnecting the current
-            session with the specified device.
     """
 
     def __init__(
