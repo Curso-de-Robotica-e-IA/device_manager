@@ -38,7 +38,7 @@ def build_command_list(
 
 def execute_adb_command(
     command: str,
-    serial_number: List[str],
+    serial_numbers: List[str],
     shell: bool = False,
     subprocess_check_flag: bool = False,
     capture_output: bool = False,
@@ -73,7 +73,7 @@ def execute_adb_command(
     Returns:
         CompletedProcess: The result of the command execution.
     """
-    if not serial_number:
+    if not serial_numbers:
         raise ValueError('No devices specified for command execution.')
     base_command = ['adb']
     if command.startswith('adb'):
@@ -83,7 +83,7 @@ def execute_adb_command(
             command = f'shell {command}'
     adb_command_list = build_command_list(
         base_command=base_command,
-        serial_number_list=serial_number,
+        serial_number_list=serial_numbers,
         custom_command=command,
         **kwargs,
     )
