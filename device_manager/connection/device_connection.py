@@ -94,7 +94,36 @@ class DeviceConnection:
             result = True
         return result
     
-    def check_usb_connections(self) -> List[str]:
+    def list_all_devices(self) -> List[str]:
+        """
+        This method lists all devices connected via USB and returns a list of
+        their serial numbers.
+
+        Returns:
+            List[str]: A list of serial numbers of devices connected via USB.
+        """
+        devices_connected = subprocess.run(
+        ['adb', 'devices'],
+        capture_output=True,
+        text=True,
+        check=self.__subprocess_check_flag,
+        ).stdout
+
+        usb_serial_numbers = {}
+
+        for line in devices_connected.splitlines()[1:]:
+            line = line.strip()
+
+            if line:
+                serial = line.split("\t")[0]
+                status = line.split("\t")[1]
+
+                if serial.isalnum():
+                    usb_serial_numbers[serial] = status
+
+        return usb_serial_numbers
+    
+    def connected_devices(self) -> List[str]:
         """
         This method checks for devices connected via USB and returns a list of
         their serial numbers.

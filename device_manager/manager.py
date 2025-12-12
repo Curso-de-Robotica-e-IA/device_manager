@@ -169,7 +169,7 @@ class DeviceManager:
         Returns:
             bool: True if the connection was successful, False otherwise.
         """
-        serial_number_list = self.connector.check_usb_connections()   
+        serial_number_list = self.connector.connected_devices()   
         for serial in serial_number_list:
             if serial not in self.__device_info.keys():
                 dev_info = DeviceInfo(
@@ -265,7 +265,7 @@ class DeviceManager:
         """
         serials = serial_numbers
         if serial_numbers is None:
-            serials = self.connector.check_usb_connections()
+            serials = self.connector.connected_devices()
         if not isinstance(serials, (list, tuple)):
             raise TypeError(
                 f'serial_numbers must be a list, tuple or None, got {type(serial_numbers)}',  # noqa
