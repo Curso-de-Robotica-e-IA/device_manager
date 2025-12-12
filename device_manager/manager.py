@@ -227,7 +227,7 @@ class DeviceManager:
         subprocess_check_flag: bool = False,
         capture_output: bool = False,
         **kwargs,
-    ) -> CompletedProcess: #Verificar a função
+    ) -> CompletedProcess:
         """Executes a custom adb command on all connected devices.
         Additional arguments and keyword arguments can be provided to
         customize the command, which will be added to the end of the command
