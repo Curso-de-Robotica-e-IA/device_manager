@@ -18,21 +18,17 @@ class AppInfo:
         self.subprocess_check_flag = subprocess_check_flag
         self.device_connection = device_connection
         self.__serial_number = serial_number
-        self.current_comm_uri = self.device_connection.build_comm_uri(
-            self.__serial_number,
-        )
         self.setup()
 
     def setup(self) -> None:
         """Sets up the AppInfo instance by validating the device connection."""
         if self.device_connection.validate_connection(
             self.__serial_number,
-            force_reconnect=True,
         ):
             self.dumpsys = execute_adb_command(
                 command=f'dumpsys package {self.package}',
+                serial_number=self.__serial_number,
                 shell=True,
-                comm_uris=[self.current_comm_uri],
                 subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
             ).stdout
