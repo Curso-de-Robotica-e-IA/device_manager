@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Callable, Union
 
 from device_manager.adb_executor import execute_adb_command
-from device_manager.connection.device_connection import DeviceConnection
 from device_manager.enumerations.adb_keyevents import ADBKeyEvent
 from device_manager.enumerations.camera import CameraIntents
 from device_manager.utils.util_functions import grep
@@ -11,12 +10,10 @@ from device_manager.utils.util_functions import grep
 class CameraActions:
     def __init__(
         self,
-        device_connection: DeviceConnection,
         serial_number: str,
         subprocess_check_flag: bool,
         validate_connection_callback: Callable[[], bool] = lambda: True,
     ) -> None:
-        self.device_connection = device_connection
         self.serial_number = serial_number
         self.subprocess_check_flag = subprocess_check_flag
         self.validate_connection_callback = validate_connection_callback
