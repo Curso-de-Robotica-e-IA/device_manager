@@ -1,7 +1,7 @@
 [project]
 name = "device_manager"
-version = "1.6.2"
-description = ""
+version = "1.6.2.beta"
+description = "Version using just usb connection "
 authors = [
     { name = "Bruno Pinheiro", email = "bruno.opinheiro@outlook.com" },
     { name = "Mateus Machado", email = "mateus.gm@gmail.com" },
