@@ -196,6 +196,8 @@ class DeviceManager:
             self.__device_info.remove(serial)
             self.__device_actions.remove(serial)
 
+            return True
+
     def get_device_info(self, serial_number: str) -> DeviceInfo:
         """Retrieves the device information associated with a given
         serial number.
