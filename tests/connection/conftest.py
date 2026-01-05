@@ -30,7 +30,6 @@ def mock_two_devices_unauthorized(mock_subprocess_run):
         'RXT8595\tunauthorized\n'
         'RXT8596\tunauthorized\n'
     )
-    # Chama a fixture base para aplicar o patch
     return mock_subprocess_run(output)
 
 
