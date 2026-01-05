@@ -6,7 +6,6 @@ from device_manager.connection.connection_manager import (
     ConnectionManagerSingleton,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -71,7 +70,7 @@ class DeviceConnection:
         if substr in devices_connected:
             result = True
         return result
-    
+
     def list_all_devices(self) -> List[str]:
         """
         This method lists all devices connected via USB and returns a list of
@@ -80,49 +79,48 @@ class DeviceConnection:
         Returns:
             List[str]: A list of serial numbers of devices connected via USB.
         """
-        devices_connected = subprocess.run(
-        ['adb', 'devices'],
-        capture_output=True,
-        text=True,
-        check=self.__subprocess_check_flag,
+        connected_devices = subprocess.run(
+            ['adb', 'devices'],
+            capture_output=True,
+            text=True,
+            check=self.__subprocess_check_flag,
         ).stdout
 
         usb_serial_numbers = {}
 
-        for line in devices_connected.splitlines()[1:]:
-            line = line.strip()
+        for line in connected_devices.splitlines()[1:]:
+            striped_line = line.strip()
 
-            if line:
-                serial = line.split("\t")[0]
-                status = line.split("\t")[1]
-
+            if striped_line:
+                serial = striped_line.split('\t')[0]
+                status = striped_line.split('\t')[1]
                 if serial.isalnum():
                     usb_serial_numbers[serial] = status
 
         return usb_serial_numbers
-    
-    def connected_devices(self) -> List[str]:
+
+    def check_authorized_devices(self) -> List[str]:
         """
-        This method checks for devices connected via USB and returns a list of
-        their serial numbers.
+        This method checks for devices connected and authorized via USB and
+        returns a list of their serial numbers.
 
         Returns:
             List[str]: A list of serial numbers of devices connected via USB.
         """
-        devices_connected = subprocess.run(
-        ['adb', 'devices'],
-        capture_output=True,
-        text=True,
-        check=self.__subprocess_check_flag,
+        connected_devices = subprocess.run(
+            ['adb', 'devices'],
+            capture_output=True,
+            text=True,
+            check=self.__subprocess_check_flag,
         ).stdout
 
         usb_serial_numbers = []
 
-        for line in devices_connected.splitlines()[1:]:
-            line = line.strip()
+        for line in connected_devices.splitlines()[1:]:
+            striped_line = line.strip()
 
-            if line.endswith("\tdevice"):
-                serial = line.split("\t")[0]
+            if striped_line.endswith('\tdevice'):
+                serial = striped_line.split('\t')[0]
 
                 if serial.isalnum():
                     usb_serial_numbers.append(serial)
@@ -140,20 +138,20 @@ class DeviceConnection:
         Returns:
             bool: True if the device is authorized, False otherwise.
         """
-        devices_connected = subprocess.run(
+        connected_devices = subprocess.run(
             ['adb', 'devices'],
             capture_output=True,
             text=True,
             check=self.__subprocess_check_flag,
         ).stdout
 
-        for line in devices_connected.splitlines()[1:]:
-            line = line.strip()
+        for line in connected_devices.splitlines()[1:]:
+            striped_line = line.strip()
 
-            if line.startswith(serial_number):
-                if "unauthorized" in line:
+            if striped_line.startswith(serial_number):
+                if 'unauthorized' in striped_line:
                     return False
-                elif "device" in line:
+                elif 'device' in striped_line:
                     return True
 
         return False

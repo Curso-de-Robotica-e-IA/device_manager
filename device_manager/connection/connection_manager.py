@@ -8,7 +8,6 @@ class ConnectionManager:
     # Connection Manager has been developed based in to code available on
     # https://github.com/openatx/adbutils/issues/111#issuecomment-2094694894
 
-
     def __init__(
         self,
         subprocess_check_flag: bool = False,
@@ -35,14 +34,14 @@ class ConnectionManager:
             bool: True if the device is connected, False otherwise.
         """
         result = subprocess.run(
-            ["adb", "devices"],
+            ['adb', 'devices'],
             capture_output=True,
             text=True,
             check=subprocess_check_flag,
         )
-        devices_lines = str(result.stdout).split("\n")
+        devices_lines = str(result.stdout).split('\n')
         for info_line in devices_lines:
-            if serial_number in info_line and "offline" not in info_line:
+            if serial_number in info_line and 'offline' not in info_line:
                 return True
         return False
 
