@@ -148,7 +148,7 @@ class DeviceManager:
     @property
     def authorized_devices(self) -> List[str]:
         """Returns the list of serial numbers of the devices that are
-        currently connected.
+        currently connected and authorized.
 
         Returns:
             List[str]: The list of serial numbers of the connected devices.
