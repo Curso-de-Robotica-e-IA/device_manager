@@ -146,17 +146,17 @@ class DeviceManager:
         return f'DeviceManager({len(self)} devices: {list(self.__device_info.keys())})'  # noqa
 
     @property
-    def connected_devices(self) -> List[str]:
+    def authorized_devices(self) -> List[str]:
         """Returns the list of serial numbers of the devices that are
-        currently connected.
+        currently connected and authorized.
 
         Returns:
             List[str]: The list of serial numbers of the connected devices.
         """
         return list(self.__device_info.keys())
 
-    def connect_devices(self, *serial_number: str) -> bool:
-        """Connects to the devices with the provided serial numbers.
+    def update_authorized_list(self) -> bool:
+        """Verify authorized devices connected using USB cable.
         This method will start the connection to the devices and create
         the necessary DeviceInfo and DeviceActions objects, which will be
         stored in the internal object manager objects.
@@ -164,7 +164,7 @@ class DeviceManager:
         Returns:
             bool: True if the connection was successful, False otherwise.
         """
-        serial_number_list = self.connector.connected_devices()   
+        serial_number_list = self.connector.check_authorized_devices()
         for serial in serial_number_list:
             if serial not in self.__device_info.keys():
                 dev_info = DeviceInfo(
@@ -258,14 +258,25 @@ class DeviceManager:
             **kwargs: Additional arguments to be added to the command.
 
         Returns:
+            CalledProcessError: If no devices are connected.
             CompletedProcess: The result of the command execution.
+
+
+        Raises:
+            ValueError: If no devices are specified for command execution.
         """
         serials = serial_numbers
         if serial_numbers is None:
-            serials = self.connector.connected_devices()
+            serials = self.connector.check_authorized_devices()
         if not isinstance(serials, (list, tuple)):
             raise TypeError(
                 f'serial_numbers must be a list, tuple or None, got {type(serial_numbers)}',  # noqa
+            )
+        if not serials:
+            return CompletedProcess(
+                args=command,
+                returncode=1,
+                stderr='No authorized devices found.',
             )
         return execute_adb_command(
             command=command,

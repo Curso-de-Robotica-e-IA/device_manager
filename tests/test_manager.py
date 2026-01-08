@@ -5,14 +5,14 @@ def test_manager_build_command_list():
     adb_cmd = r'shell am start -n dummyCmd\.dummyActv'
     result = build_command_list(
         base_command=['adb'],
-        comm_uri_list=['127.0.0.1:5555', '127.0.0.2:5555'],
+        serial_number_list=['RXT8595', 'RXT8596'],
         custom_command=adb_cmd,
     )
 
     expected = [
         'adb',
         '-s',
-        '127.0.0.1:5555',
+        'RXT8595',
         'shell',
         'am',
         'start',
@@ -21,7 +21,7 @@ def test_manager_build_command_list():
         '&&',
         'adb',
         '-s',
-        '127.0.0.2:5555',
+        'RXT8596',
         'shell',
         'am',
         'start',

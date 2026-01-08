@@ -1,30 +1,52 @@
+from unittest.mock import MagicMock
+
 import pytest
 
 
 @pytest.fixture
-def mock_zeroconf(mocker):
-    zeroconf = mocker.patch(
-        'device_manager.connection.utils.mdns_listener.Zeroconf',
-    )
-    zeroconf.service_info = mocker.MagicMock()
-    zeroconf.service_info.adresses = ['127.0.0.1']
-    zeroconf.service_info.port = 5555
-    zeroconf.service_info.name = (
-        'adb-emulator-5555._adb-tls-connect._tcp.local.'
-    )
-    zeroconf.service_info.server = 'test-server'
-    zeroconf.get_service_info = mocker.MagicMock(
-        return_value=zeroconf.service_info,
-    )
-    return zeroconf
+def mock_subprocess_run(monkeypatch):
+    """
+    Base fixture to mock subprocess.run calls.
+    """
+
+    def _mock_impl(stdout_content, returncode=0):
+        mock_result = MagicMock()
+        mock_result.stdout = stdout_content
+        mock_result.returncode = returncode
+
+        monkeypatch.setattr(
+            'subprocess.run', lambda *args, **kwargs: mock_result
+        )
+        return mock_result
+
+    return _mock_impl
 
 
 @pytest.fixture
-def mock_mdns_context(mocker):
-    context = mocker.patch(
-        'device_manager.connection.utils.mdns_context.MDnsContext',
+def mock_two_devices_unauthorized(mock_subprocess_run):
+    """Tow devices listed, both unauthorized."""
+    output = (
+        'List of devices attached\n'
+        'RXT8595\tunauthorized\n'
+        'RXT8596\tunauthorized\n'
     )
-    context.add_service = mocker.MagicMock(
-        return_value=None,
+    return mock_subprocess_run(output)
+
+
+@pytest.fixture
+def mock_two_devices_authorized(mock_subprocess_run):
+    """Two devices listed, both connected and ready."""
+    output = 'List of devices attached\nRXT8595\tdevice\nRXT8596\tdevice\n'
+    return mock_subprocess_run(output)
+
+
+@pytest.fixture
+def mock_mixed_devices(mock_subprocess_run):
+    """Scenario: One authorized and one unauthorized."""
+    output = (
+        'List of devices attached\n'
+        'RXT8595\tdevice\n'
+        'RXT8596\tunauthorized\n'
+        'RXT8597\toffline\n'
     )
-    return context
+    return mock_subprocess_run(output)
