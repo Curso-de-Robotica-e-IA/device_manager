@@ -245,7 +245,7 @@ class AdbPairing:
 
     def start(
         self,
-        interfaces: InterfacesType = InterfaceChoice.Default,
+        interfaces: InterfacesType = InterfaceChoice.All,
         unicast: bool = False,
         ip_version: Optional[IPVersion] = None,
     ) -> None:
