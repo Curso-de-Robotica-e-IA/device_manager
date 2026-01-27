@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Union
+from typing import Callable, Optional, Union
 
 from device_manager.adb_executor import execute_adb_command
 from device_manager.connection.device_connection import DeviceConnection
@@ -110,18 +110,20 @@ class CameraActions:
             raise RuntimeError(
                 'Device connection is not valid. Cannot clear pictures.',
             )
-
+    #TODO Refactored to pull multiple pictures or a specific one
     def pull_pictures(
         self,
         destination: Union[str, Path],
         amount: int = 1,
+        filename: Optional[str] = None,
     ) -> None:
-        """Pulls the last taken pictures from the device to the local machine.
+        """Pulls pictures from the device to the local machine.
 
         Args:
-            destination (Union[str, Path]): The destination path on the local
-                machine.
+            destination (Union[str, Path]): The destination path on the local machine.
             amount (int): The number of pictures to pull. Default is 1.
+            filename (Optional[str]): The specific filename pattern to pull (e.g., "IMG_*" or exact name).
+                If provided, finds files matching this pattern.
         """
         try:
             if isinstance(destination, str):
@@ -129,13 +131,10 @@ class CameraActions:
             if not destination.exists():
                 destination.mkdir(parents=True, exist_ok=True)
             if not destination.is_dir():
-                raise ValueError(
-                    'Destination must be a directory.',
-                )
+                raise ValueError('Destination must be a directory.')
         except Exception as e:
-            raise RuntimeError(
-                f'Failed to create destination directory: {e}',
-            ) from e
+            raise RuntimeError(f'Failed to create destination directory: {e}') from e
+        
         try:
             if self.validate_connection_callback():
                 result = execute_adb_command(
@@ -145,19 +144,23 @@ class CameraActions:
                     subprocess_check_flag=self.subprocess_check_flag,
                     capture_output=True,
                 )
-                files = result.stdout.splitlines()
-                files = files[:amount]
+                all_files = result.stdout.splitlines()
+                
+                if filename:
+                    files = [f for f in all_files if filename in f]
+                    if not files:
+                        raise RuntimeError(f'No files found matching: {filename}')
+                    files = files[:amount]
+                else:
+                    files = all_files[:amount]
+                
                 for file in files:
                     execute_adb_command(
-                        command=f'pull /sdcard/DCIM/Camera/{file} {destination.resolve()}',  # noqa: E501
+                        command=f'pull /sdcard/DCIM/Camera/{file} {destination.resolve()}',
                         comm_uris=[self.comm_uri],
                         subprocess_check_flag=self.subprocess_check_flag,
                     )
             else:
-                raise RuntimeError(
-                    'Device connection is not valid. Cannot pull pictures.',
-                )
+                raise RuntimeError('Device connection is not valid. Cannot pull pictures.')
         except Exception as e:
-            raise RuntimeError(
-                f'Failed to pull pictures: {e}',
-            ) from e
+            raise RuntimeError(f'Failed to pull pictures: {e}') from e
