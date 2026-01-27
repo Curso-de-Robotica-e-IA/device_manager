@@ -26,7 +26,7 @@ class AppInfo:
         ):
             self.dumpsys = execute_adb_command(
                 command=f'dumpsys package {self.package}',
-                serial_number=self.__serial_number,
+                serial_numbers=[self.__serial_number],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
