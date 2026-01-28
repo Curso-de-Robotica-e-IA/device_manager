@@ -203,8 +203,6 @@ class CameraActions:
                 remote_path = f'{source}/{image_name}'
                 local_path = str(destination.resolve())
                 
-                # Use shell=False to prevent wildcard expansion
-                # and pass arguments directly to adb
                 result = execute_adb_command(
                     command=f'pull {remote_path} {local_path}',
                     comm_uris=[self.comm_uri],
