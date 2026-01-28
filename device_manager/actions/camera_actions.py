@@ -161,3 +161,68 @@ class CameraActions:
             raise RuntimeError(
                 f'Failed to pull pictures: {e}',
             ) from e
+        
+    def pull_image_by_name(
+        self,
+        image_name: str,
+        destination: Union[str, Path],
+        source: Union[str, Path] = Path("/sdcard/DCIM/Camera"),
+    ) -> None:
+        """Pulls a specific image from the device.
+
+        Args:
+            image_name (str): The name of the image file to be retrieved from
+                the device.
+            source (Union[str, Path]): The source path on the device.
+            destination (Union[str, Path]): The destination path on the local
+                machine.
+        """
+        try:
+            if isinstance(source, Path):
+                source = source.as_posix()
+            if isinstance(destination, str):
+                destination = Path(destination)
+            if not destination.exists():
+                destination.mkdir(parents=True, exist_ok=True)
+            if not destination.is_dir():
+                raise ValueError(
+                    'Destination must be a directory.',
+                )
+        except Exception as e:
+            raise RuntimeError(
+                f'Failed to create destination directory: {e}',
+            ) from e
+        try:
+            if self.validate_connection_callback():
+                # Escape special characters and use proper path format
+                remote_path = f'{source}/{image_name}'
+                local_path = str(destination.resolve())
+                
+                # Use shell=False to prevent wildcard expansion
+                # and pass arguments directly to adb
+                result = execute_adb_command(
+                    command=f'pull {remote_path} {local_path}',
+                    comm_uris=[self.comm_uri],
+                    shell=False,
+                    subprocess_check_flag=self.subprocess_check_flag,
+                    capture_output=True,
+                )
+                
+                # Verify that only one file was pulled
+                if 'file pulled' in result.stdout and '1 file pulled' not in result.stdout:
+                    # If more than one file was pulled, this might indicate a problem
+                    import re
+                    match = re.search(r'(\d+) file', result.stdout)
+                    if match and int(match.group(1)) > 1:
+                        raise RuntimeError(
+                            f'Multiple files were pulled ({match.group(1)}). Expected only one file: {image_name}',
+                        )
+            else:
+                raise RuntimeError(
+                    'Device connection is not valid. Cannot pull image.',
+                )
+        except Exception as e:
+            raise RuntimeError(
+                f'Failed to pull image: {e}',
+            ) from e
+
