@@ -115,15 +115,13 @@ class CameraActions:
         self,
         destination: Union[str, Path],
         amount: int = 1,
-        filename: Optional[str] = None,
     ) -> None:
-        """Pulls pictures from the device to the local machine.
+        """Pulls the last taken pictures from the device to the local machine.
 
         Args:
-            destination (Union[str, Path]): The destination path on the local machine.
+            destination (Union[str, Path]): The destination path on the local
+                machine.
             amount (int): The number of pictures to pull. Default is 1.
-            filename (Optional[str]): The specific filename pattern to pull (e.g., "IMG_*" or exact name).
-                If provided, finds files matching this pattern.
         """
         try:
             if isinstance(destination, str):
@@ -131,10 +129,13 @@ class CameraActions:
             if not destination.exists():
                 destination.mkdir(parents=True, exist_ok=True)
             if not destination.is_dir():
-                raise ValueError('Destination must be a directory.')
+                raise ValueError(
+                    'Destination must be a directory.',
+                )
         except Exception as e:
-            raise RuntimeError(f'Failed to create destination directory: {e}') from e
-        
+            raise RuntimeError(
+                f'Failed to create destination directory: {e}',
+            ) from e
         try:
             if self.validate_connection_callback():
                 result = execute_adb_command(
@@ -144,24 +145,18 @@ class CameraActions:
                     subprocess_check_flag=self.subprocess_check_flag,
                     capture_output=True,
                 )
-                all_files = result.stdout.splitlines()
-                
-                if filename:
-                    files = [f for f in all_files if filename in f]
-                    if not files:
-                        raise RuntimeError(f'No files found matching: {filename}')
-                    files = files[:amount]
-                else:
-                    files = all_files[:amount]
-                
+                files = result.stdout.splitlines()
+                files = files[:amount]
                 for file in files:
                     execute_adb_command(
-                        command=f'pull /sdcard/DCIM/Camera/{file} {destination.resolve()}',
+                        command=f'pull /sdcard/DCIM/Camera/{file} {destination.resolve()}',  # noqa: E501
                         comm_uris=[self.comm_uri],
                         subprocess_check_flag=self.subprocess_check_flag,
                     )
             else:
-                raise RuntimeError('Device connection is not valid. Cannot pull pictures.')
+                raise RuntimeError(
+                    'Device connection is not valid. Cannot pull pictures.',
+                )
         except Exception as e:
             raise RuntimeError(
                 f'Failed to pull pictures: {e}',
@@ -184,24 +179,24 @@ class CameraActions:
         """
         try:
             if isinstance(source, Path):
+                # Convert to POSIX string for ADB because ADB expects Unix-style paths
                 source = source.as_posix()
+            else:
+                source = Path(source).as_posix()
+            
             if isinstance(destination, str):
                 destination = Path(destination)
-            if not destination.exists():
-                destination.mkdir(parents=True, exist_ok=True)
-            if not destination.is_dir():
-                raise ValueError(
-                    'Destination must be a directory.',
-                )
+            if not destination.exists() or not destination.is_dir():
+                # create destination directory if it doesn't exist
+                destination.mkdir(parents=True, exist_ok=True)       
         except Exception as e:
             raise RuntimeError(
                 f'Failed to create destination directory: {e}',
             ) from e
         try:
             if self.validate_connection_callback():
-                # Escape special characters and use proper path format
-                remote_path = f'{source}/{image_name}'
-                local_path = str(destination.resolve())
+                remote_path = f'{source}/{image_name}' # build remote file path from device source and image name turned into string
+                local_path = str(destination.resolve()) # turn into absolute path string
                 
                 result = execute_adb_command(
                     command=f'pull {remote_path} {local_path}',
@@ -215,8 +210,8 @@ class CameraActions:
                 if 'file pulled' in result.stdout and '1 file pulled' not in result.stdout:
                     # If more than one file was pulled, this might indicate a problem
                     import re
-                    match = re.search(r'(\d+) file', result.stdout)
-                    if match and int(match.group(1)) > 1:
+                    match = re.search(r'(\d+) file', result.stdout) # \d -> numers 0 to 9, + -> one or more times, () -> capturing group
+                    if match and int(match.group(1)) > 1: # take the first capturing group (the number of files) and check if it's greater than 1
                         raise RuntimeError(
                             f'Multiple files were pulled ({match.group(1)}). Expected only one file: {image_name}',
                         )
