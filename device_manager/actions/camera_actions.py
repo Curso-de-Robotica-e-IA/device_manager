@@ -97,11 +97,11 @@ class CameraActions:
                 'Device connection is not valid. Cannot take picture.',
             )
 
-    def clear_pictures(self) -> None:
+    def clear_pictures(self, source: Optional[str] = "/sdcard/DCIM/Camera/*") -> None:
         """Clears the pictures from the device."""
         if self.validate_connection_callback():
             execute_adb_command(
-                command='rm -rf /sdcard/DCIM/Camera/*',
+                command=f'rm -rf {source}',
                 comm_uris=[self.comm_uri],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
