@@ -97,11 +97,20 @@ class CameraActions:
                 'Device connection is not valid. Cannot take picture.',
             )
 
-    def clear_pictures(self, source: Optional[str] = "/sdcard/DCIM/Camera/*") -> None:
+    def clear_pictures(self, source: Union[str, Path] = "/sdcard/DCIM/Camera/*") -> None:
+        if source is not None:
+            if isinstance(source, Path):
+                # Convert to POSIX string for ADB because ADB expects Unix-style paths
+                source = source.as_posix()
+            else:
+                source = Path(source).as_posix()
+        else:
+            raise ValueError('Source path invalid.')     
+
         """Clears the pictures from the device."""
         if self.validate_connection_callback():
             execute_adb_command(
-                command=f'rm -rf {source}',
+                command= f'rm -rf {source}',
                 comm_uris=[self.comm_uri],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
