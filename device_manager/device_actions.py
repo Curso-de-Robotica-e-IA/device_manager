@@ -363,3 +363,16 @@ class DeviceActions:
                 comm_uris=[self.current_comm_uri],
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+
+    def back(self) -> None:
+        """
+        This method executes the adb `keyevent KEYCODE_BACK`, which represents
+        the `Back` phone button.
+        """
+        if self.validate_connection():
+            execute_adb_command(
+                command=f'input keyevent {ADBKeyEvent.KEYCODE_BACK.value}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
