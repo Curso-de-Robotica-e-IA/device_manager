@@ -260,6 +260,14 @@ class DeviceActions:
                 subprocess_check_flag=self.subprocess_check_flag,
             )
 
+    def turn_on_and_unlock_screen(self):
+        """
+        This method turns on and unlocks the device screen by executing
+        the appropriate adb keyevents.
+        """
+        self.turn_on_screen()
+        self.unlock_screen()
+
     def home_button(self):
         """
         This method executes the adb `keyevent KEYCODE_HOME`, which represents
