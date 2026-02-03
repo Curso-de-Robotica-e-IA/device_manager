@@ -262,3 +262,32 @@ class DeviceInfo:
             serial_number=self.__serial_number,
             subprocess_check_flag=self.subprocess_check_flag,
         )
+    
+    def get_orientation(self) -> str:
+        """Gets the current orientation of the device.
+
+        Returns:
+            str: The current orientation of the device.
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            result = execute_adb_command(
+                command='dumpsys display',
+                shell=True,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
+                capture_output=True,
+            ).stdout
+            grep_lines = grep(result, 'mCurrentOrientation')
+            if len(grep_lines) > 0:
+                orientation_value = grep_lines[0].split('=')[1].strip()
+                orientation_map = {
+                    '0': 'Portrait',
+                    '1': 'Landscape',
+                    '2': 'Reverse Portrait',
+                    '3': 'Reverse Landscape',
+                }
+                return orientation_map.get(orientation_value, 'Unknown')
+            raise ValueError(UNEXPECTED_ADB_OUTPUT)
