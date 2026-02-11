@@ -291,3 +291,5 @@ class DeviceInfo:
                 }
                 return orientation_map.get(orientation_value, 'Unknown')
             raise ValueError(UNEXPECTED_ADB_OUTPUT)
+        else:
+            raise ConnectionError('Device not connected')
