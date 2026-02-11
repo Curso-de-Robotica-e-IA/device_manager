@@ -98,6 +98,16 @@ class CameraActions:
             )
 
     def clear_pictures(self, source: Union[str, Path] = "/sdcard/DCIM/Camera/*") -> None:
+        """
+        Removes all pictures from the specified directory on the device.
+
+        Args:
+            source (Union[str, Path]): The path to the directory containing pictures on the device. Defaults to '/sdcard/DCIM/Camera/*'.
+
+        Raises:
+            ValueError: If the source path is invalid.
+            RuntimeError: If the device connection is not valid or if the operation fails.
+        """
         if source is not None:
             if isinstance(source, Path):
                 # Convert to POSIX string for ADB because ADB expects Unix-style paths
@@ -107,7 +117,6 @@ class CameraActions:
         else:
             raise ValueError('Source path invalid.')     
 
-        """Clears the pictures from the device."""
         if self.validate_connection_callback():
             execute_adb_command(
                 command= f'rm -rf {source}',
@@ -171,7 +180,7 @@ class CameraActions:
                 f'Failed to pull pictures: {e}',
             ) from e
         
-    def pull_image_by_name(
+    def pull_picture_by_name(
         self,
         image_name: str,
         destination: Union[str, Path],
@@ -186,24 +195,9 @@ class CameraActions:
             destination (Union[str, Path]): The destination path on the local
                 machine.
         """
+        destination, source = self._verify_path_exists_and_create_if_not(destination, source)
         try:
-            if isinstance(source, Path):
-                # Convert to POSIX string for ADB because ADB expects Unix-style paths
-                source = source.as_posix()
-            else:
-                source = Path(source).as_posix()
-            
-            if isinstance(destination, str):
-                destination = Path(destination)
-            if not destination.exists() or not destination.is_dir():
-                # create destination directory if it doesn't exist
-                destination.mkdir(parents=True, exist_ok=True)       
-        except Exception as e:
-            raise RuntimeError(
-                f'Failed to create destination directory: {e}',
-            ) from e
-        try:
-            if self.validate_connection_callback():
+            if self.validate_connection_callback(): #TODO see the Gonça PR
                 remote_path = f'{source}/{image_name}' # build remote file path from device source and image name turned into string
                 local_path = str(destination.resolve()) # turn into absolute path string
                 
@@ -213,16 +207,15 @@ class CameraActions:
                     shell=False,
                     subprocess_check_flag=self.subprocess_check_flag,
                     capture_output=True,
-                )
+                ).stdout
                 
                 # Verify that only one file was pulled
-                if 'file pulled' in result.stdout and '1 file pulled' not in result.stdout:
+                if 'file pulled' in result and '1 file pulled' not in result:
                     # If more than one file was pulled, this might indicate a problem
-                    import re
-                    match = re.search(r'(\d+) file', result.stdout) # \d -> numers 0 to 9, + -> one or more times, () -> capturing group
-                    if match and int(match.group(1)) > 1: # take the first capturing group (the number of files) and check if it's greater than 1
+                    matches = grep(result, r'(\d+) file')
+                    if matches and int(matches[0]) > 1:
                         raise RuntimeError(
-                            f'Multiple files were pulled ({match.group(1)}). Expected only one file: {image_name}',
+                            f'Multiple files were pulled ({matches[0]}). Expected only one file: {image_name}',
                         )
             else:
                 raise RuntimeError(
@@ -232,4 +225,39 @@ class CameraActions:
             raise RuntimeError(
                 f'Failed to pull image: {e}',
             ) from e
+        
+    def _verify_path_exists_and_create_if_not(
+            self, 
+            destination: Union[str, Path],
+            source: Union[str, Path]
+        ) -> tuple[Path, Path]:
+        """Verifies if a path exists on the local machine and creates it if it
+        does not exist.
 
+        Args:
+            **destination** (Union[str, Path]): The destination path on the local machine.
+            **source** (Union[str, Path]): The source path on the device.
+
+        Returns: tupel[Path, Path]: The resolved **destination** and **source** paths as Path objects.
+        """
+
+        destination = Path(destination).resolve()
+        source = Path(source).as_posix()
+        try:            
+            if not destination.exists() or not destination.is_dir():
+                # create destination directory if it doesn't exist
+                destination.mkdir(parents=True, exist_ok=True)       
+        except PermissionError as e:
+            raise RuntimeError(
+                f'Permission denied when creating destination directory: {destination}',
+            ) from e
+        except ValueError as e:
+            raise RuntimeError(
+                f'Invalid destination path: {destination}',
+            ) from e
+        except OSError as e:
+            raise RuntimeError(
+                f'Failed to create destination directory: {destination} - {e}',
+            ) from e
+        
+        return destination, source
