@@ -234,6 +234,51 @@ class DeviceActions:
                 subprocess_check_flag=self.subprocess_check_flag,
             )
 
+    def list_installed_apps(self) -> list[str]:
+        """Lists the installed applications on the device.
+
+        Returns:
+            list[str]: A list of installed application package names.
+        """
+        if self.validate_connection():
+            result = execute_adb_command(
+                command='pm list packages',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            ).stdout
+            
+        return result.splitlines()
+    
+    def is_app_installed(self, package_name: str) -> bool:
+        """Checks if an application is installed on the device.
+
+        Args:
+            package_name (str): The package name of the application to check.
+        Returns:
+            bool: True if the application is installed, False otherwise.
+        """
+        
+        if self.validate_connection():
+            result = self.list_installed_apps()
+            return package_name in result
+        return False
+
+       
+
+    def uninstall_apk(self, package_name: str) -> None: #TODO test with this methos works
+        """Uninstalls an APK from the device.
+        Args:
+            package_name (str): The package name of the application to uninstall.
+        """
+        if self.validate_connection():
+            execute_adb_command(
+                command=f'pm uninstall --user 0 {package_name}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+
     def turn_on_screen(self):
         """
         This method executes the adb `keyevent KEYCODE_POWER`, which represents
