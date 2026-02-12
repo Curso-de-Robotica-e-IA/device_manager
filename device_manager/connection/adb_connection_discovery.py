@@ -1,150 +1,81 @@
 import logging
-import weakref
-from contextlib import contextmanager
-from typing import Dict, Optional
+from typing import Optional
 
-from zeroconf import ServiceBrowser, Zeroconf
+from time import sleep
 
-from device_manager.connection.utils.connection_status import (
-    ConnectionInfoStatus,
-)
 from device_manager.connection.utils.mdns_context import (
     MDnsContext,
-    ServiceInfo,
 )
 from device_manager.connection.utils.mdns_listener import (
-    CONNECT_SERVICE_TYPE,
-    DEFAULT_REGEX_FILTER,
     MDnsListener,
 )
+from device_manager.connection.utils.mdns_service import MdnsService
 
 logger = logging.getLogger(__name__)
 
 
+import subprocess
+
+from device_manager.connection.utils.mdns_context import MDnsContext
+from device_manager.connection.utils.mdns_listener import MDnsListener
+
+
 class AdbConnectionDiscovery:
-    """Class to discover the devices connected to the ADB server using mDNS.
-    It uses the Zeroconf library to listen to the mDNS services, and the
-    MDnsListener class to update the service context with the service
-    information found by the Zeroconf instance.
+    """Restarts ADB and discovers Wi-Fi devices via mDNS.
+        This class is responsible for restarting the ADB server and discovering
+        devices that are available for connection over Wi-Fi using mDNS. It uses
+        the `MDnsListener` to scan for services and updates the `MDnsContext`
+        with the discovered devices.
+        The discovery process involves killing the ADB server, waiting for a
+        short period to ensure it has stopped, starting the ADB server again,
+        and then waiting for it to initialize before scanning for devices.
+        The discovered devices are categorized into online and pairing services
+        based on their service type.
+        
+        Attributes:
+            _context (MDnsContext): The context that holds the discovered services.
+            _listener (MDnsListener): The listener that scans for mDNS services.
 
-    Properties:
-        - `service_browser_started` (bool): Check if the ServiceBrowser has
-            been started.
-        - `browser` (Optional[ServiceBrowser]): The actual ServiceBrowser
-            instance.
-        - `zeroconf_status` (bool): Check if the Zeroconf instance is active.
-
-    Methods:
-        start: Start the ServiceBrowser to listen to the mDNS services.
-        start_discovery_listener: Context manager to start the ServiceBrowser
-            and stop it after the block is executed.
-        online_devices: Get the online devices from the class Context.
-        offline_devices: Get the offline devices from the class Context.
-        get_service_info_for: Get the service information for a given serial
-            number.
-        connection_status_for_device: Check the connection status for a given
-            service, based on the current context.
-        stop_discovery_listener: Stop the ServiceBrowser and close the Zeroconf
-            instance.
+        Methods:
+            discover: Restarts the ADB server and discovers devices via mDNS.
+            get_online_devices: Retrieves the online devices from the context.
+            get_pairing_devices: Retrieves the pairing devices from the context.
+            get_service_info_for: Retrieves the service information for a given
+                serial number.
     """
 
-    def __init__(self):
-        self.__started = False
-        self.__service_re_filter = DEFAULT_REGEX_FILTER
-        self.__service_type = CONNECT_SERVICE_TYPE
-        self.__zeroconf: Optional[Zeroconf] = None
-        self.__finalize: Optional[weakref.finalize] = None
-        self.__browser: Optional[ServiceBrowser] = None
-        self.__context = MDnsContext()
+    def __init__(self) -> None:
+        self._context = MDnsContext()
+        self._listener = MDnsListener(self._context)
 
-    def start(self) -> None:
-        """Start the ServiceBrowser to listen to the mDNS services."""
-        if not self.__started:
-            self.__zeroconf = Zeroconf()
-            self.__browser = ServiceBrowser(
-                self.__zeroconf,
-                self.__service_type,
-                MDnsListener(
-                    self.__context,
-                    self.__service_re_filter,
-                    self.__service_type,
-                ),
-            )
+    def discover(self) -> MDnsContext:
+        subprocess.run(["adb", "kill-server"], check=False)
+        sleep(10)
+        subprocess.run(["adb", "start-server"], check=False)
+        sleep(50)
+        self._listener.scan()
 
-            def atexit() -> None:
-                """Callback function to update the __started attribute and
-                the __browser attribute, once the Zeroconf service has been
-                finalized."""
-                logger.debug('Finalizing Zeroconf instance.')
-                self.__browser = None
-                self.__started = False
-
-            self.__finalize = weakref.finalize(
-                self.__zeroconf,
-                atexit,
-            )
-            self.__started = True
-
-    @contextmanager
-    def start_discovery_listener(self):
-        """Context manager to start the ServiceBrowser and stop it after the
-        block is executed. Once the block is executed, the ServiceBrowser is
-        stopped.
-        """
-        try:
-            self.start()
-            yield
-        finally:
-            self.stop_discovery_listener()
-
-    @property
-    def service_browser_started(self) -> bool:
-        """Check if the ServiceBrowser has been started.
-
-        Returns:
-            bool: True if the ServiceBrowser has been started, False otherwise.
-        """
-        return self.__started
-
-    @property
-    def browser(self) -> Optional[ServiceBrowser]:
-        """Returns the actual ServiceBrowser instance, if it exists.
-
-        Returns:
-            ServiceBrowser: The ServiceBrowser instance.
-        """
-        return self.__browser
-
-    @property
-    def zeroconf_status(self) -> bool:
-        """Check if the Zeroconf instance is active.
-
-        Returns:
-            bool: True if the Zeroconf instance is active, False otherwise.
-        """
-        if self.__finalize is None:
-            return False
-        return self.__finalize.alive
-
-    def online_devices(self) -> Dict[str, ServiceInfo]:
+        return self._context
+    
+    def get_online_devices(self) -> MDnsContext:
         """Get the online devices from the class Context.
 
         Returns:
             Dict[str, ServiceInfo]: The online devices. The key is the serial
                 number and the value is the service information.
         """
-        return self.__context.get_online_service()
-
-    def offline_devices(self) -> Dict[str, ServiceInfo]:
-        """Get the offline devices from the class Context.
+        return self._context.online_services
+    
+    def get_pairing_devices(self) -> MDnsContext:
+        """Get the pairing devices from the class Context.
 
         Returns:
-            Dict[str, ServiceInfo]: The offline devices. The key is the serial
+            Dict[str, ServiceInfo]: The pairing devices. The key is the serial
                 number and the value is the service information.
         """
-        return self.__context.get_offline_service()
+        return self._context.pairing_services
 
-    def get_service_info_for(self, serial_num: str) -> Optional[ServiceInfo]:
+    def get_service_info_for(self, serial_num: str) -> Optional[MdnsService]:
         """Get the service information for a given serial number. If the
         serial number is not in the online list, it will return None.
 
@@ -155,50 +86,14 @@ class AdbConnectionDiscovery:
             Optional[ServiceInfo]: The service information of the device or
                 None if the device is not online.
         """
-        services_data = self.__context.get_online_service()
-        if serial_num in services_data:
-            return services_data[serial_num]
+        return self._context.get_by_serial(serial_num)
 
-    def connection_status_for_device(
-        self,
-        service_info: ServiceInfo,
-    ) -> ConnectionInfoStatus:
-        """Check the connection status for a given service, based on the
-        current context.
 
-        `ConnectionInfoStatus`:
-        - `ConnectionInfoStatus.UPDATED`: The service information is up to
-            date. Meaning that the service is online and the IP address is the
-            same.
-        - `ConnectionInfoStatus.CHANGED`: The service information has changed
-            and the IP address is different.
-        - `ConnectionInfoStatus.DOWN`: The service is offline.
-        - `ConnectionInfoStatus.UNKNOWN`: The service is not at the context
-                offline list, neither at the online list.
-
-        Args:
-            service_info (ServiceInfo): The service information.
-
-        Returns:
-            ConnectionInfoStatus: The connection status.
-        """
-        if service_info.serial_number in self.__context.get_offline_service():
-            return ConnectionInfoStatus.DOWN
-
-        if (
-            service_info.serial_number
-            not in self.__context.get_online_service()
-        ):
-            return ConnectionInfoStatus.UNKNOWN
-
-        services_data = self.__context.get_online_service()
-        service_ref = services_data[service_info.serial_number]
-
-        if service_ref.ip == service_info.ip:
-            return ConnectionInfoStatus.UPDATED
-
-        return ConnectionInfoStatus.CHANGED
-
-    def stop_discovery_listener(self) -> None:
-        """Stop the ServiceBrowser and close the Zeroconf instance."""
-        self.__zeroconf.close()
+if __name__ == "__main__":
+    discovery = AdbConnectionDiscovery()
+    services = discovery.discover()
+    online_devices = discovery.get_online_devices()
+    paring = discovery.get_pairing_devices()
+    print("All devices:", services.services)
+    print("Online devices:", online_devices)
+    print("Paring devices:", paring)
