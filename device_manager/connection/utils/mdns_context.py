@@ -1,124 +1,68 @@
-from threading import Lock
-from typing import Dict, List
-
-from device_manager.connection.utils.service_info import ServiceInfo
+from typing import List
+from device_manager.connection.utils.mdns_service import MdnsService
 
 
 class MDnsContext:
-    """Context to store the services found by the mDNS listener. It stores the
-    services in two lists: online and offline, and uses a mutex to protect the
-    data.
-
-    Attributes:
-        __services_info_online (Dict[str, ServiceInfo]): The online services.
-        __services_info_offline (Dict[str, ServiceInfo]): The offline services.
-        __mutex (Lock): The mutex to protect the data.
-
-    Properties:
-        online_service_list (Dict[str, ServiceInfo]): The online service list.
-        offline_service_list (Dict[str, ServiceInfo]): The offline service
-            list.
-
-    Methods:
-        get_online_service_list(): Get the online service list.
-        get_offline_service_list(): Get the offline service list.
-        add_service(key_data, data): Add a service to the online list.
-        update_service(key_data, data): Update a service in the online list.
-        to_offline_service(key_data, data): Move a service to the offline list.
+    """Snapshot of mDNS services discovered via adb.
+    This class serves as a context for storing and managing the mDNS services
+    discovered on the local network using the `adb mdns services` command. It
+    provides methods to set and retrieve the list of services, as well as to
+    filter services based on their type (online or pairing) and to get service
+    information based on the serial number. The context is used to maintain the
+    state of the discovered services and to facilitate access to this information
+    for other components of the device manager.
+        Attributes:
+            _services (List[MdnsService]): A list of `MdnsService` instances representing the discovered services.
+        Methods:
+            set_services: Sets the list of discovered services in the context.
+            services: Retrieves the list of all discovered services.
+            online_services: Retrieves the list of services that are currently online.
+            pairing_services: Retrieves the list of services that are available for pairing.
+            get_by_serial: Retrieves the service information for a given serial number.
     """
 
-    def __init__(self):
-        self.__services_info_online = {}
-        self.__services_info_offline = {}
-        self.__mutex = Lock()
+    def __init__(self) -> None:
+        self._services: List[MdnsService] = []
+
+    def set_services(self, services: List[MdnsService]) -> None:
+        """Sets the list of discovered services in the context.
+        This method takes a list of `MdnsService` instances representing the
+        discovered services and stores it in the context for later retrieval and
+        management.
+        
+        Args:
+            services (List[MdnsService]): A list of `MdnsService` instances representing the discovered services.
+        Returns:
+            None
+        """ 
+        self._services = services
 
     @property
-    def online_service_list(self) -> List[ServiceInfo]:
-        """Get the online service list.
-
-        Returns:
-            Dict[str, ServiceInfo]: The online service list.
-        """
-        return [ser_info for ser_info in self.get_online_service().values()]
-
-    def get_online_service(self) -> Dict[str, ServiceInfo]:
-        """Get the online service list.
-
-        Returns:
-            Dict[str, ServiceInfo]: The online service list.
-        """
-        with self.__mutex:
-            all_data = self.__services_info_online
-
-            return all_data
+    def services(self) -> List[MdnsService]:
+        return self._services
+    
+    @property
+    def online_services(self) -> List[MdnsService]:
+        return [s for s in self._services if s.service_type == "ONLINE"]
 
     @property
-    def offline_service_list(self) -> List[ServiceInfo]:
-        """Get the offline service list.
+    def pairing_services(self) -> List[MdnsService]:
+        return [s for s in self._services if s.service_type == "PAIRING"]
 
+    def get_by_serial(self, serial: str) -> MdnsService | None:
+        """Retrieves the service information for a given serial number.
+        This method searches through the list of discovered services to find a
+        service that matches the provided serial number. If a matching service is
+        found, it is returned; otherwise, the method returns `None`.
+        
+        Args:
+            serial (str): The serial number of the service to retrieve.
+        
         Returns:
-            Dict[str, ServiceInfo]: The offline service list.
+            MdnsService | None: The `MdnsService` instance that matches the provided serial number, or `None` if no match is found.
         """
-        return [ser_info for ser_info in self.get_offline_service().values()]
+        for s in self._services:
+            if s.serial_number == serial:
+                return s
+        return None
 
-    def get_offline_service(self) -> Dict[str, ServiceInfo]:
-        """Get the offline service list.
-
-        Returns:
-            Dict[str, ServiceInfo]: The offline service list.
-        """
-        with self.__mutex:
-            all_data = self.__services_info_offline
-
-            return all_data
-
-    def add_service(
-        self,
-        key_data: str,
-        data: ServiceInfo,
-    ) -> None:
-        """Add a service to the online list. If the service is already in the
-        offline list, it will be removed from there.
-
-        Args:
-            key_data (str): The key to identify the service.
-            data (ServiceInfo): The service data.
-        """
-        with self.__mutex:
-            if key_data in self.__services_info_offline:
-                self.__services_info_offline.pop(key_data)
-            self.__services_info_online[key_data] = data
-
-    def update_service(
-        self,
-        key_data: str,
-        data: ServiceInfo,
-    ) -> None:
-        """Update a service in the online list. If the service is already in
-        the offline list, it will be removed from there.
-
-        Args:
-            key_data (str): The key to identify the service.
-            data (ServiceInfo): The service data.
-        """
-        with self.__mutex:
-            if key_data in self.__services_info_offline:
-                self.__services_info_offline.pop(key_data)
-            self.__services_info_online[key_data] = data
-
-    def to_offline_service(
-        self,
-        key_data: str,
-        data: ServiceInfo,
-    ) -> None:
-        """Move a service to the offline list. If the service is already in the
-        online list, it will be removed from there.
-
-        Args:
-            key_data (str): The key to identify the service.
-            data (ServiceInfo): The service data.
-        """
-        with self.__mutex:
-            if key_data in self.__services_info_online:
-                self.__services_info_online.pop(key_data)
-            self.__services_info_offline[key_data] = data
