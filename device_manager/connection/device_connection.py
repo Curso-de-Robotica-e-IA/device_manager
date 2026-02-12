@@ -7,15 +7,10 @@ from rich.prompt import Prompt
 
 from device_manager.components.object_manager import ObjectManager
 from device_manager.connection.connection_manager import (
-    ConnectionManager,
     ConnectionManagerSingleton,
 )
-from device_manager.connection.utils.connection_status import (
-    ConnectionInfoStatus,
-)
-from device_manager.connection.utils.mdns_context import (
-    ServiceInfo,
-)
+from device_manager.connection.utils.mdns_service import MdnsService
+
 
 DEFAULT_FIXED_PORT = 5555
 MAX_CONNECTION_RETRIES = 5
@@ -41,7 +36,7 @@ class DeviceConnection:
         console (Console): A rich console to print messages.
         connection (ConnectionManager): A connection manager to manage the
             ADB connections.
-        connection_info (ObjectManager[ServiceInfo]): An object manager to
+        connection_info (ObjectManager[MdnsService]): An object manager to
             store the service information of the connected devices.
 
     methods:
@@ -51,8 +46,6 @@ class DeviceConnection:
         prompt_device_connection: Prompts the user to select devices to connect
             to.
         visible_devices: Returns a list of visible devices in the network.
-        close: Terminates any ongoing device discovery process managed by the
-            `connection_manager`.
         check_connections: Checks the status of the current connections.
         build_comm_uri: Constructs a communication URI for the specified
             device.
@@ -80,7 +73,7 @@ class DeviceConnection:
         self.connection = ConnectionManagerSingleton(
             subprocess_check_flag=self.__subprocess_check_flag,
         )
-        self.connection_info: ObjectManager[ServiceInfo] = ObjectManager()
+        self.connection_info: ObjectManager[MdnsService] = ObjectManager()
         self.fixed_port = fixed_port
 
     # region: user_interaction
@@ -115,7 +108,7 @@ class DeviceConnection:
 
         device_idx = None
         finish_loop = False
-        available_devices = self.connection.available_devices()
+        available_devices = self.connection.discover_devices()
         selected_devices = list()
         while not finish_loop:
             prompt_options = {
@@ -133,10 +126,10 @@ class DeviceConnection:
             )
 
             if response == '0':
-                available_devices = self.connection.available_devices()
+                available_devices = self.connection.discover_devices()
             else:
                 device_idx = int(response) - 1
-                device = list(available_devices.keys())[device_idx]
+                device = available_devices[device_idx]
                 selected_devices.append(device)
 
                 connect_another = prompt.ask(
@@ -173,24 +166,16 @@ class DeviceConnection:
         return selected_devices
 
     # endregion
-
-    def visible_devices(self) -> List[ServiceInfo]:
+    def visible_devices(self) -> List[str]:
         """Returns a list of visible devices in the network.
 
         Returns:
-            List[ServiceInfo]: A list of visible devices in the network.
+            List[str]: A list of visible devices in the network.
         """
-        available_devices = self.connection.available_devices()
-        return list(available_devices.values())
+        available_devices = self.connection.discover_devices()
+        serial_numbers = [service.serial_number for service in available_devices]
 
-    def close(self):
-        """
-         This method terminates any ongoing device discovery process managed by
-        the `connection_manager`. It ensures that resources related to device
-        discovery are released properly.
-        """
-
-        self.connection.close_discovery()
+        return serial_numbers
 
     def is_connected(
         self,
@@ -201,6 +186,9 @@ class DeviceConnection:
 
         Args:
             serial_number (str): The serial number of the device to check.
+            devices_connected (Optional[str], optional): The output of the
+                `adb devices` command. If None, the method will execute the
+                command to get the output. Defaults to None.
 
         Returns:
             bool: True if the device is connected, False otherwise.
@@ -345,14 +333,8 @@ class DeviceConnection:
 
         device = self.connection_info.get(serial_number)
         comm_uri = f'{device.ip}:{device.port}'
-
-        coninfostatus = self.connection.check_wireless_adb_service_for(
-            self.connection_info.get(serial_number),
-        )
-        if coninfostatus != (
-            ConnectionInfoStatus.UPDATED
-            or not self.connection.check_devices_adb_connection(comm_uri)
-        ):
+        
+        if not self.connection.check_devices_adb_connection(comm_uri):
             if force_reconnect:
                 self.establish_first_connection(serial_number)
                 self.disconnect()
@@ -438,6 +420,10 @@ class DeviceConnection:
 
         This method validates the current connection and if valid, runs the
         ADB command to set the device's port to `fixed_port`.
+
+        Args:
+            serial_number (str): The serial number of the device to fix the ADB
+                port.
         """
 
         if self.validate_connection(serial_number):
@@ -453,6 +439,9 @@ class DeviceConnection:
 
         This method establishes a new ADB connection using the fixed port
         attribute.
+
+        Args:
+            serial_number (str): The serial number of the device to connect.
         """
         device = self.connection_info.get(serial_number)
         subprocess.run(
@@ -475,6 +464,6 @@ class DeviceConnection:
                 Check the subprocess documentation for more information.
         """
         subprocess.run(
-            ['adb', 'kill-server'],
+            ["adb", "kill-server"],
             check=subprocess_check_flag,
         )
