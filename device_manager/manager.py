@@ -166,7 +166,7 @@ class DeviceManager:
         """
         return list(self.__device_info.keys())
 
-    def connect_devices(self, *serial_number: str) -> bool:
+    def connect_devices(self, serial_numbers: List[str]) -> bool:
         """Connects to the devices with the provided serial numbers.
         This method will start the connection to the devices and create
         the necessary DeviceInfo and DeviceActions objects, which will be
@@ -175,8 +175,7 @@ class DeviceManager:
         Returns:
             bool: True if the connection was successful, False otherwise.
         """
-        serial_number_list = list(serial_number)
-        success_op = self.connector.start_connection(serial_number_list)
+        success_op = self.connector.start_connection(serial_numbers)
         if success_op:
             for serial in self.connector.connection_info.keys():
                 if serial not in self.__device_info.keys():
@@ -194,7 +193,7 @@ class DeviceManager:
                     self.__device_actions.add(serial, dev_actions)
         return success_op
 
-    def disconnect_devices(self, *serial_number: str) -> bool:
+    def disconnect_devices(self, *serial_numbers: str) -> bool:
         """Disconnects the devices with the provided serial numbers.
         This method will stop the connection to the devices and remove
         the associated DeviceInfo and DeviceActions objects from the
@@ -203,10 +202,9 @@ class DeviceManager:
         Returns:
             bool: True if the disconnection was successful, False otherwise.
         """
-        serial_number_list = list(serial_number)
-        success_op = self.connector.stop_connection(serial_number_list)
+        success_op = self.connector.stop_connection(serial_numbers)
         if success_op:
-            for serial in serial_number_list:
+            for serial in serial_numbers:
                 sbn = self.connector.connection_info.get(serial)
                 if sbn is None:  # Should Be None
                     self.__device_info.remove(serial)
@@ -294,7 +292,6 @@ class DeviceManager:
     def adb_pairing_instance(
         self,
         service_name: str = 'robot_celular',
-        service_regex_filter: Optional[str] = None,
         subprocess_check_flag: bool = False,
     ) -> None:
         """Creates an instance of the AdbPairing class. This instance will
@@ -314,7 +311,6 @@ class DeviceManager:
         """
         self.adb_pair = AdbPairing(
             service_name=service_name,
-            service_regex_filter=service_regex_filter,
             subprocess_check_flag=subprocess_check_flag,
         )
 
@@ -333,3 +329,39 @@ class DeviceManager:
         """Clears the internal object managers, removing all devices."""
         self.__device_info = ObjectManager()
         self.__device_actions = ObjectManager()
+
+
+if __name__ == '__main__':
+    manager = DeviceManager()
+    # Conectar os devices na rede
+    network_devices = manager.connector.visible_devices()
+    print(network_devices)
+    manager.connect_devices(network_devices)
+    # ---------------------------------------------------------
+    # Parear devices pelo manager
+    # manager.adb_pairing_instance()
+    # manager.adb_pair.pair_devices("964900")
+    # ---------------------------------------------------------
+    # Conectar devices específicos
+#     manager.connect_devices(["RXCW5054NGB","NEPR260191"])
+
+#     manager.execute_adb_command(
+#     'input keyevent 3',)
+
+
+#     for device in manager:
+#         print(device)  
+#         device_info = device.device_info  
+#         device_actions = device.device_actions
+#         print(device.serial_number)  
+#     # Here you can do whatever you want with the device_info 
+#     # and device_actions objects
+
+
+# Additionally, you can get direct access of the `DeviceInfo`
+# and `DeviceActions` tuple using the serial number.
+
+#     device_info, device_action = manager['RXCW5054NGB']
+
+#     device_info.get_properties()
+#     device_action.home_button()
