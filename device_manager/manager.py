@@ -8,6 +8,7 @@ from device_manager.connection.device_connection import (
     DEFAULT_FIXED_PORT,
     DeviceConnection,
 )
+from device_manager.connection.utils.mdns_context import MDnsContext
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
 from device_manager.utils.dm_warnings import check_adb_dependencies_version
@@ -275,7 +276,7 @@ class DeviceManager:
         """
         uris = comm_uris
         if comm_uris is None:
-            uris = [device.current_comm_uri for device in self.__device_info]
+            uris = [device.ip + ":" + str(device.port) for device in self.connector.connection.devices]
         if not isinstance(uris, (list, tuple)):
             raise TypeError(
                 f'comm_uris must be a list, tuple or None, got {type(comm_uris)}',  # noqa
@@ -291,7 +292,7 @@ class DeviceManager:
 
     def adb_pairing_instance(
         self,
-        service_name: str = 'robot_celular',
+            context: Optional[MDnsContext] = None,
         subprocess_check_flag: bool = False,
     ) -> None:
         """Creates an instance of the AdbPairing class. This instance will
@@ -299,8 +300,6 @@ class DeviceManager:
         All of the parameters are passed to the AdbPairing constructor.
 
         Args:
-            service_name (str, optional): The name of the service in the
-                network. Defaults to 'robot_celular'.
             service_regex_filter (Optional[str], optional): The filter that
                 will be applied to the mDNSListener operations. Defaults to
                     None.
@@ -310,7 +309,7 @@ class DeviceManager:
                 Check the subprocess documentation for more information.
         """
         self.adb_pair = AdbPairing(
-            service_name=service_name,
+            context=context,
             subprocess_check_flag=subprocess_check_flag,
         )
 
@@ -334,34 +333,27 @@ class DeviceManager:
 if __name__ == '__main__':
     manager = DeviceManager()
     # Conectar os devices na rede
-    network_devices = manager.connector.visible_devices()
-    print(network_devices)
-    manager.connect_devices(network_devices)
+    # network_devices = manager.connector.visible_devices()
+    # print(network_devices)
+    # manager.connect_devices(network_devices)
+    # manager.connected_devices
     # ---------------------------------------------------------
     # Parear devices pelo manager
-    # manager.adb_pairing_instance()
-    # manager.adb_pair.pair_devices("964900")
+    manager.adb_pairing_instance(manager.connector.connection._discovery._context)
+    manager.adb_pair.pair_devices("162276")
     # ---------------------------------------------------------
     # Conectar devices específicos
-#     manager.connect_devices(["RXCW5054NGB","NEPR260191"])
+    # manager.connect_devices(["0088157940","NEPR260191", "NBYHW4GEY5P7CUEM"])
 
-#     manager.execute_adb_command(
-#     'input keyevent 3',)
+    # manager.execute_adb_command(
+    # 'input keyevent 3',)
 
+    # for device in manager:
+    #     print(device)  
+    #     device_info = device.device_info  
+    #     device_actions = device.device_actions
+    #     print(device.serial_number)  
 
-#     for device in manager:
-#         print(device)  
-#         device_info = device.device_info  
-#         device_actions = device.device_actions
-#         print(device.serial_number)  
-#     # Here you can do whatever you want with the device_info 
-#     # and device_actions objects
+    # device_info, device_action = manager['0088157940']
 
-
-# Additionally, you can get direct access of the `DeviceInfo`
-# and `DeviceActions` tuple using the serial number.
-
-#     device_info, device_action = manager['RXCW5054NGB']
-
-#     device_info.get_properties()
-#     device_action.home_button()
+    # device_info.get_properties()

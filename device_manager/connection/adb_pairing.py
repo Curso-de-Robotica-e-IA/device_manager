@@ -1,7 +1,9 @@
 import logging
 import subprocess
+from typing import Optional
 
 from device_manager.connection.adb_connection_discovery import AdbConnectionDiscovery
+from device_manager.connection.utils.mdns_context import MDnsContext
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +24,11 @@ class AdbPairing:
 
     def __init__(
         self,
+        context: Optional[MDnsContext] = None,
         subprocess_check_flag: bool = False,
         ) -> None:
         self.connection_dicovery = AdbConnectionDiscovery()
-        self._context = self.connection_dicovery.discover()
+        self._context = context
         self._subprocess_check_flag = subprocess_check_flag
 
 
