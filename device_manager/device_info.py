@@ -267,7 +267,7 @@ class DeviceInfo:
         """Gets the current orientation of the device.
 
         Returns:
-            str: The current orientation of the device.
+            str: The current orientation of the device [Portrait, Landscape, Reverse Portrait or Reverse Landscape ].
         """
         if self.device_connection.validate_connection(
             self.__serial_number,
