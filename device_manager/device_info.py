@@ -295,7 +295,7 @@ class DeviceInfo:
         else:
             raise ConnectionError('Device not connected')
 
-    def list_installed_apps(self) -> list[str]:
+    def list_installed_all_apps(self) -> list[str]:
         """Lists installed applications on the device.
 
         Returns:
@@ -335,5 +335,32 @@ class DeviceInfo:
             installed_apps = self.list_installed_apps()
             return package_name in installed_apps
         return False
+
+    def get_app_path(self, package_name: str) -> Optional[str]:
+        """Gets the installation path of an application on the device.
+
+        Args:
+            package_name (str): The package name of the application.
+
+        Returns:
+            Optional[str]: The full path to the APK file on the device,
+                or None if the app is not installed.
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            output = execute_adb_command(
+                command=f'pm path {package_name}',
+                shell=True,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
+                capture_output=True,
+            ).stdout
+            for line in output.splitlines():
+                if line.strip().startswith('package:'):
+                    return line.replace('package:', '').strip()
+        return None
+
         
     
