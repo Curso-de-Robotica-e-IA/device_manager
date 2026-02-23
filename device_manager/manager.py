@@ -8,6 +8,7 @@ from device_manager.connection.device_connection import (
     DEFAULT_FIXED_PORT,
     DeviceConnection,
 )
+from device_manager.connection.utils.connection_type import ConnectionType
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
 from device_manager.utils.dm_warnings import check_adb_dependencies_version
@@ -82,6 +83,8 @@ class DeviceManager:
         self.adb_pair: Optional[AdbPairing] = None
         self.__device_info: ObjectManager[DeviceInfo] = ObjectManager()
         self.__device_actions: ObjectManager[DeviceActions] = ObjectManager()
+        self._load_connected_usb_devices()
+
 
     def __getitem__(
         self,
@@ -114,16 +117,12 @@ class DeviceManager:
         device information and device actions.
 
         Supports usage of the `for` loop to iterate over the devices."""
-        device_objects = map(
-            lambda info, actions: DeviceObjects(
-                serial_number=info.serial_number,
-                device_info=info,
-                device_actions=actions,
-            ),
-            self.__device_info,
-            self.__device_actions,
-        )
-        return device_objects
+        for serial in self.__device_info.keys():
+            yield DeviceObjects(
+                serial_number=serial,
+                device_info=self.__device_info.get(serial),
+                device_actions=self.__device_actions.get(serial),
+    )
 
     def __delitem__(self, key: str) -> None:
         """Removes a device from the manager.
@@ -166,33 +165,64 @@ class DeviceManager:
         """
         return list(self.__device_info.keys())
 
-    def connect_devices(self, *serial_number: str) -> bool:
-        """Connects to the devices with the provided serial numbers.
-        This method will start the connection to the devices and create
-        the necessary DeviceInfo and DeviceActions objects, which will be
-        stored in the internal object manager objects.
+    def connect_devices(self, *serial_numbers: str) -> list[str]:
+        """
+        Connects to the given devices and creates their objects.
+        This method will check the connection type of each device and connect
+        accordingly. For USB devices, it will check if they are already
+        connected and if not, it will connect them.
+        Args:
+            *serial_numbers (str): The serial numbers of the devices to connect.
 
         Returns:
-            bool: True if the connection was successful, False otherwise.
+            List of successfully connected serial numbers.
         """
-        serial_number_list = list(serial_number)
-        success_op = self.connector.start_connection(serial_number_list)
-        if success_op:
-            for serial in self.connector.connection_info.keys():
-                if serial not in self.__device_info.keys():
-                    dev_info = DeviceInfo(
-                        self.connector,
-                        serial,
-                        subprocess_check_flag=self.subprocess_check,
-                    )
-                    dev_actions = DeviceActions(
-                        self.connector,
-                        serial,
-                        subprocess_check_flag=self.subprocess_check,
-                    )
-                    self.__device_info.add(serial, dev_info)
-                    self.__device_actions.add(serial, dev_actions)
-        return success_op
+
+        visibles_devices = self.connector.visible_devices()
+
+        visible_by_serial = {
+            service.serial_number: service
+            for service in visibles_devices
+        }
+
+        usb_serials = []
+        wifi_serials = []
+
+        for serial in serial_numbers:
+            service = visible_by_serial.get(serial)
+
+            if not service:
+                continue
+
+            if service.connection == ConnectionType.USB:
+                if self.connector.is_connected(serial):
+                    usb_serials.append(serial)
+
+            elif service.connection == ConnectionType.WIFI:
+                wifi_serials.append(serial)
+
+        connected_wifi = []
+        if wifi_serials:
+            connected_wifi = self.connector.start_connection(wifi_serials)
+
+        connected_serials = usb_serials + connected_wifi
+
+        for serial in connected_serials:
+            if serial not in self.__device_info:
+                dev_info = DeviceInfo(
+                    self.connector,
+                    serial,
+                    subprocess_check_flag=self.subprocess_check,
+                )
+                dev_actions = DeviceActions(
+                    self.connector,
+                    serial,
+                    subprocess_check_flag=self.subprocess_check,
+                )
+                self.__device_info.add(serial, dev_info)
+                self.__device_actions.add(serial, dev_actions)
+
+        return connected_serials
 
     def disconnect_devices(self, *serial_number: str) -> bool:
         """Disconnects the devices with the provided serial numbers.
@@ -277,7 +307,18 @@ class DeviceManager:
         """
         uris = comm_uris
         if comm_uris is None:
-            uris = [device.current_comm_uri for device in self.__device_info]
+            uris = []
+            for serial in self.__device_info.keys():
+                service_info = self.connector.connection_info.get(serial)
+                if service_info is None:
+                    continue
+
+
+                if service_info.connection == ConnectionType.USB:
+                    uris.append(serial)
+                else:
+                    uris.append(f"{service_info.ip}:{service_info.port}")
+
         if not isinstance(uris, (list, tuple)):
             raise TypeError(
                 f'comm_uris must be a list, tuple or None, got {type(comm_uris)}',  # noqa
@@ -333,3 +374,39 @@ class DeviceManager:
         """Clears the internal object managers, removing all devices."""
         self.__device_info = ObjectManager()
         self.__device_actions = ObjectManager()
+
+    def _load_connected_usb_devices(self) -> None:
+        """Detects already connected USB devices and registers them."""
+        usb_devices = self.connector.usb_scanner.list_connected_devices()
+
+        for service in usb_devices:
+            serial = service.serial_number
+
+            if self.connector.connection_info.get(serial) is None:
+                self.connector.connection_info.add(serial, service)
+
+            if serial not in self.__device_info.keys():
+                dev_info = DeviceInfo(
+                    self.connector,
+                    serial,
+                    subprocess_check_flag=self.subprocess_check,
+                )
+                dev_actions = DeviceActions(
+                    self.connector,
+                    serial,
+                    subprocess_check_flag=self.subprocess_check,
+                )
+
+                self.__device_info.add(serial, dev_info)
+                self.__device_actions.add(serial, dev_actions)
+
+
+
+if __name__ == "__main__":
+    manager = DeviceManager()
+    print(manager.connector.visible_devices())
+    manager.connect_devices('0088157940', '192.168.158.10')
+    # info = manager.get_device_info('NBYHW4GEY5P7CUEM')
+    # print(info.is_screen_on())
+    manager.execute_adb_command('input keyevent 3',
+                                )
