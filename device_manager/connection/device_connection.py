@@ -5,7 +5,6 @@ from typing import List, Optional
 from rich.console import Console
 from rich.prompt import Prompt
 
-from device_manager.adb_executor import execute_adb_command
 from device_manager.components.object_manager import ObjectManager
 from device_manager.connection.connection_manager import (
     ConnectionManager,
