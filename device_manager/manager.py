@@ -399,14 +399,3 @@ class DeviceManager:
 
                 self.__device_info.add(serial, dev_info)
                 self.__device_actions.add(serial, dev_actions)
-
-
-
-if __name__ == "__main__":
-    manager = DeviceManager()
-    print(manager.connector.visible_devices())
-    manager.connect_devices('0088157940', '192.168.158.10')
-    # info = manager.get_device_info('NBYHW4GEY5P7CUEM')
-    # print(info.is_screen_on())
-    manager.execute_adb_command('input keyevent 3',
-                                )
