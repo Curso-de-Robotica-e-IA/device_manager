@@ -333,3 +333,7 @@ class DeviceManager:
         """Clears the internal object managers, removing all devices."""
         self.__device_info = ObjectManager()
         self.__device_actions = ObjectManager()
+
+
+
+       

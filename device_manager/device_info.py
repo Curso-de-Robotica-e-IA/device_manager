@@ -159,6 +159,7 @@ class DeviceInfo:
                 return False
 
             raise ValueError(UNEXPECTED_ADB_OUTPUT)
+    
 
     def get_screen_gui_xml(self) -> str:
         """This method retrieves the .xml that represents the current state
@@ -263,7 +264,7 @@ class DeviceInfo:
             subprocess_check_flag=self.subprocess_check_flag,
         )
     
-    def get_orientation(self) -> str:
+    def get_orientation_by_screen(self) -> str:
         """Gets the current orientation of the device.
 
         Returns:
@@ -293,3 +294,46 @@ class DeviceInfo:
             raise ValueError(UNEXPECTED_ADB_OUTPUT)
         else:
             raise ConnectionError('Device not connected')
+
+    def list_installed_apps(self) -> list[str]:
+        """Lists installed applications on the device.
+
+        Returns:
+            list[str]: A list with application package names.
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            output = execute_adb_command(
+                command='pm list packages',
+                shell=True,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
+                capture_output=True,
+            ).stdout
+            return [
+                line.replace('package:', '').strip()
+                for line in output.splitlines()
+                if line.strip().startswith('package:')
+            ]
+        return []
+
+    def is_app_installed(self, package_name: str) -> bool:
+        """Checks if an application is installed on the device.
+
+        Args:
+            package_name (str): The package name of the application to check.
+
+        Returns:
+            bool: True if the application is installed, False otherwise.
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            installed_apps = self.list_installed_apps()
+            return package_name in installed_apps
+        return False
+        
+    
