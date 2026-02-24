@@ -1,5 +1,5 @@
 from enum import Enum
 
 class ConnectionType(Enum):
-    USB = "usb"
-    WIFI = "wifi"
+    USB = 1
+    WIFI = 2
