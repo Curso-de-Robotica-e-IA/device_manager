@@ -1,4 +1,4 @@
-from device_manager.asyncio.async_zeroconf import AsyncZeroconf
+from device_manager.asyncio_dm.async_zeroconf import AsyncZeroconf
 from device_manager.connection.utils.mdns_listener import MDnsListener
 
 
