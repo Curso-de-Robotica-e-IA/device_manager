@@ -233,6 +233,20 @@ class DeviceActions:
                 comm_uris=[self.current_comm_uri],
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+      
+
+    def uninstall_apk(self, package_name: str) -> None: #TODO test with this methos works
+        """Uninstalls an APK from the device.
+        Args:
+            package_name (str): The package name of the application to uninstall.
+        """
+        if self.validate_connection():
+            execute_adb_command(
+                command=f'pm uninstall --user 0 {package_name}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
 
     def turn_on_screen(self):
         """
@@ -259,6 +273,14 @@ class DeviceActions:
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+
+    def turn_on_and_unlock_screen(self):
+        """
+        This method turns on and unlocks the device screen by executing
+        the appropriate adb keyevents.
+        """
+        self.turn_on_screen()
+        self.unlock_screen()
 
     def home_button(self):
         """
@@ -361,5 +383,18 @@ class DeviceActions:
             execute_adb_command(
                 command=f'pull {remote_path} {local_path}',
                 comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+
+    def back(self) -> None:
+        """
+        This method executes the adb `keyevent KEYCODE_BACK`, which represents
+        the `Back` phone button.
+        """
+        if self.validate_connection():
+            execute_adb_command(
+                command=f'input keyevent {ADBKeyEvent.KEYCODE_BACK.value}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
