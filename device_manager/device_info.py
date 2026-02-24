@@ -264,7 +264,7 @@ class DeviceInfo:
             subprocess_check_flag=self.subprocess_check_flag,
         )
     
-    def get_orientation_by_screen(self) -> str:
+    def get_display_orientation(self) -> str:
         """Gets the current orientation of the device.
 
         Returns:
