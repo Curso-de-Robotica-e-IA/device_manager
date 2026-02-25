@@ -83,7 +83,7 @@ class DeviceManager:
         self.adb_pair: Optional[AdbPairing] = None
         self.__device_info: ObjectManager[DeviceInfo] = ObjectManager()
         self.__device_actions: ObjectManager[DeviceActions] = ObjectManager()
-        self._load_connected_usb_devices()
+        self.load_connected_usb_devices()
 
 
     def __getitem__(
@@ -375,7 +375,7 @@ class DeviceManager:
         self.__device_info = ObjectManager()
         self.__device_actions = ObjectManager()
 
-    def _load_connected_usb_devices(self) -> None:
+    def load_connected_usb_devices(self) -> None:
         """Detects already connected USB devices and registers them."""
         usb_devices = self.connector.usb_scanner.list_connected_devices()
 
@@ -399,3 +399,13 @@ class DeviceManager:
 
                 self.__device_info.add(serial, dev_info)
                 self.__device_actions.add(serial, dev_actions)
+
+
+if __name__ == "__main__":
+    manager = DeviceManager()
+    print(manager.connector.visible_devices())
+    manager.load_connected_usb_devices()
+    manager.connect_devices('ZF5246RQKB')
+    manager.load_connected_usb_devices()
+    manager.connect_devices('0088157940')
+    print(manager.connected_devices)
