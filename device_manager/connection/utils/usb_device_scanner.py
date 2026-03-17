@@ -5,6 +5,7 @@ from typing import Optional
 
 from device_manager.connection.utils.connection_type import ConnectionType
 from device_manager.connection.utils.service_info import ServiceInfo
+from device_manager.connection.utils.service_type import ServiceType
 
 
 class UsbDeviceScanner:
@@ -89,6 +90,7 @@ class UsbDeviceScanner:
                         ip="",
                         port=0,
                         connection=ConnectionType.USB,
+                        service_type=ServiceType.CONNECT
                     )
                 )
 

@@ -2,6 +2,7 @@ from threading import Lock
 from typing import Dict, List
 
 from device_manager.connection.utils.service_info import ServiceInfo
+from device_manager.connection.utils.service_type import ServiceType
 
 
 class MDnsContext:
@@ -18,6 +19,10 @@ class MDnsContext:
         online_service_list (Dict[str, ServiceInfo]): The online service list.
         offline_service_list (Dict[str, ServiceInfo]): The offline service
             list.
+        pairing_services (List[ServiceInfo]): The pairing services from the online
+            services.
+        connect_services (List[ServiceInfo]): The connect services from the online
+            services.
 
     Methods:
         get_online_service_list(): Get the online service list.
@@ -25,6 +30,8 @@ class MDnsContext:
         add_service(key_data, data): Add a service to the online list.
         update_service(key_data, data): Update a service in the online list.
         to_offline_service(key_data, data): Move a service to the offline list.
+        get_services_by_type(service_type): Get the services of a specific type
+            from the online services.
     """
 
     def __init__(self):
@@ -48,9 +55,8 @@ class MDnsContext:
             Dict[str, ServiceInfo]: The online service list.
         """
         with self.__mutex:
-            all_data = self.__services_info_online
 
-            return all_data
+            return dict(self.__services_info_online)
 
     @property
     def offline_service_list(self) -> List[ServiceInfo]:
@@ -68,9 +74,8 @@ class MDnsContext:
             Dict[str, ServiceInfo]: The offline service list.
         """
         with self.__mutex:
-            all_data = self.__services_info_offline
 
-            return all_data
+            return dict(self.__services_info_offline)
 
     def add_service(
         self,
@@ -122,3 +127,34 @@ class MDnsContext:
             if key_data in self.__services_info_online:
                 self.__services_info_online.pop(key_data)
             self.__services_info_offline[key_data] = data
+
+    def get_services_by_type(self, service_type: ServiceType) -> List[ServiceInfo]:
+        """Get the services of a specific type from the online services.
+        Args:            
+                service_type (ServiceType): The type of the services to get.
+        Returns:
+                List[ServiceInfo]: The list of services of the specified type.
+        """
+        with self.__mutex:
+            return [
+                service
+                for service in self.__services_info_online.values()
+                if service.service_type == service_type
+            ]
+        
+    @property
+    def pairing_services(self) -> List[ServiceInfo]:
+        """Get the pairing services from the online services.
+        Returns:
+                List[ServiceInfo]: The list of pairing services.
+        """
+        return self.get_services_by_type(ServiceType.PAIRING)
+    
+    @property
+    def connect_services(self) -> List[ServiceInfo]:
+        """Get the connect services from the online services.
+        Returns:
+                List[ServiceInfo]: The list of connect services.
+        """
+        return self.get_services_by_type(ServiceType.CONNECT)
+
