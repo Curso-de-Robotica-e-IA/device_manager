@@ -9,6 +9,7 @@ from device_manager.connection.device_connection import (
     DeviceConnection,
 )
 from device_manager.connection.utils.connection_type import ConnectionType
+from device_manager.connection.utils.mdns_context import MDnsContext
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
 from device_manager.utils.dm_warnings import check_adb_dependencies_version
@@ -46,6 +47,7 @@ class DeviceManager:
             manage the device connections.
         `adb_pair` (Optional[AdbPairing]): The `AdbPairing` object used to
             manage the pairing of devices.
+            
 
     Properties:
         - `connected_devices` (List[str]): The list of serial numbers of the
@@ -76,13 +78,17 @@ class DeviceManager:
     ):
         self.subprocess_check = subprocess_check_flag
         self._devices_fixed_port = fixed_port
+        self._context = MDnsContext()
         self.connector = DeviceConnection(
             subprocess_check_flag=self.subprocess_check,
             fixed_port=self._devices_fixed_port,
+            context = self._context,
         )
         self.adb_pair: Optional[AdbPairing] = None
         self.__device_info: ObjectManager[DeviceInfo] = ObjectManager()
         self.__device_actions: ObjectManager[DeviceActions] = ObjectManager()
+        
+
         self.load_connected_usb_devices()
 
 
@@ -354,10 +360,11 @@ class DeviceManager:
                 Check the subprocess documentation for more information.
         """
         self.adb_pair = AdbPairing(
+            context=self._context,
             service_name=service_name,
             service_regex_filter=service_regex_filter,
             subprocess_check_flag=subprocess_check_flag,
-        )
+            )
 
     def is_connected(self, serial_number: str) -> bool:
         """Checks if a device with the provided serial number is connected.
@@ -404,8 +411,11 @@ class DeviceManager:
 if __name__ == "__main__":
     manager = DeviceManager()
     print(manager.connector.visible_devices())
-    manager.load_connected_usb_devices()
+    # manager.load_connected_usb_devices()
     manager.connect_devices('ZF5246RQKB')
-    manager.load_connected_usb_devices()
-    manager.connect_devices('0088157940')
-    print(manager.connected_devices)
+    # manager.load_connected_usb_devices()
+    # manager.connect_devices('0088157940')
+    manager.adb_pairing_instance()
+    manager.adb_pair.pair_device_with_paring_code("888027")
+    # print(manager.connected_devices)
+

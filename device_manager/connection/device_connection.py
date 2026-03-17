@@ -15,6 +15,7 @@ from device_manager.connection.utils.connection_status import (
 )
 from device_manager.connection.utils.connection_type import ConnectionType
 from device_manager.connection.utils.mdns_context import (
+    MDnsContext,
     ServiceInfo,
 )
 
@@ -40,6 +41,8 @@ class DeviceConnection:
                 Check the subprocess documentation for more information.
         fixed_port (int, optional): The fixed port to use for the ADB
             connection. Defaults to 5555.
+        context (Optional[MDnsContext], optional): The mDNS context to use for
+            the connection. If not provided, a new context will be created.
 
     Attributes:
         console (Console): A rich console to print messages.
@@ -78,10 +81,12 @@ class DeviceConnection:
         self,
         subprocess_check_flag: bool = False,
         fixed_port: int = DEFAULT_FIXED_PORT,
+        context: Optional[MDnsContext] = None,
     ):
         self.console = Console()
         self.__subprocess_check_flag = subprocess_check_flag
         self.connection = ConnectionManagerSingleton(
+            context=context,
             subprocess_check_flag=self.__subprocess_check_flag,
         )
         self.usb_scanner = UsbDeviceScanner(

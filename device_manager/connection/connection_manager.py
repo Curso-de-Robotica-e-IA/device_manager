@@ -10,6 +10,7 @@ from device_manager.connection.adb_pairing import AdbPairing
 from device_manager.connection.utils.connection_status import (
     ConnectionInfoStatus,
 )
+from device_manager.connection.utils.mdns_context import MDnsContext
 from device_manager.connection.utils.service_info import ServiceInfo
 
 logger = logging.getLogger(__name__)
@@ -24,14 +25,17 @@ class ConnectionManager:
     def __init__(
         self,
         subprocess_check_flag: bool = False,
+        context: Optional[MDnsContext] = None,
     ) -> None:
+        self.__context = context
+        self.__pairing = AdbPairing(self.__context)
         self.__subprocess_check_flag = subprocess_check_flag
         if self.__start_discovery:
             subprocess.run(
                 ["adb", "kill-server"],
                 check=self.__subprocess_check_flag,
             )
-            self.__discovery = AdbConnectionDiscovery()
+            self.__discovery = AdbConnectionDiscovery(self.__context)
             subprocess.run(
                 ["adb", "start-server"],
                 check=self.__subprocess_check_flag,
@@ -80,8 +84,7 @@ class ConnectionManager:
         """
         return self.__discovery.online_devices()
 
-    @staticmethod
-    def device_pairing(timeout_s: float) -> bool:
+    def device_pairing(self, timeout_s: float) -> bool:
         """Pairs a device via ADB using the QRCode method.
         :warning: The user must close the QRCode window shown by the
         method `qrcode_cv_window_show` to continue the execution of the
@@ -97,17 +100,17 @@ class ConnectionManager:
         logger.warning(
             msg="This method is being deprecated. Check the documentation on how to pair devices.",  # noqa
         )
-        adb_pairing = AdbPairing()
-        adb_pairing.start()
-        adb_pairing._qrcode.qrcode_cv_window_show()
+        self.__pairing.start()
+
+        self.__pairing._qrcode.qrcode_cv_window_show()
         start_time = time()
         while (
-            not adb_pairing.has_device_to_pairing()
+            not len(self.__context.pairing_services)
             and (time() - start_time) <= timeout_s
         ):
             sleep(0.1)
-        result = adb_pairing.pair_devices()
-        adb_pairing.stop_pair_listener()
+        result = self.__pairing.pair_devices()
+        self.__pairing.stop_pair_listener()
         return result
 
     def device_connect(self, serial_num: str) -> Optional[ServiceInfo]:
@@ -119,7 +122,7 @@ class ConnectionManager:
         Returns:
             Optional[ServiceInfo]: The service information of the device.
         """
-        info = self.__discovery.get_service_info_for(serial_num)
+        info = self.__context.get_online_service().get(serial_num)
         if info is None:
             logger.warning("Device service not online or located")
         else:

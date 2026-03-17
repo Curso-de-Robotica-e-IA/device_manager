@@ -13,6 +13,7 @@ from device_manager.connection.utils.mdns_listener import (
     PAIRING_SERVICE_TYPE,
     MDnsListener,
 )
+from device_manager.connection.utils.service_type import ServiceType
 from device_manager.utils.qrcode import QRCode
 from device_manager.utils.util_functions import create_password
 
@@ -32,6 +33,7 @@ class AdbPairing:
     instance.
 
     Args:
+        context (MDnsContext): The mDNS context to use for the pairing process.
         service_name (str, optional): The service name to listen to. Defaults
             to 'robot-celular'.
         service_regex_filter (Optional[str], optional): The regex filter to
@@ -65,6 +67,8 @@ class AdbPairing:
         stop_pair_listener: Stop the ServiceBrowser and close the Zeroconf
             instance.
         pair: Pair the devices using the mDNS listener.
+        pair_device_with_paring_code: Pair using explicit pairing code with devices
+            ready for pairing.
 
     Class Methods:
         generate_qrcode_string: Generate the qrcode string using the service
@@ -86,6 +90,7 @@ class AdbPairing:
 
     def __init__(
         self,
+        context: MDnsContext,
         service_name: str = 'robot-celular',
         service_regex_filter: Optional[str] = None,
         subprocess_check_flag: bool = False,
@@ -93,6 +98,7 @@ class AdbPairing:
         max_zeroconf_instances: int = 10,
     ) -> None:
         self._name = service_name
+        self._context = context
         if password is not None:
             self._passwd = password
         else:
@@ -106,7 +112,6 @@ class AdbPairing:
         self._service_re_filter = service_regex_filter
         self._service_type = PAIRING_SERVICE_TYPE
         self._zeroconf: Optional[Zeroconf] = None
-        self._context = MDnsContext()
         self._started = False
         self._subprocess_check_flag = subprocess_check_flag
         self._browser: Optional[ServiceBrowser] = None
@@ -281,7 +286,6 @@ class AdbPairing:
                     MDnsListener(
                         self._context,
                         self._service_re_filter,
-                        self._service_type,
                     ),
                 )
             except RuntimeError as e:
@@ -310,7 +314,7 @@ class AdbPairing:
         Returns:
             bool: True if there are devices to pair, False otherwise.
         """
-        return len(self._context.get_online_service()) > 0
+        return len(self._context.pairing_services) > 0
 
     def pair_devices(self) -> bool:
         """Attempts to pair with the devices found by the mDNS listener.
@@ -322,10 +326,10 @@ class AdbPairing:
         Returns:
             bool: True if the pairing was successful, False otherwise.
         """
-        online_services = list(self._context.get_online_service().items())
+        pairing_services = self._context.pairing_services
         all_ops = list()
-        for elem in online_services:
-            comm_uri = f'{elem[1].ip}:{elem[1].port}'
+        for service in pairing_services:
+            comm_uri = f'{service.ip}:{service.port}'
             result = subprocess.run(
                 ['adb', 'pair', comm_uri, self._passwd],
                 capture_output=True,
@@ -381,3 +385,25 @@ class AdbPairing:
 
         c = coro()
         yield next(c)
+
+    def pair_device_with_paring_code(self, pair_code: str) -> dict[str, bool]:
+        """Pair using explicit pairing code with devices ready for pairing."""
+
+        pairing_services = self._context.pairing_services
+
+        results: dict[str, bool] = {}
+
+        for service in pairing_services:
+            comm_uri = f'{service.ip}:{service.port}'
+
+            result = subprocess.run(
+                ['adb', 'pair', comm_uri, pair_code],
+                capture_output=True,
+                text=True,
+                check=self._subprocess_check_flag,
+            )
+
+            success = f'Successfully paired to {comm_uri}' in result.stdout
+            results[comm_uri] = success
+
+        return results
