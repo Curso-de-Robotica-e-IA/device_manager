@@ -5,6 +5,7 @@ from device_manager.actions.camera_actions import CameraActions
 from device_manager.adb_executor import execute_adb_command
 from device_manager.connection.device_connection import DeviceConnection
 from device_manager.enumerations.adb_keyevents import ADBKeyEvent
+from device_manager.utils.util_functions import grep
 
 
 class DeviceActions:
@@ -129,6 +130,31 @@ class DeviceActions:
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+
+    def _get_main_activity_from_package(self, package_name: str) -> Optional[str]:
+        """Retrieves the main activity name for a given package name.
+
+        Args:
+            package_name (str): The package name of the application.
+        Returns:
+            Optional[str]: The main activity name if found, None otherwise.
+        """
+        result = execute_adb_command(
+            command=f'cmd package resolve-activity --brief {package_name}',
+            comm_uris=[self.current_comm_uri],
+            shell=True,
+            subprocess_check_flag=self.subprocess_check_flag,
+            capture_output=True,
+        ).stdout
+
+        if result:
+            lines = grep(result, "com.")
+            if lines:
+                main_activity = lines[0].strip().split("/", 1)[-1]
+                return main_activity
+        return None 
+
+        
 
     def _open_app_one_arg(self, package_activity: str) -> None:
         """Opens an application on the device using the provided package
