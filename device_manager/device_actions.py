@@ -295,12 +295,12 @@ class DeviceActions:
                 subprocess_check_flag=self.subprocess_check_flag,
             )
     
-    def screen_shot(self, image_name: str = "screen") -> None:
+    def screen_shot(self, image_name: str = "screen", destination: str = '/sdcard') -> None:
         """Takes a screenshot of the device screen.
         """
         if self.validate_connection():
             execute_adb_command(
-                command=f'screencap -p /sdcard/{image_name}.png',
+                command=f'screencap -p {destination}/{image_name}.png',
                 comm_uris=[self.current_comm_uri],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
