@@ -166,12 +166,15 @@ class DeviceActions:
                 of the application.
                 Ex.: 'com.android.deskclock/.DeskClockTabActivity'
         """
-        execute_adb_command(
-            command=f'am start -n {package_activity}',
-            comm_uris=[self.current_comm_uri],
-            shell=True,
-            subprocess_check_flag=self.subprocess_check_flag,
-        )
+        main_acivity = self._get_main_activity_from_package(package_activity)
+        if main_acivity:
+            execute_adb_command(
+                command=f'am start -n {package_activity}/{main_acivity}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+        
 
     def _open_app_two_args(
         self,
@@ -204,11 +207,15 @@ class DeviceActions:
         activity_name: Optional[str] = None,
     ) -> None:
         """Opens an application on the device using the provided package
-        name and activity name.
+        name and, optionally, the activity name. If ``activity_name`` is
+        omitted, the library tries to resolve the app's main activity from the
+        package name and launch it.
 
         Args:
             package_name (str): The package name of the application.
-            activity_name (str): The activity name of the application.
+            activity_name (Optional[str]): The activity name of the
+                application. If not provided, the main activity will be
+                resolved automatically.
         """
 
         if self.validate_connection():
