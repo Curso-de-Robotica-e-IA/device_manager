@@ -156,24 +156,23 @@ class DeviceActions:
 
         
 
-    def _open_app_one_arg(self, package_activity: str) -> None:
-        """Opens an application on the device using the provided package
-        name and activity name. This method is used when the package name
-        and activity name are combined into a single string argument.
+    def _open_app_one_arg(self, package_name: str) -> None:
+        """Opens an application using only the package name.
 
         Args:
-            package_activity (str): The package name and activity name
-                of the application.
-                Ex.: 'com.android.deskclock/.DeskClockTabActivity'
+            package_name (str): The package name of the application.
+                Ex.: 'com.android.deskclock'
         """
-        main_acivity = self._get_main_activity_from_package(package_activity)
-        if main_acivity:
+        main_activity = self._get_main_activity_from_package(package_name)
+        if main_activity:
             execute_adb_command(
-                command=f'am start -n {package_activity}/{main_acivity}',
+                command=f'am start -n {package_name}/{main_activity}',
                 comm_uris=[self.current_comm_uri],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+        else:
+            raise ValueError(f'Main activity not found for package: {package_name}')
         
 
     def _open_app_two_args(
@@ -220,7 +219,19 @@ class DeviceActions:
 
         if self.validate_connection():
             if activity_name is None:
-                self._open_app_one_arg(package_name)
+                normalized_input = package_name.strip()
+                package_name_treated, sep, activity_name_treated = normalized_input.partition('/')
+
+                if not package_name_treated:
+                    raise ValueError('Invalid package_name: empty package is not allowed.')
+
+                if sep and activity_name_treated:
+                    self._open_app_two_args(
+                        package_name_treated,
+                        activity_name_treated,
+                    )
+                else:
+                    self._open_app_one_arg(package_name_treated)
             else:
                 self._open_app_two_args(package_name, activity_name)
 
