@@ -5,6 +5,7 @@ from device_manager.actions.camera_actions import CameraActions
 from device_manager.adb_executor import execute_adb_command
 from device_manager.connection.device_connection import DeviceConnection
 from device_manager.enumerations.adb_keyevents import ADBKeyEvent
+from device_manager.utils.util_functions import grep
 
 
 class DeviceActions:
@@ -130,22 +131,49 @@ class DeviceActions:
                 subprocess_check_flag=self.subprocess_check_flag,
             )
 
-    def _open_app_one_arg(self, package_activity: str) -> None:
-        """Opens an application on the device using the provided package
-        name and activity name. This method is used when the package name
-        and activity name are combined into a single string argument.
+    def _get_main_activity_from_package(self, package_name: str) -> Optional[str]:
+        """Retrieves the main activity name for a given package name.
 
         Args:
-            package_activity (str): The package name and activity name
-                of the application.
-                Ex.: 'com.android.deskclock/.DeskClockTabActivity'
+            package_name (str): The package name of the application.
+        Returns:
+            Optional[str]: The main activity name if found, None otherwise.
         """
-        execute_adb_command(
-            command=f'am start -n {package_activity}',
+        result = execute_adb_command(
+            command=f'cmd package resolve-activity --brief {package_name}',
             comm_uris=[self.current_comm_uri],
             shell=True,
             subprocess_check_flag=self.subprocess_check_flag,
-        )
+            capture_output=True,
+        ).stdout
+
+        if result:
+            lines = grep(result, "com.")
+            if lines:
+                main_activity = lines[0].strip().split("/", 1)[-1]
+                return main_activity
+        return None 
+
+        
+
+    def _open_app_one_arg(self, package_name: str) -> None:
+        """Opens an application using only the package name.
+
+        Args:
+            package_name (str): The package name of the application.
+                Ex.: 'com.android.deskclock'
+        """
+        main_activity = self._get_main_activity_from_package(package_name)
+        if main_activity:
+            execute_adb_command(
+                command=f'am start -n {package_name}/{main_activity}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+        else:
+            raise ValueError(f'Main activity not found for package: {package_name}')
+        
 
     def _open_app_two_args(
         self,
@@ -178,16 +206,32 @@ class DeviceActions:
         activity_name: Optional[str] = None,
     ) -> None:
         """Opens an application on the device using the provided package
-        name and activity name.
+        name and, optionally, the activity name. If ``activity_name`` is
+        omitted, the library tries to resolve the app's main activity from the
+        package name and launch it.
 
         Args:
             package_name (str): The package name of the application.
-            activity_name (str): The activity name of the application.
+            activity_name (Optional[str]): The activity name of the
+                application. If not provided, the main activity will be
+                resolved automatically.
         """
 
         if self.validate_connection():
             if activity_name is None:
-                self._open_app_one_arg(package_name)
+                normalized_input = package_name.strip()
+                package_name_treated, sep, activity_name_treated = normalized_input.partition('/')
+
+                if not package_name_treated:
+                    raise ValueError('Invalid package_name: empty package is not allowed.')
+
+                if sep and activity_name_treated:
+                    self._open_app_two_args(
+                        package_name_treated,
+                        activity_name_treated,
+                    )
+                else:
+                    self._open_app_one_arg(package_name_treated)
             else:
                 self._open_app_two_args(package_name, activity_name)
 
