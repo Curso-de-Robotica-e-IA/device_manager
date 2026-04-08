@@ -271,7 +271,7 @@ class DeviceActions:
             apk_file_path = (path.resolve()).as_posix()
             command = f'install {apk_file_path}'
             if replace:
-                command = f'install -r {apk_file_path}'
+                command = f'install -r -g {apk_file_path}'
             execute_adb_command(
                 command=command,
                 comm_uris=[self.current_comm_uri],
