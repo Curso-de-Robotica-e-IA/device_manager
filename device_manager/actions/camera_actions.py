@@ -195,7 +195,9 @@ class CameraActions:
             destination (Union[str, Path]): The destination path on the local
                 machine.
         """
-        destination, source = self._verify_path_exists_and_create_if_not(destination, source)
+        destination = self._verify_path_exists_and_create_if_not(destination)
+        source = source.as_posix()
+    
         try:
             if self.validate_connection_callback(): #TODO see the Gonça PR
                 remote_path = f'{source}/{image_name}' # build remote file path from device source and image name turned into string
@@ -228,36 +230,55 @@ class CameraActions:
         
     def _verify_path_exists_and_create_if_not(
             self, 
-            destination: Union[str, Path],
-            source: Union[str, Path]
+            path: Union[str, Path],
         ) -> tuple[Path, Path]:
         """Verifies if a path exists on the local machine and creates it if it
         does not exist.
 
         Args:
-            **destination** (Union[str, Path]): The destination path on the local machine.
-            **source** (Union[str, Path]): The source path on the device.
+            **path** (Union[str, Path]): The path path on the local machine.
 
-        Returns: tupel[Path, Path]: The resolved **destination** and **source** paths as Path objects.
+        Returns: tupel[Path, Path]: The resolved **path** and **source** paths as Path objects.
         """
 
-        destination = Path(destination).resolve()
-        source = Path(source).as_posix()
+        path = Path(path).resolve()
         try:            
-            if not destination.exists() or not destination.is_dir():
-                # create destination directory if it doesn't exist
-                destination.mkdir(parents=True, exist_ok=True)       
+            if not self._is_path_exist(path) or not self._is_directory_exist(path):
+                # create path directory if it doesn't exist
+                path.mkdir(parents=True, exist_ok=True)       
         except PermissionError as e:
             raise RuntimeError(
-                f'Permission denied when creating destination directory: {destination}',
+                f'Permission denied when creating path directory: {path}',
             ) from e
         except ValueError as e:
             raise RuntimeError(
-                f'Invalid destination path: {destination}',
+                f'Invalid path path: {path}',
             ) from e
         except OSError as e:
             raise RuntimeError(
-                f'Failed to create destination directory: {destination} - {e}',
+                f'Failed to create path directory: {path} - {e}',
             ) from e
         
-        return destination, source
+        return path
+
+    def _is_path_exist(self, path: Union[str, Path]) -> bool:
+        """Checks if a path exists on the local machine.
+
+        Args:
+            path (Union[str, Path]): The path to check.
+        Returns:
+            bool: True if the path exists, False otherwise.
+        """
+        path = Path(path).resolve()
+        return path.exists()
+    
+    def _is_directory_exist(self, path: Union[str, Path]) -> bool:
+        """Checks if a directory exists on the local machine.
+
+        Args:
+            path (Union[str, Path]): The path to check.
+        Returns:
+            bool: True if the directory exists, False otherwise.
+        """
+        path = Path(path).resolve()
+        return path.is_dir()
