@@ -159,7 +159,6 @@ class DeviceInfo:
                 return False
 
             raise ValueError(UNEXPECTED_ADB_OUTPUT)
-    
 
     def get_screen_gui_xml(self) -> str:
         """This method retrieves the .xml that represents the current state
@@ -263,7 +262,7 @@ class DeviceInfo:
             serial_number=self.__serial_number,
             subprocess_check_flag=self.subprocess_check_flag,
         )
-    
+
     def get_display_orientation(self) -> str:
         """Gets the current orientation of the device.
 
@@ -362,5 +361,26 @@ class DeviceInfo:
                     return line.replace('package:', '').strip()
         return None
 
-        
-    
+    def is_airplane_mode_enabled(self) -> bool:
+        """Gets the current airplane mode status of the device.
+
+        Returns:
+            bool: True if airplane mode is enabled, False otherwise.
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            output = execute_adb_command(
+                command='settings get global airplane_mode_on',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+                capture_output=True,
+            ).stdout
+
+            if output is not None:
+                status = output.strip()
+                return status == '1'
+
+        return False

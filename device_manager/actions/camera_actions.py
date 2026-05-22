@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Callable, Optional, Union
 
 from device_manager.adb_executor import execute_adb_command
@@ -196,7 +196,7 @@ class CameraActions:
                 machine.
         """
         destination = self._verify_path_exists_and_create_if_not(destination)
-        source = source.as_posix()
+        source = PurePosixPath(source).as_posix()
     
         try:
             if self.validate_connection_callback(): #TODO see the Gonça PR

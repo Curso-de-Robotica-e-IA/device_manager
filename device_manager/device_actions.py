@@ -3,6 +3,7 @@ from typing import Optional
 
 from device_manager.actions.camera_actions import CameraActions
 from device_manager.adb_executor import execute_adb_command
+from device_manager.device_info import DeviceInfo
 from device_manager.connection.device_connection import DeviceConnection
 from device_manager.enumerations.adb_keyevents import ADBKeyEvent
 from device_manager.utils.util_functions import grep
@@ -66,6 +67,12 @@ class DeviceActions:
             subprocess_check_flag=self.subprocess_check_flag,
             comm_uri=self.current_comm_uri,
             validate_connection_callback=self.validate_connection,
+        )
+
+        self.device_info = DeviceInfo(
+            device_connection=self.device_connection,
+            serial_number=self.__serial_number,
+            subprocess_check_flag=self.subprocess_check_flag,
         )
 
     @property
@@ -338,6 +345,7 @@ class DeviceActions:
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+
     
     def screen_shot(self, image_name: str = "screen", destination: str = '/sdcard') -> None:
         """Takes a screenshot of the device screen.
@@ -442,3 +450,70 @@ class DeviceActions:
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+
+    #todo doing
+    def __set_air_plane_mode_android_9_less(self, enabled: bool) -> None:
+        """Enables or disables airplane mode on the device (Android 9 or lower).
+
+        Args:
+            enabled (bool): True to enable airplane mode, False to disable.
+        """
+        if self.validate_connection():
+            # O banco de dados usa 1/0, mas o broadcast boolean usa true/false
+            db_state = "1" if enabled else "0"
+            intent_state = "true" if enabled else "false"
+            
+            # Altera o valor no banco de dados
+            execute_adb_command(
+                command=f'settings put global airplane_mode_on {db_state}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+            
+            # Dispara o broadcast com o f-string corrigido e valor boolean
+            execute_adb_command(
+                command=f'am broadcast -a android.intent.action.AIRPLANE_MODE --ez state {intent_state}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+
+    def __set_air_plane_mode_android_10_plus(self, enabled: bool) -> None:
+        """Enables or disables airplane mode on the device (Android 10 or higher).
+
+        Args:
+            enabled (bool): True to enable airplane mode, False to disable.
+        """
+        if self.validate_connection():
+            action = "enable" if enabled else "disable"
+            
+            execute_adb_command(
+                command=f'cmd connectivity airplane-mode {action}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+
+
+    def set_air_plane_mode(self, enabled: bool) -> None:
+        """Enables or disables airplane mode using the device Android version.
+
+        Android 9 and lower use the legacy settings/broadcast flow. Android 10+
+        uses the connectivity service command.
+        """
+        device_properties = self.device_info.get_properties()
+        android_version = device_properties['android_version']
+
+        try:
+            major_version = int(android_version.split('.', 1)[0])
+        except ValueError as exc:
+            raise ValueError(
+                f'Invalid Android version returned by get_properties: {android_version!r}',
+            ) from exc
+
+        if major_version >= 10:
+            self.__set_air_plane_mode_android_10_plus(enabled)
+            return
+
+        self.__set_air_plane_mode_android_9_less(enabled)
