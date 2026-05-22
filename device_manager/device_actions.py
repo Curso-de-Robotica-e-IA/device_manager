@@ -451,7 +451,6 @@ class DeviceActions:
                 subprocess_check_flag=self.subprocess_check_flag,
             )
 
-    #todo doing
     def __set_air_plane_mode_android_9_less(self, enabled: bool) -> None:
         """Enables or disables airplane mode on the device (Android 9 or lower).
 
@@ -459,11 +458,9 @@ class DeviceActions:
             enabled (bool): True to enable airplane mode, False to disable.
         """
         if self.validate_connection():
-            # O banco de dados usa 1/0, mas o broadcast boolean usa true/false
             db_state = "1" if enabled else "0"
             intent_state = "true" if enabled else "false"
             
-            # Altera o valor no banco de dados
             execute_adb_command(
                 command=f'settings put global airplane_mode_on {db_state}',
                 comm_uris=[self.current_comm_uri],
