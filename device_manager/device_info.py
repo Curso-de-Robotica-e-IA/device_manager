@@ -361,6 +361,24 @@ class DeviceInfo:
                 if line.strip().startswith('package:'):
                     return line.replace('package:', '').strip()
         return None
-
-        
+      
     
+    def is_stay_awake_enabled(self) -> bool:
+        """Checks if the "Stay Awake" developer option is enabled on the device.
+
+        Returns:
+            bool: True if "Stay Awake" is enabled, False otherwise.
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            output = execute_adb_command(
+                command='settings get global stay_on_while_plugged_in',
+                shell=True,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
+                capture_output=True,
+            ).stdout.strip()
+            return output != '0'
+        return False
