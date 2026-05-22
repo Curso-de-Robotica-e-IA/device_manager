@@ -442,3 +442,19 @@ class DeviceActions:
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+    def set_accelerometer_rotation(self, enable: bool) -> None:
+        """
+        This method enables or disables the accelerometer-based screen rotation
+        on the device.
+
+        Args:
+            enable (bool): True to enable auto-rotation, False to disable it.
+        """
+        if self.validate_connection():
+            rotation_value = 1 if enable else 0
+            execute_adb_command(
+                command=f'settings put system accelerometer_rotation {rotation_value}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
