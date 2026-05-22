@@ -442,3 +442,17 @@ class DeviceActions:
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+            
+    def set_brightness(self, level: int) -> None:
+        """Sets the screen brightness to the specified level.
+
+        Args:
+            level (int): The brightness level to set (0-255).
+        """
+        if self.validate_connection():
+            execute_adb_command(
+                command=f'settings put system screen_brightness {level}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )

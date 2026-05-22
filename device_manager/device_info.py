@@ -362,5 +362,25 @@ class DeviceInfo:
                     return line.replace('package:', '').strip()
         return None
 
-        
+    def get_brightness(self) -> Optional[int]:
+        """Gets the current brightness level of the device.
+
+        Returns:
+            Optional[int]: The current brightness level (0-255), or None if it cannot be retrieved.
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            output = execute_adb_command(
+                command='settings get system screen_brightness',
+                shell=True,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
+                capture_output=True,
+            ).stdout
+            try:
+                return int(output.strip())
+            except ValueError:
+                return None
     
