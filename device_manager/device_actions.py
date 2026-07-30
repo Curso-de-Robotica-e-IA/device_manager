@@ -227,10 +227,24 @@ class DeviceActions:
             apk_file_path = (path.resolve()).as_posix()
             command = f'install {apk_file_path}'
             if replace:
-                command = f'install -r {apk_file_path}'
+                command = f'install -r -g {apk_file_path}'
             execute_adb_command(
                 command=command,
                 comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+      
+
+    def uninstall_apk(self, package_name: str) -> None: #TODO test with this methos works
+        """Uninstalls an APK from the device.
+        Args:
+            package_name (str): The package name of the application to uninstall.
+        """
+        if self.validate_connection():
+            execute_adb_command(
+                command=f'pm uninstall --user 0 {package_name}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
 
@@ -260,6 +274,14 @@ class DeviceActions:
                 subprocess_check_flag=self.subprocess_check_flag,
             )
 
+    def turn_on_and_unlock_screen(self):
+        """
+        This method turns on and unlocks the device screen by executing
+        the appropriate adb keyevents.
+        """
+        self.turn_on_screen()
+        self.unlock_screen()
+
     def home_button(self):
         """
         This method executes the adb `keyevent KEYCODE_HOME`, which represents
@@ -272,13 +294,14 @@ class DeviceActions:
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+
     
-    def screen_shot(self, image_name: str = "screen") -> None:
+    def screen_shot(self, image_name: str = "screen", destination: str = '/sdcard') -> None:
         """Takes a screenshot of the device screen.
         """
         if self.validate_connection():
             execute_adb_command(
-                command=f'screencap -p /sdcard/{image_name}.png',
+                command=f'screencap -p {destination}/{image_name}.png',
                 comm_uris=[self.current_comm_uri],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
@@ -361,5 +384,34 @@ class DeviceActions:
             execute_adb_command(
                 command=f'pull {remote_path} {local_path}',
                 comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+
+    def back(self) -> None:
+        """
+        This method executes the adb `keyevent KEYCODE_BACK`, which represents
+        the `Back` phone button.
+        """
+        if self.validate_connection():
+            execute_adb_command(
+                command=f'input keyevent {ADBKeyEvent.KEYCODE_BACK.value}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+
+    def set_air_plane_mode(self, enabled: bool) -> None:
+        """Enables or disables airplane mode on the device (Android 10 or higher).
+
+        Args:
+            enabled (bool): True to enable airplane mode, False to disable.
+        """
+        if self.validate_connection():
+            action = "enable" if enabled else "disable"
+            
+            execute_adb_command(
+                command=f'cmd connectivity airplane-mode {action}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )

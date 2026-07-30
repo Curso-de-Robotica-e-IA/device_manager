@@ -16,6 +16,8 @@ from device_manager.connection.utils.mdns_context import (
     ServiceInfo,
 )
 
+from device_manager.connection.utils.connection_type import ConnectionType
+
 logger = logging.getLogger(__name__)
 
 r"""re_filter -> This string is used to filter the services found by the mDNS
@@ -110,9 +112,9 @@ class MDnsListener(ServiceListener):
         self,
         info: ZeroconfServiceInfo,
     ) -> Optional[ServiceInfo]:
-        """Extracts the serial number, IP address, and port from the service
-        information. If the service name does not match the regular expression
-        filter, then None is returned.
+        """Extracts the serial number, IP address, port and connection type from 
+        the service information. If the service name does not match the regular 
+        expression filter, then None is returned.
 
         Args:
             info (ZeroconfServiceInfo): The service information to extract
@@ -127,13 +129,13 @@ class MDnsListener(ServiceListener):
             ip = f'{socket.inet_ntoa(info.addresses[0])}'
             port = info.port
             if self.__re_filter is None:
-                return ServiceInfo(info.name.split('.')[0], ip, port)
+                return ServiceInfo(info.name.split('.')[0], ip, port, connection=ConnectionType.WIFI)
             match_result = re.match(
                 rf'{self.__re_filter}.{self.__type_filter}', info.name
             )
             if match_result:
                 serial_num = match_result.group(1)
-                return ServiceInfo(serial_num, ip, port)
+                return ServiceInfo(serial_num, ip, port, connection=ConnectionType.WIFI)
             else:
                 logger.warning(
                     f'AdbMDns not match: {info.name}',

@@ -1,5 +1,5 @@
-from pathlib import Path
-from typing import Callable, Union
+from pathlib import Path, PurePosixPath
+from typing import Callable, Optional, Union
 
 from device_manager.adb_executor import execute_adb_command
 from device_manager.connection.device_connection import DeviceConnection
@@ -97,11 +97,29 @@ class CameraActions:
                 'Device connection is not valid. Cannot take picture.',
             )
 
-    def clear_pictures(self) -> None:
-        """Clears the pictures from the device."""
+    def clear_pictures(self, source: Union[str, Path] = "/sdcard/DCIM/Camera/*") -> None:
+        """
+        Removes all pictures from the specified directory on the device.
+
+        Args:
+            source (Union[str, Path]): The path to the directory containing pictures on the device. Defaults to '/sdcard/DCIM/Camera/*'.
+
+        Raises:
+            ValueError: If the source path is invalid.
+            RuntimeError: If the device connection is not valid or if the operation fails.
+        """
+        if source is not None:
+            if isinstance(source, Path):
+                # Convert to POSIX string for ADB because ADB expects Unix-style paths
+                source = source.as_posix()
+            else:
+                source = Path(source).as_posix()
+        else:
+            raise ValueError('Source path invalid.')     
+
         if self.validate_connection_callback():
             execute_adb_command(
-                command='rm -rf /sdcard/DCIM/Camera/*',
+                command= f'rm -rf {source}',
                 comm_uris=[self.comm_uri],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
@@ -110,7 +128,7 @@ class CameraActions:
             raise RuntimeError(
                 'Device connection is not valid. Cannot clear pictures.',
             )
-
+        
     def pull_pictures(
         self,
         destination: Union[str, Path],
@@ -161,3 +179,72 @@ class CameraActions:
             raise RuntimeError(
                 f'Failed to pull pictures: {e}',
             ) from e
+        
+    def pull_picture_by_name(
+        self,
+        image_name: str,
+        destination: Union[str, Path],
+        source: Union[str, Path] = Path("/sdcard/DCIM/Camera"),
+    ) -> None:
+        """Pulls a specific image from the device.
+
+        Args:
+            image_name (str): The name of the image file to be retrieved.
+            destination (Union[str, Path]): Local directory destination.
+            source (Union[str, Path]): Source directory on the device.
+        """
+        destination_dir = self._verify_path_exists_and_create_if_not(destination)
+        remote_path = (PurePosixPath(source) / image_name).as_posix()
+        local_path = str((destination_dir / image_name).resolve())
+
+        if not self.validate_connection_callback():
+            raise RuntimeError("Device connection is not valid. Cannot pull image.")
+
+        try:
+            command = f'pull "{remote_path}" "{local_path}"'
+            
+            result = execute_adb_command(
+                command=command,
+                comm_uris=[self.comm_uri],
+                shell=False,
+                subprocess_check_flag=self.subprocess_check_flag,
+                capture_output=True,
+            ).stdout
+
+            self._validate_adb_pull_output(result, image_name)
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to pull image '{image_name}': {e}") from e
+        
+    def _validate_adb_pull_output(self, output: str, image_name: str) -> None:
+        """Verify that only one file was pulled.
+        """
+        match = re.search(r"(\d+)\s+file[s]?\s+pulled", output)
+        if match:
+            count = int(match.group(1))
+            if count == 0:
+                raise RuntimeError(f"File not found on device or 0 files pulled: '{image_name}'")
+            if count > 1:
+                raise RuntimeError(f"Multiple files were pulled ({count}). Expected only 1: '{image_name}'")
+        elif "0 files pulled" in output or "error" in output.lower():
+            raise RuntimeError(f"ADB pull failed or file not found: {output.strip()}")
+
+    def _verify_path_exists_and_create_if_not(
+        self,
+        path: Union[str, Path],
+    ) -> Path:
+        """Verifies if a local directory exists and creates it if needed.
+
+        Args:
+            path (Union[str, Path]): Target path on local machine.
+
+        Returns:
+            Path: The resolved directory path.
+        """
+        resolved_path = Path(path).resolve()
+        try:
+            resolved_path.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, ValueError, OSError) as e:
+            raise RuntimeError(f"Failed to ensure destination directory '{resolved_path}': {e}") from e
+
+        return resolved_path

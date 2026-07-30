@@ -6,8 +6,8 @@ from weakref import finalize
 
 from zeroconf import InterfaceChoice, IPVersion, ServiceBrowser
 
-from device_manager.asyncio.async_mdns_listener import AsyncMDnsListener
-from device_manager.asyncio.async_zeroconf import AsyncZeroconf
+from device_manager.asyncio_dm.async_mdns_listener import AsyncMDnsListener
+from device_manager.asyncio_dm.async_zeroconf import AsyncZeroconf
 from device_manager.connection.adb_pairing import AdbPairing
 
 InterfacesType = Union[
