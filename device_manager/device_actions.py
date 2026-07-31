@@ -442,6 +442,26 @@ class DeviceActions:
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+    
+    def set_location_mode(self, mode: str) -> None:
+        """Sets the location mode on the device.
+
+        Args:
+            mode (str): The location mode to set. Valid values are 
+            0: off,
+            1: Sensors only,
+            2: Battery saving(Wi-Fi and mobile networks only),
+            3: High accuracy(GPS, Wi-Fi and mobile networks).
+        """
+        if self.validate_connection():
+            if mode not in ['0', '1', '2', '3']:
+                raise ValueError("Invalid mode. Valid values are '0', '1', '2', '3'.")
+            execute_adb_command(
+                command=f'settings put secure location_mode {mode}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
 
     def set_stay_awake(self, enabled: bool) -> None:
         """
