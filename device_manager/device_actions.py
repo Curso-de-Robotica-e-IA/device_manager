@@ -462,3 +462,37 @@ class DeviceActions:
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+
+    def set_stay_awake(self, enabled: bool) -> None:
+        """
+        This method sets the "Stay Awake" developer option on the device,
+        which prevents the screen from turning off while charging.
+
+        Args:
+            enabled (bool): True to enable "Stay Awake", False to disable it.
+        """
+        if self.validate_connection():
+            value = '3' if enabled else '0'
+            execute_adb_command(
+                command=f'settings put global stay_on_while_plugged_in {value}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+
+    def set_accelerometer_rotation(self, enable: bool) -> None:
+        """
+        This method enables or disables the accelerometer-based screen rotation
+        on the device.
+
+        Args:
+            enable (bool): True to enable auto-rotation, False to disable it.
+        """
+        if self.validate_connection():
+            rotation_value = 1 if enable else 0
+            execute_adb_command(
+                command=f'settings put system accelerometer_rotation {rotation_value}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
