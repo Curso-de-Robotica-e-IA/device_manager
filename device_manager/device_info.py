@@ -383,7 +383,7 @@ class DeviceInfo:
             self.__serial_number,
             force_reconnect=True,
         ):
-          output = execute_adb_command(
+            output = execute_adb_command(
                 command='settings get secure location_mode',
                 shell=True,
                 comm_uris=[self.current_comm_uri],
@@ -399,7 +399,7 @@ class DeviceInfo:
             return location_modes.get(output, None)
         return None
 
-def is_stay_awake_enabled(self) -> bool:
+    def is_stay_awake_enabled(self) -> bool:
         """Checks if the "Stay Awake" developer option is enabled on the device.
 
         Returns:
