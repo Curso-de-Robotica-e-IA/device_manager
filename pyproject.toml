@@ -1,7 +1,7 @@
 [project]
 name = "device_manager"
-version = "1.7.1"
-description = ""
+version = "1.7.3"
+description = "without reconnection and with paring with code" 
 authors = [
     { name = "Bruno Pinheiro", email = "bruno.opinheiro@outlook.com" },
     { name = "Mateus Machado", email = "mateus.gm@gmail.com" },
