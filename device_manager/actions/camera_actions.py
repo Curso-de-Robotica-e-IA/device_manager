@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Callable, Optional, Union
 
 from device_manager.adb_executor import execute_adb_command
@@ -189,96 +189,62 @@ class CameraActions:
         """Pulls a specific image from the device.
 
         Args:
-            image_name (str): The name of the image file to be retrieved from
-                the device.
-            source (Union[str, Path]): The source path on the device.
-            destination (Union[str, Path]): The destination path on the local
-                machine.
+            image_name (str): The name of the image file to be retrieved.
+            destination (Union[str, Path]): Local directory destination.
+            source (Union[str, Path]): Source directory on the device.
         """
-        destination = self._verify_path_exists_and_create_if_not(destination)
-        source = source.as_posix()
-    
+        destination_dir = self._verify_path_exists_and_create_if_not(destination)
+        remote_path = (PurePosixPath(source) / image_name).as_posix()
+        local_path = str((destination_dir / image_name).resolve())
+
+        if not self.validate_connection_callback():
+            raise RuntimeError("Device connection is not valid. Cannot pull image.")
+
         try:
-            if self.validate_connection_callback(): #TODO see the Gonça PR
-                remote_path = f'{source}/{image_name}' # build remote file path from device source and image name turned into string
-                local_path = str(destination.resolve()) # turn into absolute path string
-                
-                result = execute_adb_command(
-                    command=f'pull {remote_path} {local_path}',
-                    comm_uris=[self.comm_uri],
-                    shell=False,
-                    subprocess_check_flag=self.subprocess_check_flag,
-                    capture_output=True,
-                ).stdout
-                
-                # Verify that only one file was pulled
-                if 'file pulled' in result and '1 file pulled' not in result:
-                    # If more than one file was pulled, this might indicate a problem
-                    matches = grep(result, r'(\d+) file')
-                    if matches and int(matches[0]) > 1:
-                        raise RuntimeError(
-                            f'Multiple files were pulled ({matches[0]}). Expected only one file: {image_name}',
-                        )
-            else:
-                raise RuntimeError(
-                    'Device connection is not valid. Cannot pull image.',
-                )
+            command = f'pull "{remote_path}" "{local_path}"'
+            
+            result = execute_adb_command(
+                command=command,
+                comm_uris=[self.comm_uri],
+                shell=False,
+                subprocess_check_flag=self.subprocess_check_flag,
+                capture_output=True,
+            ).stdout
+
+            self._validate_adb_pull_output(result, image_name)
+
         except Exception as e:
-            raise RuntimeError(
-                f'Failed to pull image: {e}',
-            ) from e
+            raise RuntimeError(f"Failed to pull image '{image_name}': {e}") from e
         
+    def _validate_adb_pull_output(self, output: str, image_name: str) -> None:
+        """Verify that only one file was pulled.
+        """
+        match = re.search(r"(\d+)\s+file[s]?\s+pulled", output)
+        if match:
+            count = int(match.group(1))
+            if count == 0:
+                raise RuntimeError(f"File not found on device or 0 files pulled: '{image_name}'")
+            if count > 1:
+                raise RuntimeError(f"Multiple files were pulled ({count}). Expected only 1: '{image_name}'")
+        elif "0 files pulled" in output or "error" in output.lower():
+            raise RuntimeError(f"ADB pull failed or file not found: {output.strip()}")
+
     def _verify_path_exists_and_create_if_not(
-            self, 
-            path: Union[str, Path],
-        ) -> tuple[Path, Path]:
-        """Verifies if a path exists on the local machine and creates it if it
-        does not exist.
+        self,
+        path: Union[str, Path],
+    ) -> Path:
+        """Verifies if a local directory exists and creates it if needed.
 
         Args:
-            **path** (Union[str, Path]): The path path on the local machine.
+            path (Union[str, Path]): Target path on local machine.
 
-        Returns: tupel[Path, Path]: The resolved **path** and **source** paths as Path objects.
-        """
-
-        path = Path(path).resolve()
-        try:            
-            if not self._is_path_exist(path) or not self._is_directory_exist(path):
-                # create path directory if it doesn't exist
-                path.mkdir(parents=True, exist_ok=True)       
-        except PermissionError as e:
-            raise RuntimeError(
-                f'Permission denied when creating path directory: {path}',
-            ) from e
-        except ValueError as e:
-            raise RuntimeError(
-                f'Invalid path path: {path}',
-            ) from e
-        except OSError as e:
-            raise RuntimeError(
-                f'Failed to create path directory: {path} - {e}',
-            ) from e
-        
-        return path
-
-    def _is_path_exist(self, path: Union[str, Path]) -> bool:
-        """Checks if a path exists on the local machine.
-
-        Args:
-            path (Union[str, Path]): The path to check.
         Returns:
-            bool: True if the path exists, False otherwise.
+            Path: The resolved directory path.
         """
-        path = Path(path).resolve()
-        return path.exists()
-    
-    def _is_directory_exist(self, path: Union[str, Path]) -> bool:
-        """Checks if a directory exists on the local machine.
+        resolved_path = Path(path).resolve()
+        try:
+            resolved_path.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, ValueError, OSError) as e:
+            raise RuntimeError(f"Failed to ensure destination directory '{resolved_path}': {e}") from e
 
-        Args:
-            path (Union[str, Path]): The path to check.
-        Returns:
-            bool: True if the directory exists, False otherwise.
-        """
-        path = Path(path).resolve()
-        return path.is_dir()
+        return resolved_path

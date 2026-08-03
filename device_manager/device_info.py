@@ -383,7 +383,7 @@ class DeviceInfo:
             self.__serial_number,
             force_reconnect=True,
         ):
-            output = execute_adb_command(
+          output = execute_adb_command(
                 command='settings get secure location_mode',
                 shell=True,
                 comm_uris=[self.current_comm_uri],
@@ -399,7 +399,7 @@ class DeviceInfo:
             return location_modes.get(output, None)
         return None
 
-    def is_stay_awake_enabled(self) -> bool:
+def is_stay_awake_enabled(self) -> bool:
         """Checks if the "Stay Awake" developer option is enabled on the device.
 
         Returns:
@@ -417,4 +417,28 @@ class DeviceInfo:
                 capture_output=True,
             ).stdout.strip()
             return output != '0'
+        return False
+
+    def is_airplane_mode_enabled(self) -> bool:
+        """Gets the current airplane mode status of the device.
+
+        Returns:
+            bool: True if airplane mode is enabled, False otherwise.
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            output = execute_adb_command(
+                command='settings get global airplane_mode_on',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+                capture_output=True,
+            ).stdout
+
+            if output is not None:
+                status = output.strip()
+                return status == '1'
+
         return False

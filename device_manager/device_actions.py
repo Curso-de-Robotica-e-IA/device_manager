@@ -5,7 +5,6 @@ from device_manager.actions.camera_actions import CameraActions
 from device_manager.adb_executor import execute_adb_command
 from device_manager.connection.device_connection import DeviceConnection
 from device_manager.enumerations.adb_keyevents import ADBKeyEvent
-from device_manager.utils.util_functions import grep
 
 
 class DeviceActions:
@@ -131,49 +130,22 @@ class DeviceActions:
                 subprocess_check_flag=self.subprocess_check_flag,
             )
 
-    def _get_main_activity_from_package(self, package_name: str) -> Optional[str]:
-        """Retrieves the main activity name for a given package name.
+    def _open_app_one_arg(self, package_activity: str) -> None:
+        """Opens an application on the device using the provided package
+        name and activity name. This method is used when the package name
+        and activity name are combined into a single string argument.
 
         Args:
-            package_name (str): The package name of the application.
-        Returns:
-            Optional[str]: The main activity name if found, None otherwise.
+            package_activity (str): The package name and activity name
+                of the application.
+                Ex.: 'com.android.deskclock/.DeskClockTabActivity'
         """
-        result = execute_adb_command(
-            command=f'cmd package resolve-activity --brief {package_name}',
+        execute_adb_command(
+            command=f'am start -n {package_activity}',
             comm_uris=[self.current_comm_uri],
             shell=True,
             subprocess_check_flag=self.subprocess_check_flag,
-            capture_output=True,
-        ).stdout
-
-        if result:
-            lines = grep(result, "com.")
-            if lines:
-                main_activity = lines[0].strip().split("/", 1)[-1]
-                return main_activity
-        return None 
-
-        
-
-    def _open_app_one_arg(self, package_name: str) -> None:
-        """Opens an application using only the package name.
-
-        Args:
-            package_name (str): The package name of the application.
-                Ex.: 'com.android.deskclock'
-        """
-        main_activity = self._get_main_activity_from_package(package_name)
-        if main_activity:
-            execute_adb_command(
-                command=f'am start -n {package_name}/{main_activity}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
-        else:
-            raise ValueError(f'Main activity not found for package: {package_name}')
-        
+        )
 
     def _open_app_two_args(
         self,
@@ -206,32 +178,16 @@ class DeviceActions:
         activity_name: Optional[str] = None,
     ) -> None:
         """Opens an application on the device using the provided package
-        name and, optionally, the activity name. If ``activity_name`` is
-        omitted, the library tries to resolve the app's main activity from the
-        package name and launch it.
+        name and activity name.
 
         Args:
             package_name (str): The package name of the application.
-            activity_name (Optional[str]): The activity name of the
-                application. If not provided, the main activity will be
-                resolved automatically.
+            activity_name (str): The activity name of the application.
         """
 
         if self.validate_connection():
             if activity_name is None:
-                normalized_input = package_name.strip()
-                package_name_treated, sep, activity_name_treated = normalized_input.partition('/')
-
-                if not package_name_treated:
-                    raise ValueError('Invalid package_name: empty package is not allowed.')
-
-                if sep and activity_name_treated:
-                    self._open_app_two_args(
-                        package_name_treated,
-                        activity_name_treated,
-                    )
-                else:
-                    self._open_app_one_arg(package_name_treated)
+                self._open_app_one_arg(package_name)
             else:
                 self._open_app_two_args(package_name, activity_name)
 
@@ -338,6 +294,7 @@ class DeviceActions:
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
             )
+
     
     def screen_shot(self, image_name: str = "screen", destination: str = '/sdcard') -> None:
         """Takes a screenshot of the device screen.
@@ -475,6 +432,22 @@ class DeviceActions:
             value = '3' if enabled else '0'
             execute_adb_command(
                 command=f'settings put global stay_on_while_plugged_in {value}',
+                comm_uris=[self.current_comm_uri],
+                shell=True,
+                subprocess_check_flag=self.subprocess_check_flag,
+            )
+
+    def set_air_plane_mode(self, enabled: bool) -> None:
+        """Enables or disables airplane mode on the device (Android 10 or higher).
+
+        Args:
+            enabled (bool): True to enable airplane mode, False to disable.
+        """
+        if self.validate_connection():
+            action = "enable" if enabled else "disable"
+            
+            execute_adb_command(
+                command=f'cmd connectivity airplane-mode {action}',
                 comm_uris=[self.current_comm_uri],
                 shell=True,
                 subprocess_check_flag=self.subprocess_check_flag,
