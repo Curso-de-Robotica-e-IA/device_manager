@@ -84,7 +84,7 @@ class DeviceActions:
         """
         return self.device_connection.validate_connection(
             self.__serial_number,
-            force_reconnect=True,
+            force_reconnect=False,
         )
 
     def click_by_coordinates(self, x: int, y: int) -> None:

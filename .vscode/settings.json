@@ -1,5 +1,7 @@
 {
     "terminal.integrated.env.windows": {
         "PYTHONPATH": "${workspaceFolder};${env:PYTHONPATH}"
-    }
+    },
+    "python-envs.defaultEnvManager": "ms-python.python:poetry",
+    "python-envs.defaultPackageManager": "ms-python.python:poetry"
 }

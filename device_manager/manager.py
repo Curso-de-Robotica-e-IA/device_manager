@@ -399,13 +399,3 @@ class DeviceManager:
 
                 self.__device_info.add(serial, dev_info)
                 self.__device_actions.add(serial, dev_actions)
-
-
-if __name__ == "__main__":
-    manager = DeviceManager()
-    print(manager.connector.visible_devices())
-    manager.load_connected_usb_devices()
-    manager.connect_devices('ZF5246RQKB')
-    manager.load_connected_usb_devices()
-    manager.connect_devices('0088157940')
-    print(manager.connected_devices)
