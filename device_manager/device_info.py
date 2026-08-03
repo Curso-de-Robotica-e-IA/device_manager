@@ -361,6 +361,64 @@ class DeviceInfo:
                     return line.replace('package:', '').strip()
         return None
 
+    def get_location_mode(self) -> Optional[str]:
+        """Return the current location mode reported by the device.
+
+        This method runs ``adb shell settings get secure location_mode`` and
+        converts the numeric response into a human-readable label.
+
+        Returns:
+            Optional[str]: One of ``'Off'``, ``'Sensors Only'``,
+                ``'Battery Saving'`` or ``'High Accuracy'``. Returns ``None``
+                when the device cannot be queried or when the value is not
+                recognized.
+
+        Location mode values:
+            0: Off
+            1: Sensors Only
+            2: Battery Saving
+            3: High Accuracy
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+          output = execute_adb_command(
+                command='settings get secure location_mode',
+                shell=True,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
+                capture_output=True,
+            ).stdout.strip()
+            location_modes = {
+                '0': 'Off',
+                '1': 'Sensors Only',
+                '2': 'Battery Saving',
+                '3': 'High Accuracy',
+            }
+            return location_modes.get(output, None)
+        return None
+
+def is_stay_awake_enabled(self) -> bool:
+        """Checks if the "Stay Awake" developer option is enabled on the device.
+
+        Returns:
+            bool: True if "Stay Awake" is enabled, False otherwise.
+        """
+        if self.device_connection.validate_connection(
+            self.__serial_number,
+            force_reconnect=True,
+        ):
+            output = execute_adb_command(
+                command='settings get global stay_on_while_plugged_in',
+                shell=True,
+                comm_uris=[self.current_comm_uri],
+                subprocess_check_flag=self.subprocess_check_flag,
+                capture_output=True,
+            ).stdout.strip()
+            return output != '0'
+        return False
+
     def is_airplane_mode_enabled(self) -> bool:
         """Gets the current airplane mode status of the device.
 
