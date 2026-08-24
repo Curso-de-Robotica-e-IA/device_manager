@@ -1,5 +1,6 @@
 import subprocess
 import time
+import re
 
 ADB_PATH = r"C:\Users\flca2\Documents\platform-tools\adb.exe"
 
@@ -75,7 +76,7 @@ def unlock_screen_with_pin():
     
     if not is_screen_locked():
         print("A tela já está desbloqueada.")
-        return "Tela já estava desbloqueada."
+        return True
         
     print("Tela bloqueada. Iniciando processo de PIN...")
 
@@ -90,9 +91,11 @@ def unlock_screen_with_pin():
     time.sleep(0.5)
 
     if not is_screen_locked():
-        return "Tela desbloqueada com sucesso via PIN!"
+        print("Tela desbloqueada com sucesso via PIN!")
+        return True
     else:
-        return "Falha ao desbloquear."
+        print("Falha ao desbloquear.")
+        return False
 
 def show_phone_info():
     phone_info = {
@@ -104,8 +107,30 @@ def show_phone_info():
 
     for key, value in phone_info.items():
         print(f'{key}: {value}')
-    
-    # print(serial_number, manufacturer, model, android_version, sep=' | ')
+
+def show_phone_dimensions():
+    result = run_adb(["shell", "wm", "size"])
+    print(result)
+
+def show_installed_apps():
+    result = run_adb(["shell", "cmd", "package", "list", "packages"])
+    print(result)
+
+def show_current_activity():
+    result = run_adb(["shell", "dumpsys", "window", "windows"])
+
+    for line in result.splitlines():
+        if "mCurrentFocus" in line:
+            print(line.strip())
+            return
+            
+    print("Activity atual não encontrada.")
+
+def open_phone_camera():
+    if(unlock_screen_with_pin()):
+        run_adb(["shell", "am", "start", "-a", "android.media.action.STILL_IMAGE_CAMERA"])
+    # adb shell am start -a android.media.action.STILL_IMAGE_CAMERA
+
 
 # 1. Mostrar os devices disponíveis
 # print(show_devices())
@@ -134,3 +159,14 @@ def show_phone_info():
 # 7. Mostrar o serial_number, fabricante, modelo e versão do android
 # show_phone_info()
 
+# 8. Mostrar as dimensões da tela
+# show_phone_dimensions()
+
+# 9. Listar todos os apps instalados
+# show_installed_apps()
+
+# 10. Mostrar o nome da activity atual
+# show_current_activity()
+
+# 11. Abrir a câmera pelo package e activity
+# open_phone_camera()
