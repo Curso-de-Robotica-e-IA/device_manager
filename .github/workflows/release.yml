@@ -2,8 +2,11 @@ name: Publish wheel on release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+
+permissions:
+  contents: write
 
 jobs:
   upload-release-asset:
@@ -12,6 +15,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Important to download history to check previous tags
 
       - name: Install Python
         uses: actions/setup-python@v5
@@ -24,25 +29,51 @@ jobs:
       - name: Install poetry
         run: pipx install poetry
 
+      - name: Check version in pyproject.toml
+        id: version_check
+        run: |
+          # 1. Extract only the version number (e.g., 1.0.2)
+          VERSION=$(poetry version -s)
+          TAG="v$VERSION"
+          
+          # 2. Save the tag name for the next steps
+          echo "tag_name=$TAG" >> $GITHUB_OUTPUT
+          
+          # 3. Check if the tag already exists on GitHub
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG"; then
+            echo "Tag $TAG already exists. No new release will be created."
+            echo "is_new_version=false" >> $GITHUB_OUTPUT
+          else
+            echo "New version detected ($TAG)! Preparing to generate release."
+            echo "is_new_version=true" >> $GITHUB_OUTPUT
+          fi
+
+      # THE STEPS BELOW WILL ONLY RUN IF IT IS A NEW VERSION
+      
       - name: Install dependencies
+        if: steps.version_check.outputs.is_new_version == 'true'
         run: poetry install --with doc
 
       - name: Build wheel
+        if: steps.version_check.outputs.is_new_version == 'true'
         run: poetry build
 
       - name: Build zip and docs
+        if: steps.version_check.outputs.is_new_version == 'true'
         shell: bash
         run: |
           poetry run mkdocs build
           zip -r docs.zip site/
-        working-directory: ./
 
-      - name: Create Release with GitHub CLI
+      - name: Create Release and Upload Assets
+        if: steps.version_check.outputs.is_new_version == 'true'
         shell: bash
         run: |
-          FILES_WHEEL=$(ls ./dist/*.whl)
-          FILES_TARGZ=$(ls ./dist/*.tar.gz)
-          FILES_DOCS=$(ls ./*.zip)
-          gh release create ${{ github.ref}} $FILES_WHEEL $FILES_TARGZ $FILES_DOCS --generate-notes
+          # GitHub CLI automatically creates the tag from the current branch if it doesn't exist
+          gh release create ${{ steps.version_check.outputs.tag_name }} \
+            ./dist/*.whl \
+            ./dist/*.tar.gz \
+            ./docs.zip \
+            --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
