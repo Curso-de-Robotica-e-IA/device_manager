@@ -119,3 +119,88 @@ def mostrar_dados():
     print(f"Fabricante:       {dados['fabricante']}")
     print(f"Modelo:           {dados['modelo']}")
     print(f"Versão do Android: {dados['versao_android']}")
+
+def mostrar_dimensões():
+    digita_comando = subprocess.run(["adb",
+    "shell",
+    "wm",
+    "size"],capture_output=True,text=True)
+    return digita_comando.stdout.strip()
+
+def listar_apps():
+    digita_comando = subprocess.run(["shell",
+    "pm",
+    "list",
+    "packages"],capture_output=True,text=True)
+    return digita_comando.stdout.strip()
+
+def mostrar_activity():
+    digita_comando = subprocess.run(["shell",
+    "dumpsys",
+    "window"],capture_output=True,text=True)
+    return digita_comando.stdout.strip()
+
+def abrir_camera():
+    digita_comando = subprocess.run(["shell",
+    "am",
+    "start",
+    "-a",
+    "android.media.action.IMAGE_CAPTURE"],capture_output=True,text=True)
+    return digita_comando.stdout.strip()
+
+def voltar_home():
+    digita_comando = subprocess.run(["shell",
+    "input",
+    "keyevent",
+    "KEYCODE_HOME"], capture_output=True, text=True)
+    return digita_comando.stdout.strip()
+
+def verificar_stayAwake():
+    digita_comando = subprocess.run(["shell",
+    "settings",
+    "get",
+    "global",
+    "stay_on_while_plugged_in"])
+     #0 é o valor para desativado
+    if digita_comando == 0:            
+        digita_comando = subprocess.run([
+        "shell",
+        "settings",
+        "put",
+        "global",
+        "stay_on_while_plugged_in",
+        "3"
+        ])
+    return digita_comando.stdout.strip()
+
+def verificar_modoAviao():
+    digita_comando = subprocess.run(["shell",
+    "settings",
+    "get",
+    "global",
+    "airplane_mode_on"])
+
+    if digita_comando == 1:
+        print("Modo avião ativado.")
+    else:
+        print("Modo avião desativado.")
+
+def tocar_meio():
+    digita_comando = subprocess.run([ "shell",
+    "input",
+    "tap",
+    "540",
+    "1170"])
+
+def swipe_topoBase():
+    #dimensões do Samsung A15 (540,0) é o meio horizontal. 1000 é o tempo de swipe, medido em ms
+    digita_comando = subprocess.run([ "shell",
+    "input",
+    "swipe",
+    "540",
+    "0",
+    "540",
+    "1920",
+    "1000"])
+
+
