@@ -83,39 +83,47 @@ def go_to_home():
 def activate_phone_awake():
     for device in devices:
         info = manager.get_device_info(device)
-        is_locked = info.is_device_locked()
-        if not is_locked:
-            print("A tela já está ligada!")
+        is_awake_active = info.is_stay_awake_enabled()
+        if is_awake_active:
+            print("Modo awake já está ativo")
         else:
             device_actions = manager.get_device_actions(device)
-            device_actions.unlock_screen()
+            device_actions.set_stay_awake(True)
+            print("Modo awake ativado com sucesso!")
 
-# def check_air_plane_mode():
-#     on_air_plane_mode = run_adb(["shell", "settings", "get", "global", "stay_on_while_plugged_in"]) != '3'
+def check_air_plane_mode():
+    for device in devices:
+        info = manager.get_device_info(device)
+        is_air_plane_active = info.is_airplane_mode_enabled()
+        if is_air_plane_active:
+            print("O modo avião está ativado")
+        else:
+            print("O modo avião está desativado")
 
-#     if on_air_plane_mode:
-#         print("O dispositivo está no modo avião")
-#     else:
-#         print("O dispositivo não está no modo avião")
+def touch_middle_screen():
+    for device in devices:
+        info = manager.get_device_info(device)
+        width, height = info.get_screen_dimensions()
 
-# def touch_middle_screen():
-#     width, height = get_phone_dimensions()
+        if width and height:
+            center_x = width // 2
+            center_y = height // 2
 
-#     if width and height:
-#         center_x = width // 2
-#         center_y = height // 2
+            device_actions = manager.get_device_actions(device)
+            device_actions.click_by_coordinates(center_x, center_y)
+            print("Toque realizado no centro da tela!")
 
-#         run_adb(["shell", "input", "tap", str(center_x), str(center_y)])
-#         print("Toque realizado no centro da tela!")
+def swipe_top_to_bottom():
+    for device in devices:
+        info = manager.get_device_info(device)
+        width, height = info.get_screen_dimensions()
 
-# def swipe_top_to_bottom():
-#     width, height = get_phone_dimensions()
-    
-#     if width and height:
-#         center_x = width // 2
+        if width and height:
+            center_x = width // 2
 
-#         run_adb(["shell", "input", "swipe", str(center_x), str(0), str(center_x), str(height), '500'])
-#         print("Toque realizado no centro da tela!")
+            device_actions = manager.get_device_actions(device)
+            device_actions.swipe(center_x, 0, center_x, height, 500)
+            print("Swipe realizado com sucesso!")
 
 
 # 1. Mostrar os devices disponíveis
@@ -155,7 +163,7 @@ def activate_phone_awake():
 # go_to_home()
 
 # 13. Verificar se o stay awake está ativado; Ativar caso desativado;
-activate_phone_awake()
+# activate_phone_awake()
 
 # 14. Verificar se o modo avião está ativado
 # check_air_plane_mode()
@@ -164,4 +172,4 @@ activate_phone_awake()
 # touch_middle_screen()
 
 # 16. Realizar um swipe do topo até a base da tela
-# swipe_top_to_bottom()
+swipe_top_to_bottom()
