@@ -108,9 +108,14 @@ def show_phone_info():
     for key, value in phone_info.items():
         print(f'{key}: {value}')
 
-def show_phone_dimensions():
+def get_phone_dimensions():
     result = run_adb(["shell", "wm", "size"])
-    print(result)
+    match = re.search(r'(\d+)x(\d+)', result)
+    if match:
+        width = int(match.group(1))
+        height = int(match.group(2))
+        print(f"As dimensões da tela são {width}x{height}")
+        return (width, height)
 
 def show_installed_apps():
     result = run_adb(["shell", "cmd", "package", "list", "packages"])
@@ -129,7 +134,49 @@ def show_current_activity():
 def open_phone_camera():
     if(unlock_screen_with_pin()):
         run_adb(["shell", "am", "start", "-a", "android.media.action.STILL_IMAGE_CAMERA"])
-    # adb shell am start -a android.media.action.STILL_IMAGE_CAMERA
+
+def go_to_home():
+    if(unlock_screen_with_pin()):
+        run_adb(["shell", "input", "keyevent", "3"])
+
+
+def activate_phone_awake():
+    is_awake = run_adb(["shell", "settings", "get", "global", "stay_on_while_plugged_in"]) != '0'
+
+    if is_awake:
+        print("Modo awake já está ativo")
+    else:
+        run_adb(["shell", "settings", "put", "global", "stay_on_while_plugged_in", "3"])
+        print("Modo awake ativado com sucesso!")
+
+def check_air_plane_mode():
+    on_air_plane_mode = run_adb(["shell", "settings", "get", "global", "stay_on_while_plugged_in"]) != '3'
+
+    if on_air_plane_mode:
+        print("O dispositivo está no modo avião")
+    else:
+        print("O dispositivo não está no modo avião")
+
+def touch_middle_screen():
+    width, height = get_phone_dimensions()
+
+    if width and height:
+        center_x = width // 2
+        center_y = height // 2
+
+        run_adb(["shell", "input", "tap", str(center_x), str(center_y)])
+        print("Toque realizado no centro da tela!")
+
+def swipe_top_to_bottom():
+    width, height = get_phone_dimensions()
+    
+    if width and height:
+        center_x = width // 2
+
+        run_adb(["shell", "input", "swipe", str(center_x), str(0), str(center_x), str(height), '500'])
+        print("Toque realizado no centro da tela!")
+
+    # adb shell input swipe 500 200 500 1500 300
 
 
 # 1. Mostrar os devices disponíveis
@@ -160,7 +207,7 @@ def open_phone_camera():
 # show_phone_info()
 
 # 8. Mostrar as dimensões da tela
-# show_phone_dimensions()
+# get_phone_dimensions()
 
 # 9. Listar todos os apps instalados
 # show_installed_apps()
@@ -170,3 +217,18 @@ def open_phone_camera():
 
 # 11. Abrir a câmera pelo package e activity
 # open_phone_camera()
+
+# 12. Ir para para o home
+# go_to_home()
+
+# 13. Verificar se o stay awake está ativado; Ativar caso desativado;
+# activate_phone_awake()
+
+# 14. Verificar se o modo avião está ativado
+# check_air_plane_mode()
+
+# 15. Realizar uma ação de toque no meio da tela;
+# touch_middle_screen()
+
+# 16. Realizar um swipe do topo até a base da tela
+# swipe_top_to_bottom()
