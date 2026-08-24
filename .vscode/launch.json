@@ -3,7 +3,7 @@
     "configurations": [
         {
             "name": "Python Debugger: Pytest",
-            "type": "python",
+            // "type": "python",
             "request": "launch",
             "justMyCode": false,
             "purpose": [
