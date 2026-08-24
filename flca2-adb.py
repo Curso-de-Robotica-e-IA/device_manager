@@ -171,12 +171,12 @@ def activate_phone_awake():
 
 def check_air_plane_mode():
     """Verifica se o modo avião está ativo no dispositivo Android."""
-    on_air_plane_mode = run_adb(["shell", "settings", "get", "global", "stay_on_while_plugged_in"]) != '3'
+    is_air_plane_active = run_adb(["shell", "settings", "get", "global", "stay_on_while_plugged_in"]) != '3'
 
-    if on_air_plane_mode:
-        print("O dispositivo está no modo avião")
+    if is_air_plane_active:
+        print("O modo avião está ativado")
     else:
-        print("O dispositivo não está no modo avião")
+        print("O modo avião está desativado")
 
 def touch_middle_screen():
     """Calcula o centro exato da tela e simula um toque na coordenada."""
