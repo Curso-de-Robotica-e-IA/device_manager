@@ -9,6 +9,7 @@ DEVICE = ["-s", "RQCX805H9MZ"]
 PIN = 1415
 
 def run_adb(command):
+    """Executa um comando ADB no dispositivo Android conectado."""
     try:
         result = subprocess.run([ADB_PATH] + DEVICE + command, capture_output=True, text=True, check=True)
         return result.stdout.strip()
@@ -17,18 +18,22 @@ def run_adb(command):
         return None
 
 def show_devices():
+    """Retorna o texto bruto com a lista de dispositivos reconhecidos pelo ADB."""
     result = run_adb(["devices"])
     return result
 
 def connect_with_code():
+    """Emparelha um novo dispositivo via Wi-Fi usando um código de autenticação."""
     result = run_adb(["pair", f"{IP_ADDRESS}:38189", "922152"])
     return result
 
 def connect_with_wifi():
+    """Conecta a um dispositivo Android previamente emparelhado usando rede Wi-Fi."""
     result = run_adb([f"connect", f"{IP_ADDRESS}:36255"])
     return result
 
 def show_usb_wifi_devices():
+    """Separa os dispositivos conectados atualmente entre conexões USB e Wi-Fi."""
     result = show_devices()
     usb_devices = []
     wifi_devices = []
@@ -48,15 +53,24 @@ def show_usb_wifi_devices():
                 else:
                     usb_devices.append(serial)
 
+    print("Dispositivos USB: ")
+    for x in usb_devices:
+        print(x)
+    print("Dispositivos WIFI: ")
+    for x in wifi_devices:
+        print(x)
+
     return usb_devices, wifi_devices
 
 def is_screen_on():
+    """Verifica se a tela do dispositivo está ligada no momento."""
     result = run_adb(["shell", "dumpsys", "power"])
     if not result:
         return False
     return "mHoldingDisplaySuspendBlocker=true" in result
 
 def wake_up_screen():
+    """Acorda a tela do dispositivo enviando o comando do botão Power."""
     if not is_screen_on():
         print("Ligando a tela...")
         run_adb(["shell", "input", "keyevent", "26"])
@@ -64,14 +78,14 @@ def wake_up_screen():
         print("A tela já está ligada.")
 
 def is_screen_locked():
-    """Verifica se a tela de bloqueio está ativa."""
+    """Verifica se a tela de bloqueio (Keyguard) do dispositivo está ativa."""
     result = run_adb(["shell", "dumpsys", "window"])
     if not result:
         return False
     return "mShowing=true" in result or "mDreamingLockscreen=true" in result
 
 def unlock_screen_with_pin():
-    """Garante que a tela está ligada e desbloqueia se necessário."""
+    """Executa a rotina completa de ligar a tela e digitar o PIN de desbloqueio."""
     wake_up_screen()
     
     if not is_screen_locked():
@@ -98,6 +112,7 @@ def unlock_screen_with_pin():
         return False
 
 def show_phone_info():
+    """Imprime no console dados básicos do celular como modelo e versão do Android."""
     phone_info = {
         'serial_number': run_adb(["get-serialno"]),
         'manufacturer': run_adb(["shell", "getprop", "ro.product.manufacturer"]),
@@ -109,6 +124,7 @@ def show_phone_info():
         print(f'{key}: {value}')
 
 def get_phone_dimensions():
+    """Identifica e retorna a resolução (largura e altura) da tela do celular."""
     result = run_adb(["shell", "wm", "size"])
     match = re.search(r'(\d+)x(\d+)', result)
     if match:
@@ -118,10 +134,12 @@ def get_phone_dimensions():
         return (width, height)
 
 def show_installed_apps():
+    """Lista todos os pacotes de aplicativos instalados no sistema Android."""
     result = run_adb(["shell", "cmd", "package", "list", "packages"])
     print(result)
 
 def show_current_activity():
+    """Busca e exibe o nome da Activity que está em foco na tela no momento."""
     result = run_adb(["shell", "dumpsys", "window", "windows"])
 
     for line in result.splitlines():
@@ -132,15 +150,17 @@ def show_current_activity():
     print("Activity atual não encontrada.")
 
 def open_phone_camera():
+    """Desbloqueia o dispositivo e inicia a aplicação nativa de câmera."""
     if(unlock_screen_with_pin()):
         run_adb(["shell", "am", "start", "-a", "android.media.action.STILL_IMAGE_CAMERA"])
 
 def go_to_home():
+    """Desbloqueia o dispositivo e simula o pressionamento do botão Home."""
     if(unlock_screen_with_pin()):
         run_adb(["shell", "input", "keyevent", "3"])
 
-
 def activate_phone_awake():
+    """Configura a tela para nunca desligar enquanto o cabo USB estiver conectado."""
     is_awake = run_adb(["shell", "settings", "get", "global", "stay_on_while_plugged_in"]) != '0'
 
     if is_awake:
@@ -150,6 +170,7 @@ def activate_phone_awake():
         print("Modo awake ativado com sucesso!")
 
 def check_air_plane_mode():
+    """Verifica se o modo avião está ativo no dispositivo Android."""
     on_air_plane_mode = run_adb(["shell", "settings", "get", "global", "stay_on_while_plugged_in"]) != '3'
 
     if on_air_plane_mode:
@@ -158,6 +179,7 @@ def check_air_plane_mode():
         print("O dispositivo não está no modo avião")
 
 def touch_middle_screen():
+    """Calcula o centro exato da tela e simula um toque na coordenada."""
     width, height = get_phone_dimensions()
 
     if width and height:
@@ -168,6 +190,7 @@ def touch_middle_screen():
         print("Toque realizado no centro da tela!")
 
 def swipe_top_to_bottom():
+    """Simula uma ação de arrastar o dedo de cima para baixo no centro da tela."""
     width, height = get_phone_dimensions()
     
     if width and height:
@@ -175,8 +198,6 @@ def swipe_top_to_bottom():
 
         run_adb(["shell", "input", "swipe", str(center_x), str(0), str(center_x), str(height), '500'])
         print("Toque realizado no centro da tela!")
-
-    # adb shell input swipe 500 200 500 1500 300
 
 
 # 1. Mostrar os devices disponíveis
@@ -189,13 +210,7 @@ def swipe_top_to_bottom():
 # print(connect_with_wifi())
 
 # 4. Mostrar devices conectados via usb e via wifi
-# usb, wifi = show_usb_wifi_devices()
-# print("Dispositivos USB: ")
-# for x in usb:
-#     print(x)
-# print("Dispositivos WIFI: ")
-# for x in wifi:
-#     print(x)
+# show_usb_wifi_devices()
 
 # 5. Verificar se a tela está ligada; Ligar caso desligada;
 # wake_up_screen()
