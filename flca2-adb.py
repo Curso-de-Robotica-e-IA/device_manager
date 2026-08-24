@@ -89,6 +89,23 @@ def unlock_screen_with_pin():
     run_adb(["shell", "input", "keyevent", "66"])
     time.sleep(0.5)
 
+    if not is_screen_locked():
+        return "Tela desbloqueada com sucesso via PIN!"
+    else:
+        return "Falha ao desbloquear."
+
+def show_phone_info():
+    phone_info = {
+        'serial_number': run_adb(["get-serialno"]),
+        'manufacturer': run_adb(["shell", "getprop", "ro.product.manufacturer"]),
+        'model': run_adb(["shell", "getprop", "ro.product.model"]),
+        'android_version': run_adb(["shell", "getprop", "ro.build.version.release"])
+    }   
+
+    for key, value in phone_info.items():
+        print(f'{key}: {value}')
+    
+    # print(serial_number, manufacturer, model, android_version, sep=' | ')
 
 # 1. Mostrar os devices disponíveis
 # print(show_devices())
@@ -114,4 +131,6 @@ def unlock_screen_with_pin():
 # 6. Verificar se a tela está bloqueada; Desbloquear caso bloqueada;
 # unlock_screen_with_pin()
 
+# 7. Mostrar o serial_number, fabricante, modelo e versão do android
+# show_phone_info()
 
