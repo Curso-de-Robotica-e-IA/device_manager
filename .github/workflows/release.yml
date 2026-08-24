@@ -1,27 +1,25 @@
 name: Publish wheel on release
 
 on:
-  push:
-    branches:
-      - main
-
-permissions:
-  contents: write
+    push:
+      branches: [ "main" ]
 
 jobs:
-  upload-release-asset:
+  build-and-release:
     name: Release
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Important to download history to check previous tags
 
-      - name: Install Python
+      - name: Install Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python-version }}
 
       - name: Install zip
         run: sudo apt-get install zip -y
@@ -29,51 +27,37 @@ jobs:
       - name: Install poetry
         run: pipx install poetry
 
-      - name: Check version in pyproject.toml
-        id: version_check
-        run: |
-          # 1. Extract only the version number (e.g., 1.0.2)
-          VERSION=$(poetry version -s)
-          TAG="v$VERSION"
-          
-          # 2. Save the tag name for the next steps
-          echo "tag_name=$TAG" >> $GITHUB_OUTPUT
-          
-          # 3. Check if the tag already exists on GitHub
-          if git ls-remote --tags origin | grep -q "refs/tags/$TAG"; then
-            echo "Tag $TAG already exists. No new release will be created."
-            echo "is_new_version=false" >> $GITHUB_OUTPUT
-          else
-            echo "New version detected ($TAG)! Preparing to generate release."
-            echo "is_new_version=true" >> $GITHUB_OUTPUT
-          fi
-
-      # THE STEPS BELOW WILL ONLY RUN IF IT IS A NEW VERSION
-      
-      - name: Install dependencies
-        if: steps.version_check.outputs.is_new_version == 'true'
-        run: poetry install --with doc
-
       - name: Build wheel
-        if: steps.version_check.outputs.is_new_version == 'true'
-        run: poetry build
+        run: poetry build -f wheel
 
-      - name: Build zip and docs
-        if: steps.version_check.outputs.is_new_version == 'true'
-        shell: bash
-        run: |
-          poetry run mkdocs build
-          zip -r docs.zip site/
+      - name: Save build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.python-version }}
+          path: dist/
 
-      - name: Create Release and Upload Assets
-        if: steps.version_check.outputs.is_new_version == 'true'
-        shell: bash
+  create-release:
+    runs-on: ubuntu-latest
+    needs: build-and-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist-all
+
+      - name: Read version from pyproject.toml
+        id: get_version
         run: |
-          # GitHub CLI automatically creates the tag from the current branch if it doesn't exist
-          gh release create ${{ steps.version_check.outputs.tag_name }} \
-            ./dist/*.whl \
-            ./dist/*.tar.gz \
-            ./docs.zip \
-            --generate-notes
+          VERSION=$(grep '^version =' pyproject.toml | cut -d '"' -f2)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
+          name: Release v${{ steps.get_version.outputs.VERSION }}
+          files: dist-all/**/*
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
