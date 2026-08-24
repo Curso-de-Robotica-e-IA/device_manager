@@ -64,10 +64,83 @@ def enter_key(key,device,model = None):
 def listApps(device):
     c = sub.run(["adb","-s",device,"shell","cmd","package","list","packages"],capture_output=True, text=True)
     print(c.stdout)
+def tap_action(device,points:list):
+    '''if all((isinstance(p,tuple) or isinstance(p,list)) for p in points):
+        if all(len(p)==2 for p in points):
+            pass
+        elif all(3==len(p) for p in points[1:-1]):
+            if (len(points[0]) == 2 and len(points[1]) == 3):
+                pass
+            elif (len(points[0]) == 3 and len(points[-1]) == 2):
+                pass
+    if all((isinstance(p,tuple) or isinstance(p,list) or 
+            isinstance(p,int) or isinstance(p,float)) for p in points):
+        if all(len(p)==2 for p in points):
+            pass
+        elif all(3==len(p) for p in points[1:-1]):
+            if (len(points[0]) == 2 and len(points[1]) == 3):
+                pass
+            elif (len(points[0]) == 3 and len(points[-1]) == 2):
+                pass
+    elif all(isinstance(p,dict) for p in points):
+            pass'''
+    for swipe in points:
+        x = swipe["X"]
+        y = swipe["Y"]
+        c = sub.run(["adb","-s",device,"shell","input","tap",
+                     f"{x} {y}"
+                     ],capture_output=True, text=True)
+        print(c.stdout)
+        pass
+def swipe_action(device,points:list):
+    '''if all((isinstance(p,tuple) or isinstance(p,list)) for p in points):
+        if all(len(p)==2 for p in points):
+            pass
+        elif all(3==len(p) for p in points[1:-1]):
+            if (len(points[0]) == 2 and len(points[1]) == 3):
+                pass
+            elif (len(points[0]) == 3 and len(points[-1]) == 2):
+                pass
+    if all((isinstance(p,tuple) or isinstance(p,list) or 
+            isinstance(p,int) or isinstance(p,float)) for p in points):
+        if all(len(p)==2 for p in points):
+            pass
+        elif all(3==len(p) for p in points[1:-1]):
+            if (len(points[0]) == 2 and len(points[1]) == 3):
+                pass
+            elif (len(points[0]) == 3 and len(points[-1]) == 2):
+                pass
+    elif all(isinstance(p,dict) for p in points):
+            pass'''
+    for swipe in points:
+        sx = swipe["SX"]
+        sy = swipe["SY"]
+        ex = swipe["EX"]
+        ey = swipe["EY"]
+        dur = swipe["duration"]
+        c = sub.run(["adb","-s",device,"shell","input ","swipe ",
+                     f"{sx} {sy} {ex} {ey} {dur}"
+                     ],capture_output=True, text=True)
+        print(c.stdout)
+        pass
+def home(device):
+    pass#key_home
+def current_activity(device):
+    pass#adb shell "dumpsys window windows | grep -E 'mCurrentFocus|mFocusedApp'"
+def home(device):
+    pass#[persist.radio.airplane_mode_on]:
+    #adb shell settings put global airplane_mode_on 1  
+    # adb shell settings put global airplane_mode_on 1
+    # adb shell am broadcast -a android.intent.action.AIRPLANE_MODE
+    # adb shell settings put global airplane_mode_on 0
+    # adb shell am broadcast -a android.intent.action.AIRPLANE_MODE
+def get_airplane_Mode(device):
+    on =  int(sub.run(["adb","-s",device,"shell","settings","get","global","airplane_mode_on"],capture_output=True, text=True).stdout)
+    return on == 1
 print(__name__)
 if __name__ == "__main__":
     
-    pair_device_wifi("10.158.241.13","34459","168383")
+    #pair_device_wifi("10.158.241.13","34459","168383")
     devices = update_conected_devices({})
     print(dumps(devices,indent=2))
     tablet = [d["ID"] for d in devices.values() if d["manufacturer"]=="LENOVO"][0]
@@ -80,6 +153,9 @@ if __name__ == "__main__":
         c = sub.run(["adb","-s",tablet,"shell","input","keyevent",dict_keyevent["power"]], capture_output=True, text=True)
         print(c.stdout)
     #enter_key(secret,device)
-    print(listApps(cell))
+    #print(listApps(cell))
     print(dumps(sl,indent=1))
+    print(tap_action(tablet,[{"X":500,"Y":840},{"X":1500,"Y":640}]))
+    print(swipe_action(tablet,[{"SX":0,"SY":1840/2,"EX":2944,"EY":1840/2,"duration":1000}]))
+    print(get_airplane_Mode(tablet),get_airplane_Mode(cell))
 
