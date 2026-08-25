@@ -1,7 +1,6 @@
 
 from device_manager import DeviceManager
-import time
-import re
+from device_manager.connection.utils.connection_type import ConnectionType
 
 manager = DeviceManager()
 
@@ -25,8 +24,21 @@ def connect_with_wifi():
     return result
 
 def show_usb_wifi_devices():
-    result = manager.connected_devices
-    print("🚀 ~ show_usb_wifi_devices ~ result:", manager.get_device_info(result[0]))
+    network_devices = manager.connector.visible_devices()
+    wifi_devices = []
+    usb_devices = []
+    for network in network_devices:
+        if network.connection == ConnectionType.WIFI:
+            wifi_devices.append(network)
+        if network.connection == ConnectionType.USB:
+            usb_devices.append(network)
+
+    print("Dispositivos USB: ")
+    for x in usb_devices:
+        print(x)
+    print("Dispositivos WIFI: ")
+    for x in wifi_devices:
+        print(x)
 
 def wake_up_screen():
     for device in devices:
@@ -172,4 +184,4 @@ def swipe_top_to_bottom():
 # touch_middle_screen()
 
 # 16. Realizar um swipe do topo até a base da tela
-swipe_top_to_bottom()
+# swipe_top_to_bottom()
