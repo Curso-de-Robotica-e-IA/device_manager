@@ -2,6 +2,6 @@
     "terminal.integrated.env.windows": {
         "PYTHONPATH": "${workspaceFolder};${env:PYTHONPATH}"
     },
-    "python-envs.defaultEnvManager": "ms-python.python:pyenv",
+    "python-envs.defaultEnvManager": "ms-python.python:venv",
     "python-envs.defaultPackageManager": "ms-python.python:pip"
 }

@@ -1,8 +1,7 @@
 import subprocess, shlex
 
-
 class ManagerDevice:
-    def __init__(self, serial_number="N3KN4M0112", port=""):
+    def __init__(self, serial_number="", port=""):
         self.serial_number = serial_number
         self.ip = f'192.168.158.10:{port}'
 
@@ -31,9 +30,38 @@ class ManagerDevice:
     def go_to_home(self):
         subprocess.run(['adb','-s',f'{self.serial_number}', 'shell' , 'input', 'keyevent', '3'])
 
+    def open_camera_with_activity(self):
+        subprocess.run(['adb', '-s', f'{self.serial_number}', 'shell', 'am', 'start', '-n', 'com.android.camera2/com.android.camera.CameraLauncher'])
+
+    def get_camera_with_activity(self):
+        command = "adb shell dumpsys window | findstr mCurrentFocus"
+        result = subprocess.run(command, shell=True,capture_output=True, text=True)
+        print(result.stdout)
+
+    def is_stay_awake(self):
+        command_get = "adb shell settings get global stay_on_while_plugged_in"
+        result = subprocess.run(command_get, shell=True,capture_output=True, text=True)
+        if int(result.stdout) > 0 and result.stdout.strip().isdigit():
+            command_put = "adb shell settings put global stay_on_while_plugged_in 0"
+            subprocess.run(command_put, shell=True,capture_output=True, text=True)
+
+                        
+
 
 def execute_adb_devices():
     subprocess.run(['adb', 'devices'])
 
 if __name__ == "__main__":
-    subprocess.run(['adb','-s','N3KN4M0112', 'shell' , 'am', 'start', '-a'])
+    devices = ManagerDevice('')
+    
+
+
+
+
+
+
+
+
+
+
+
