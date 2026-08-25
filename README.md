@@ -41,4 +41,4 @@ access the documentation by cloning the repository, installing the dependencies 
 mkdocs serve
 ```
 
-This will start a local server with the documentation. You can access it by opening your browser and going to `http://localhost:8000`.
+This will start a local server with the documentation. You can access it by opening your browser and going to `http://localhost:8000`.poe
