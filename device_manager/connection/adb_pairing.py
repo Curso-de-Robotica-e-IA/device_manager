@@ -381,3 +381,15 @@ class AdbPairing:
 
         c = coro()
         yield next(c)
+
+    def pair_device_with_paring_code(self, comm_uri:str, pair_code: str):
+
+        result = subprocess.run(
+                ['adb', 'pair', comm_uri, pair_code],
+                capture_output=True,
+                text=True,
+                check=self._subprocess_check_flag,
+            )
+
+        success = f'Successfully paired to {comm_uri}' in result.stdout
+        return success
