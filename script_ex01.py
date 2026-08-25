@@ -4,7 +4,7 @@ from time import sleep
 class DeviceManager:
     def __init__(self, ip=None):
         self.ip = ip
-        
+
     def _show_devices(self):
         process = subprocess.run(
                 ["adb", "devices"],
@@ -28,28 +28,22 @@ class DeviceManager:
                 text=True
         ).stdout
         
-    def connect_device(self, device_ip):
-        process = subprocess.Popen(
+    def connect_device(self):
+        device_ip = input("Digite o IP e a porta do seu dispositivo, abaixo de Nome do dispositivo <ip:port> : ")
+        self.ip = device_ip
+        process = subprocess.run(
             ["adb", "connect", device_ip],
-            stdout=subprocess.PIPE,
+            capture_output=True,
             text=True
         )
-        
-        output, _ = process.communicate()
-        return output
+        return process.stdout
     
-    def pair_device(self):
-        process = subprocess.Popen(
-                ["adb", "pair", self.ip],
-                stdout=subprocess.PIPE,
+    def pair_device(self, ip, code):
+        process = subprocess.run(
+                ["adb", "pair", ip, code],
+                capture_output=True,
                 text=True
             )
-        print("Digite o código de pareamento:")
-
-        output, _ = process.communicate()
-        
-        device_ip = input('Informe o IP e porta da rede: ')
-        self.connect_device(device_ip)
         
         print(self._show_devices())
 
@@ -200,21 +194,22 @@ if __name__ == "__main__":
     dm = DeviceManager()
     print(dm.devices_list())
     ip = input("Digite o IP e a porta do seu dispositivo <ip:port> : ")
-    dm.ip = ip
-    dm.pair_device()
+    code = input("Digite o código de pareamento: ")
+    dm.pair_device(ip, code)
+    dm.connect_device()
     sleep(1)
     dm.is_screen_on()
-    sleep(1)
-    dm.unlock_screen()
-    sleep(1)
-    print(dm.dimensions_screen())
-    sleep(1)
-    print(dm.all_installed_apps())
-    sleep(1)
-    dm.open_activity()
-    sleep(1)
-    dm.go_to_home()
-    sleep(1)
-    print(dm.is_airplane_on())
-    sleep(1)
-    dm.swipe_top_bot()
+    # sleep(1)
+    # dm.unlock_screen()
+    # sleep(1)
+    # print(dm.dimensions_screen())
+    # sleep(1)
+    # print(dm.all_installed_apps())
+    # sleep(1)
+    # dm.open_activity()
+    # sleep(1)
+    # dm.go_to_home()
+    # sleep(1)
+    # print(dm.is_airplane_on())
+    # sleep(1)
+    # dm.swipe_top_bot()
