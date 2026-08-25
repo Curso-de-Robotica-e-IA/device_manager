@@ -18,7 +18,7 @@ def run_adb(command):
         return None
 
 def show_devices():
-    """Retorna o texto bruto com a lista de dispositivos reconhecidos pelo ADB."""
+    """Retorna o texto com a lista de dispositivos reconhecidos pelo ADB."""
     result = run_adb(["devices"])
     return result
 
@@ -84,7 +84,7 @@ def is_screen_locked():
         return False
     return "mShowing=true" in result or "mDreamingLockscreen=true" in result
 
-def unlock_screen_with_pin():
+def unlock_screen():
     """Executa a rotina completa de ligar a tela e digitar o PIN de desbloqueio."""
     wake_up_screen()
     
@@ -151,12 +151,12 @@ def show_current_activity():
 
 def open_phone_camera():
     """Desbloqueia o dispositivo e inicia a aplicação nativa de câmera."""
-    if(unlock_screen_with_pin()):
+    if(unlock_screen()):
         run_adb(["shell", "am", "start", "-a", "android.media.action.STILL_IMAGE_CAMERA"])
 
 def go_to_home():
     """Desbloqueia o dispositivo e simula o pressionamento do botão Home."""
-    if(unlock_screen_with_pin()):
+    if(unlock_screen()):
         run_adb(["shell", "input", "keyevent", "3"])
 
 def activate_phone_awake():
@@ -216,7 +216,7 @@ def swipe_top_to_bottom():
 # wake_up_screen()
 
 # 6. Verificar se a tela está bloqueada; Desbloquear caso bloqueada;
-# unlock_screen_with_pin()
+# unlock_screen()
 
 # 7. Mostrar o serial_number, fabricante, modelo e versão do android
 # show_phone_info()

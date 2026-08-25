@@ -7,23 +7,27 @@ manager = DeviceManager()
 devices = manager.connected_devices
 
 def show_devices():
+    """Retorna uma lista com os dispositivos conectados no adb."""
     network_devices = manager.connector.visible_devices()
 
     return network_devices
 
 def connect_with_code():
+    """Emparelha um novo dispositivo via Wi-Fi usando um código de autenticação."""
     manager.adb_pairing_instance()  
     qrcode = manager.adb_pair.qrcode_string
 
     return qrcode
 
 def connect_with_wifi():
+    """Conecta a um dispositivo Android previamente emparelhado usando rede Wi-Fi."""
     manager.adb_pairing_instance()  
     result = manager.connect_devices("RXCW5054NGB")
 
     return result
 
 def show_usb_wifi_devices():
+    """Separa os dispositivos conectados atualmente entre conexões USB e Wi-Fi."""
     network_devices = manager.connector.visible_devices()
     wifi_devices = []
     usb_devices = []
@@ -41,6 +45,7 @@ def show_usb_wifi_devices():
         print(x)
 
 def wake_up_screen():
+    """Verifica se a tela do dispositivo está ligada no momento."""
     for device in devices:
         info = manager.get_device_info(device)
         is_screen_on = info.is_screen_on()
@@ -50,7 +55,7 @@ def wake_up_screen():
             device_actions = manager.get_device_actions(device)
             device_actions.turn_on_screen()
 
-def unlock_screen_with_pin():
+def unlock_screen():
     """Garante que a tela está ligada e desbloqueia se necessário."""
     for device in devices:
         info = manager.get_device_info(device)
@@ -62,37 +67,44 @@ def unlock_screen_with_pin():
             device_actions.unlock_screen()
 
 def show_phone_info():
+    """Imprime no console dados básicos do celular como modelo e versão do Android."""
     for device in devices:
         info = manager.get_device_info(device)
         print(f"Informações: {info.get_properties()}")
 
 def get_phone_dimensions():
+    """Identifica e retorna a resolução (largura e altura) da tela do celular."""
     for device in devices:
         info = manager.get_device_info(device)
         print(f"Dimensões: {info.get_screen_dimensions()}")
 
 def show_installed_apps():
+    """Lista todos os pacotes de aplicativos instalados no sistema Android."""
     for device in devices:
         info = manager.get_device_info(device)
         print(f"Apps instalados: {info.list_installed_all_apps()}")
 
 def show_current_activity():
+    """Busca e exibe o nome da Activity que está em foco na tela no momento."""
     for device in devices:
         info = manager.get_device_info(device)
         print(f"Atividade atual: {info.actual_activity()}")
 
 def open_phone_camera():
+    """Inicia a aplicação nativa de câmera."""
     for device in devices:
         device_actions = manager.get_device_actions(device)
         device_actions.camera.open()
 
 def go_to_home():
+    """Simula o pressionamento do botão Home."""
     for device in devices:
         device_actions = manager.get_device_actions(device)
         device_actions.home_button()
 
 
 def activate_phone_awake():
+    """Configura a tela para nunca desligar enquanto o cabo USB estiver conectado."""
     for device in devices:
         info = manager.get_device_info(device)
         is_awake_active = info.is_stay_awake_enabled()
@@ -104,6 +116,7 @@ def activate_phone_awake():
             print("Modo awake ativado com sucesso!")
 
 def check_air_plane_mode():
+    """Verifica se o modo avião está ativo no dispositivo Android."""
     for device in devices:
         info = manager.get_device_info(device)
         is_air_plane_active = info.is_airplane_mode_enabled()
@@ -113,6 +126,7 @@ def check_air_plane_mode():
             print("O modo avião está desativado")
 
 def touch_middle_screen():
+    """Calcula o centro exato da tela e simula um toque na coordenada."""
     for device in devices:
         info = manager.get_device_info(device)
         width, height = info.get_screen_dimensions()
@@ -126,6 +140,7 @@ def touch_middle_screen():
             print("Toque realizado no centro da tela!")
 
 def swipe_top_to_bottom():
+    """Simula uma ação de arrastar o dedo de cima para baixo no centro da tela."""
     for device in devices:
         info = manager.get_device_info(device)
         width, height = info.get_screen_dimensions()
@@ -154,7 +169,7 @@ def swipe_top_to_bottom():
 # wake_up_screen()
 
 # 6. Verificar se a tela está bloqueada; Desbloquear caso bloqueada;
-# unlock_screen_with_pin()
+# unlock_screen()
 
 # 7. Mostrar o serial_number, fabricante, modelo e versão do android
 # show_phone_info()
