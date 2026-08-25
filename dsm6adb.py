@@ -190,7 +190,7 @@ def tocar_meio():
     "input",
     "tap",
     "540",
-    "1170"])
+    "585"])
 
 def swipe_topoBase():
     #dimensões do Samsung A15 (540,0) é o meio horizontal. 1000 é o tempo de swipe, medido em ms

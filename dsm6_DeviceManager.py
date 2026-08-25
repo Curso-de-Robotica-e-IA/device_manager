@@ -1,3 +1,4 @@
+import time
 from device_manager import DeviceManager, DeviceInfo, DeviceActions
 from device_manager.connection.adb_pairing import AdbPairing
 
@@ -77,6 +78,8 @@ def desbloquear_tela_sem_pin():
             else:
                 print("Tela já está desbloqueada.")
 
+#def desbloquear_tela_com_pin():
+     
 
 def recuperar_info():
     propriedades = scout.get_properties()
@@ -90,4 +93,60 @@ def recuperar_info():
     print(f"Fabricante:     {fabricante.upper()}")
     print(f"Modelo:         {modelo.upper()}")
     print(f"Versão Android: Android {versao_android}")
+
+def mostrar_dimensões():
+        print(scout.get_screen_dimensions())
+
+def listar_apps():
+     print (scout.list_installed_all_apps())
+
+def mostrar_activity():
+     print (scout.actual_activity())
+
+def abrir_camera():
+    pacote_camera = "com.sec.android.app.camera"
+
+    conectados = manager.connect_devices(serial)
+    
+    if serial not in conectados:
+        print(f"Não foi possível conectar ao dispositivo {serial}.")
+        return
+        
+    scout, actioner = manager[serial]
+    
+    
+    if not scout.is_screen_on:
+        actioner.turn_on_screen()
+        time.sleep(0.5)
+        
+    if scout.is_device_locked:
+        print("O dispositivo está bloqueado. Desbloqueie o aparelho primeiro para abrir o app.")
+        return
+
+    print("Iniciando o aplicativo da Câmera...")
+
+
+    if hasattr(actioner, 'start_app'):
+        actioner.start_app(pacote_camera)
+        print("Comando enviado via actioner.start_app()")
+        
+    elif hasattr(actioner, 'launch_app'):
+        actioner.launch_app(pacote_camera)
+        print("Comando enviado via actioner.launch_app()")
+
+def home_button():
+      return actioner.home_button()
+
+def awake_ativado():
+     return scout.is_stay_awake_enabled()
+
+def checar_modo_aviao():
+     return scout.is_airplane_mode_enabled()
+
+def toque_meio():
+     return actioner.click_by_coordinates(540,585)
+
+def realizar_swipe():
+     return actioner.swipe(540,0,540,1920,1000)
+
 
