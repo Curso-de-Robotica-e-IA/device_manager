@@ -1,6 +1,9 @@
 
 from device_manager import DeviceManager
 from device_manager.connection.utils.connection_type import ConnectionType
+from device_manager.connection.adb_pairing import AdbPairing
+
+DEVICE_IP = "192.168.158.25:35517"
 
 manager = DeviceManager()
 
@@ -14,28 +17,34 @@ def show_devices():
 
 def connect_with_code():
     """Emparelha um novo dispositivo via Wi-Fi usando um código de autenticação."""
-    manager.adb_pairing_instance()  
-    qrcode = manager.adb_pair.qrcode_string
+    pairing = AdbPairing()
 
-    return qrcode
+    PAIR_CODE = '927546'
+    PAIR_IP = '192.168.158.25:42371'
+    
+    has_connected = pairing.pair_device_with_paring_code(PAIR_IP, PAIR_CODE)
+    if has_connected:
+        print("Dispositivo conectado com sucesso!")
+    else:
+        print("Falha ao conectar o dispositivo")
 
-def connect_with_wifi():
-    """Conecta a um dispositivo Android previamente emparelhado usando rede Wi-Fi."""
-    manager.adb_pairing_instance()  
-    result = manager.connect_devices("RXCW5054NGB")
+def connect_with_serial_number():
+    """Conecta a um dispositivo Android previamente emparelhado usando o serial number."""
+    result = manager.connect_devices("RQCX805H9MZ")
 
     return result
 
 def show_usb_wifi_devices():
     """Separa os dispositivos conectados atualmente entre conexões USB e Wi-Fi."""
     network_devices = manager.connector.visible_devices()
+    connected_devices = list(filter(lambda x: x.serial_number in devices, network_devices))
     wifi_devices = []
     usb_devices = []
-    for network in network_devices:
-        if network.connection == ConnectionType.WIFI:
-            wifi_devices.append(network)
-        if network.connection == ConnectionType.USB:
-            usb_devices.append(network)
+    for device in connected_devices:
+        if device.connection == ConnectionType.WIFI:
+            wifi_devices.append(device)
+        if device.connection == ConnectionType.USB:
+            usb_devices.append(device)
 
     print("Dispositivos USB: ")
     for x in usb_devices:
@@ -65,6 +74,7 @@ def unlock_screen():
         else:
             device_actions = manager.get_device_actions(device)
             device_actions.unlock_screen()
+            print("A tela está ligada!")
 
 def show_phone_info():
     """Imprime no console dados básicos do celular como modelo e versão do Android."""
@@ -160,7 +170,7 @@ def swipe_top_to_bottom():
 # print(connect_with_code())
 
 # 3. Conectar device com ip e porta
-# print(connect_with_wifi())
+# print(connect_with_serial_number())
 
 # 4. Mostrar devices conectados via usb e via wifi
 # show_usb_wifi_devices()
