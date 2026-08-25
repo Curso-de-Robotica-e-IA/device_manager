@@ -1,5 +1,5 @@
 from device_manager import DeviceManager, DeviceActions, DeviceInfo
-from device_manager.connection.device_connection import DeviceConnection
+import time
 
 def show_devices(manager:DeviceManager):
     network_devices = manager.connector.visible_devices()
@@ -32,11 +32,19 @@ def dimensions_display(info:DeviceInfo):
 def get_info(manager:DeviceManager):
     ...
 
+def open_camera(action:DeviceActions):
+    action.camera.open()
+
+def stay_awake(action:DeviceActions, info:DeviceInfo):
+    if not info.is_stay_awake_enabled():
+        return action.set_stay_awake(True)
+    action.set_stay_awake(False)
 def connect_to_serial_number(manager:DeviceManager):
     return manager.connector.is_connected(number)
 
 def swipe_action(action:DeviceActions):
     action.turn_on_screen()
+    time.sleep(1)
     action.swipe(10,10,300,1000,1000)
 if __name__ == "__main__":
     number = "N3KN4M0112"
@@ -47,4 +55,6 @@ if __name__ == "__main__":
     #print(dimensions_display(device_info))
     #print(list_all_apps_installed(device_info))
     #print(connect_to_serial_number(manager))
-    swipe_action(device_action)
+    #swipe_action(device_action)
+    #stay_awake(device_action, device_info)
+    #print(open_camera(device_action))
