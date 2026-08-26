@@ -8,10 +8,6 @@ dict_keyevent["power"] = "KEYCODE_POWER";dict_keyevent["enter"] = "KEYCODE_ENTER
 dict_keyevent["home"]="KEYCODE_HOME"
 
 def update_conected_devices(devices:dict,device_list=[]):
-    # manager.connect_devices()
-    # for device in manager:
-    #     i = 1
-    #     device.info
     if len(device_list) == 0:
         device_list = list(devices.keys()) 
     for device in device_list:
@@ -24,13 +20,10 @@ def update_conected_devices(devices:dict,device_list=[]):
     return devices
 
 
-def build_Comand(d):
-    pass
-
 def pair_device_wifi(ip,port,key):
     manager.adb_pair.pair_device_with_paring_code(f"{ip}:{port}",key)
 
-screen_state = {}
+
 def checkScreenState(device):
     on = manager.get_device_info(device).is_screen_on()
     lock = manager.get_device_info(device).is_device_locked()
@@ -47,11 +40,7 @@ def checkScreenState(device):
 def turn_screen(device):
     manager.get_device_actions(device).turn_on_screen()
 def unlock_device(device):
-    # manager.execute_adb_command(f"shell input keyevent {dict_keyevent['enter']}")
     manager.get_device_actions(device).unlock_screen()
-    # for k in list(str(key)):
-    #     manager.get_device_actions(device)
-    #     manager.execute_adb_command(f"shell input keyevent {dict_keyevent[k]}")
 
 def listApps(device):
     return manager.get_device_info(device).list_installed_all_apps()
@@ -93,31 +82,14 @@ def airplaneModeOn(device):
 
 print(__name__)
 if __name__ == "__main__":
-    
-    l = list(manager.connector.visible_devices())
-    manager.connector.connect_all_devices()
-    # for line in manager.connector.visible_devices(): 
-    #     print(line)
-    #     sn = line.serial_number
-        
-    #     manager.connect_devices(sn)
-    print(dumps({},indent=1))
-    #connector =  connection.
-    #manager.adb_pair.set_password()
+
+    for info in list(manager.connector.visible_devices()):
+        manager.connect_devices(info.serial_number)
+    print(dumps({line.serial_number:line.connection.name for line in list(manager.connector.visible_devices())},indent=1))
+    for line in manager.connector.visible_devices(): 
+        print(line)
     manager.adb_pairing_instance()
-
-    #manager.connector.connection.
     with manager.adb_pair.pair() as qrcode_string:
-        # Show the QRCode in a window, or print it in the terminal
         print(qrcode_string)
-        # manager.adb_pair.generate_qrcode_string
-        #manager.connector.connection.device_pairing(10)
-    #qrcode = manager.adb_pair.qrcode_string  # (2)!
-
-    #manager.connect_devices("RQCRA00NL6D")
-    #manager.connect_devices("RQCRA00NL6D")
     print(manager)
     print(manager.connected_devices)
-    #manager.adb_pair()
-    #manager.disconnect_devices()
-    #print(f"{dev.__class__}\n{dev}")
