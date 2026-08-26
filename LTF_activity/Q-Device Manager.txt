@@ -1,6 +1,6 @@
 ---------------------Mostrar os devices disponíveis;
 ---------------------Parear device utilizando o Código de pareamento;
--Conectar device pelo serial number;
+---------------------Conectar device pelo serial number;
 -Mostrar devices conectados via usb e via wifi;
 ---------------------Verificar se a tela está ligada;
 ---------------------Ligar caso desligada;
