@@ -11,7 +11,9 @@ def update_conected_devices(devices:dict,device_list=[]):
     if len(device_list) == 0:
         device_list = list(devices.keys()) 
     for device in device_list:
+        
         if device not in devices:
+            #info = manager.get_device_info(device)
             devices[device] = {}
         devices[device]["SN"] = manager.get_device_info(device).serial_number
         devices[device]["Screen_D"] = manager.get_device_info(device).get_screen_dimensions()
@@ -19,10 +21,8 @@ def update_conected_devices(devices:dict,device_list=[]):
     
     return devices
 
-
 def pair_device_wifi(ip,port,key):
     manager.adb_pair.pair_device_with_paring_code(f"{ip}:{port}",key)
-
 
 def checkScreenState(device):
     on = manager.get_device_info(device).is_screen_on()
@@ -37,8 +37,10 @@ def checkScreenState(device):
             return "on unlocked"
         else:
             return "off unlocked"
+
 def turn_screen(device):
     manager.get_device_actions(device).turn_on_screen()
+
 def unlock_device(device):
     manager.get_device_actions(device).unlock_screen()
 
@@ -82,14 +84,18 @@ def airplaneModeOn(device):
 
 print(__name__)
 if __name__ == "__main__":
-
+    devices_dict = {}
     for info in list(manager.connector.visible_devices()):
         manager.connect_devices(info.serial_number)
+    
+    manager.adb_pairing_instance()
+    pair_device_wifi("10.158.241.13","45863","661822")
+    print(manager)
+    print(manager.connected_devices)
     print(dumps({line.serial_number:line.connection.name for line in list(manager.connector.visible_devices())},indent=1))
     for line in manager.connector.visible_devices(): 
         print(line)
-    manager.adb_pairing_instance()
-    with manager.adb_pair.pair() as qrcode_string:
-        print(qrcode_string)
-    print(manager)
-    print(manager.connected_devices)
+    for device in manager:
+        print(device)
+    devices_dict = update_conected_devices(devices_dict,[dev.serial_number for dev in manager])
+    print(dumps(devices_dict,indent=1))
