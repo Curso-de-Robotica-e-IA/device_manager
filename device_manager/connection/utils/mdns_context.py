@@ -1,5 +1,4 @@
 from threading import Lock
-from typing import Dict, List
 
 from device_manager.connection.utils.service_info import ServiceInfo
 
@@ -28,12 +27,12 @@ class MDnsContext:
     """
 
     def __init__(self):
-        self.__services_info_online = {}
-        self.__services_info_offline = {}
+        self.__services_info_online: dict[str, ServiceInfo] = {}
+        self.__services_info_offline: dict[str, ServiceInfo] = {}
         self.__mutex = Lock()
 
     @property
-    def online_service_list(self) -> List[ServiceInfo]:
+    def online_service_list(self) -> list[ServiceInfo]:
         """Get the online service list.
 
         Returns:
@@ -41,7 +40,7 @@ class MDnsContext:
         """
         return [ser_info for ser_info in self.get_online_service().values()]
 
-    def get_online_service(self) -> Dict[str, ServiceInfo]:
+    def get_online_service(self) -> dict[str, ServiceInfo]:
         """Get the online service list.
 
         Returns:
@@ -53,7 +52,7 @@ class MDnsContext:
             return all_data
 
     @property
-    def offline_service_list(self) -> List[ServiceInfo]:
+    def offline_service_list(self) -> list[ServiceInfo]:
         """Get the offline service list.
 
         Returns:
@@ -61,7 +60,7 @@ class MDnsContext:
         """
         return [ser_info for ser_info in self.get_offline_service().values()]
 
-    def get_offline_service(self) -> Dict[str, ServiceInfo]:
+    def get_offline_service(self) -> dict[str, ServiceInfo]:
         """Get the offline service list.
 
         Returns:

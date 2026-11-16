@@ -1,10 +1,9 @@
-from types import MappingProxyType
-from typing import Dict, Generic, Optional, TypeVar
+from typing import Any, Iterator, KeysView, TypeVar
 
 T = TypeVar('T')
 
 
-class ObjectManager(Generic[T]):
+class ObjectManager[T]:
     """Generic object manager class to manage objects of a specific type.
     The class provides methods to add, remove, get, edit, and iterate over
     objects of a specific type.
@@ -15,9 +14,9 @@ class ObjectManager(Generic[T]):
     """
 
     def __init__(self):
-        self.__objects: Dict[str, T] = dict()
+        self.__objects: dict[str, T] = dict()
 
-    def keys(self) -> MappingProxyType:
+    def keys(self) -> KeysView[str]:
         """Get the keys of the objects in the manager.
 
         Returns:
@@ -25,7 +24,7 @@ class ObjectManager(Generic[T]):
         """
         return self.__objects.keys()
 
-    def add(self, key: str, obj: T):
+    def add(self, key: Any, obj: T) -> None:
         """Add an object to the manager.
 
         Args:
@@ -44,37 +43,44 @@ class ObjectManager(Generic[T]):
                 raise TypeError(f'Object of type {type(obj)} not allowed')
         self[key] = obj
 
-    def remove(self, key: str):
+    def remove(self, key: Any) -> None:
         """Remove an object from the manager.
 
         Args:
             key (str): The key of the object to remove.
         """
+        if not isinstance(key, str):
+            raise TypeError(f'Key of type {type(key)} not allowed')
         if key in self.__objects:
             del self[key]
 
-    def get(self, key: str) -> T:
+    def get(self, key: Any) -> T | None:
         """Get an object from the manager.
 
         Args:
             key (str): The key of the object to get.
 
         Returns:
-            T: The object associated with the key.
+            Optional[T]: The object associated with the key, or None if the key
+                is not found.
         """
+        if not isinstance(key, str):
+            raise TypeError(f'Key of type {type(key)} not allowed')
         return self[key]
 
-    def edit(self, key: str, new_obj: T):
+    def edit(self, key: Any, new_obj: T) -> None:
         """Edit an object in the manager.
 
         Args:
             key (str): The key of the object to edit.
             new_obj (T): The new object to replace the existing object.
         """
+        if not isinstance(key, str):
+            raise TypeError(f'Key of type {type(key)} not allowed')
         if key in self.__objects:
             self[key] = new_obj
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Get the number of objects in the manager.
 
         Returns:
@@ -82,11 +88,11 @@ class ObjectManager(Generic[T]):
         """
         return len(self.__objects)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[T]:
         """Iterate over the objects in the manager."""
         return iter(self.__objects.values())
 
-    def __getitem__(self, key: str) -> Optional[T]:
+    def __getitem__(self, key: str) -> T | None:
         """Get an object from the manager.
 
         Args:
@@ -100,7 +106,7 @@ class ObjectManager(Generic[T]):
         except KeyError:
             return None
 
-    def __setitem__(self, key: str, obj: T):
+    def __setitem__(self, key: str, obj: T) -> None:
         """Set an object in the manager.
 
         Args:
@@ -109,7 +115,7 @@ class ObjectManager(Generic[T]):
         """
         self.__objects[key] = obj
 
-    def __delitem__(self, key: str):
+    def __delitem__(self, key: str) -> None:
         """Remove an object from the manager.
 
         Args:

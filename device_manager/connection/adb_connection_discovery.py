@@ -1,7 +1,7 @@
 import logging
+from typing import Any, Generator
 import weakref
 from contextlib import contextmanager
-from typing import Dict, Optional
 
 from zeroconf import ServiceBrowser, Zeroconf
 
@@ -52,9 +52,9 @@ class AdbConnectionDiscovery:
         self.__started = False
         self.__service_re_filter = DEFAULT_REGEX_FILTER
         self.__service_type = CONNECT_SERVICE_TYPE
-        self.__zeroconf: Optional[Zeroconf] = None
-        self.__finalize: Optional[weakref.finalize] = None
-        self.__browser: Optional[ServiceBrowser] = None
+        self.__zeroconf: Zeroconf | None = None
+        self.__finalize: weakref.finalize[Any, Any] | None = None
+        self.__browser: ServiceBrowser | None = None
         self.__context = MDnsContext()
 
     def start(self) -> None:
@@ -86,7 +86,7 @@ class AdbConnectionDiscovery:
             self.__started = True
 
     @contextmanager
-    def start_discovery_listener(self):
+    def start_discovery_listener(self) -> Generator[None, Any, None]:
         """Context manager to start the ServiceBrowser and stop it after the
         block is executed. Once the block is executed, the ServiceBrowser is
         stopped.
@@ -107,7 +107,7 @@ class AdbConnectionDiscovery:
         return self.__started
 
     @property
-    def browser(self) -> Optional[ServiceBrowser]:
+    def browser(self) -> ServiceBrowser | None:
         """Returns the actual ServiceBrowser instance, if it exists.
 
         Returns:
@@ -126,7 +126,7 @@ class AdbConnectionDiscovery:
             return False
         return self.__finalize.alive
 
-    def online_devices(self) -> Dict[str, ServiceInfo]:
+    def online_devices(self) -> dict[str, ServiceInfo]:
         """Get the online devices from the class Context.
 
         Returns:
@@ -135,7 +135,7 @@ class AdbConnectionDiscovery:
         """
         return self.__context.get_online_service()
 
-    def offline_devices(self) -> Dict[str, ServiceInfo]:
+    def offline_devices(self) -> dict[str, ServiceInfo]:
         """Get the offline devices from the class Context.
 
         Returns:
@@ -144,7 +144,7 @@ class AdbConnectionDiscovery:
         """
         return self.__context.get_offline_service()
 
-    def get_service_info_for(self, serial_num: str) -> Optional[ServiceInfo]:
+    def get_service_info_for(self, serial_num: str) -> ServiceInfo | None:
         """Get the service information for a given serial number. If the
         serial number is not in the online list, it will return None.
 
@@ -201,4 +201,6 @@ class AdbConnectionDiscovery:
 
     def stop_discovery_listener(self) -> None:
         """Stop the ServiceBrowser and close the Zeroconf instance."""
+        if self.__zeroconf is None:
+            raise AttributeError("ServiceBrowser not started")
         self.__zeroconf.close()

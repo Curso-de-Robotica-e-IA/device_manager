@@ -1,7 +1,6 @@
 import logging
 import subprocess
 from time import sleep, time
-from typing import Dict, Optional
 
 from device_manager.connection.adb_connection_discovery import (
     AdbConnectionDiscovery,
@@ -71,7 +70,7 @@ class ConnectionManager:
                 return True
         return False
 
-    def available_devices(self) -> Dict[str, ServiceInfo]:
+    def available_devices(self) -> dict[str, ServiceInfo]:
         """Get the list of devices that are currently online.
         The dict is indexed by the serial number of the devices.
 
@@ -99,7 +98,7 @@ class ConnectionManager:
         )
         adb_pairing = AdbPairing()
         adb_pairing.start()
-        adb_pairing._qrcode.qrcode_cv_window_show()
+        adb_pairing._qrcode.qrcode_cv_window_show() # pyright: ignore[reportPrivateUsage]
         start_time = time()
         while (
             not adb_pairing.has_device_to_pairing()
@@ -110,7 +109,7 @@ class ConnectionManager:
         adb_pairing.stop_pair_listener()
         return result
 
-    def device_connect(self, serial_num: str) -> Optional[ServiceInfo]:
+    def device_connect(self, serial_num: str) -> ServiceInfo | None:
         """Connects to a device using the serial number.
 
         Args:
@@ -151,7 +150,7 @@ class ConnectionManager:
     def validate_and_reconnect_device(
         self,
         info: ServiceInfo,
-    ) -> Optional[ServiceInfo]:
+    ) -> ServiceInfo | None:
         """Validate the connection status of a device and reconnect if
         necessary.
 
@@ -176,7 +175,7 @@ class ConnectionManagerSingleton(ConnectionManager):
 
     _instance = None
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs): # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
         if cls._instance is None:
             cls._instance = super(ConnectionManagerSingleton, cls).__new__(cls)
         return cls._instance

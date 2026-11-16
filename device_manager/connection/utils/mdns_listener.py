@@ -1,7 +1,6 @@
 import logging
 import re
 import socket
-from typing import Optional
 
 from zeroconf import (
     ServiceInfo as ZeroconfServiceInfo,
@@ -62,7 +61,7 @@ class MDnsListener(ServiceListener):
     def __init__(
         self,
         service_context: MDnsContext,
-        re_filter: Optional[str] = None,
+        re_filter: str | None = None,
         service_type: str = CONNECT_SERVICE_TYPE,
     ) -> None:
         super().__init__()
@@ -110,8 +109,8 @@ class MDnsListener(ServiceListener):
 
     def _extract_info(
         self,
-        info: ZeroconfServiceInfo,
-    ) -> Optional[ServiceInfo]:
+        info: ZeroconfServiceInfo | None,
+    ) -> ServiceInfo | None:
         """Extracts the serial number, IP address, port and connection type from 
         the service information. If the service name does not match the regular 
         expression filter, then None is returned.
@@ -128,6 +127,8 @@ class MDnsListener(ServiceListener):
         try:
             ip = f'{socket.inet_ntoa(info.addresses[0])}'
             port = info.port
+            if port is None:
+                raise ValueError("Port not detected")
             if self.__re_filter is None:
                 return ServiceInfo(info.name.split('.')[0], ip, port, connection=ConnectionType.WIFI)
             match_result = re.match(

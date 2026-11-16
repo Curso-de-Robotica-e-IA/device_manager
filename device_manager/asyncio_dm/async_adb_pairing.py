@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import subprocess
-from typing import Optional, Sequence, Tuple, Union
+from typing import Sequence
 from weakref import finalize
 
 from zeroconf import InterfaceChoice, IPVersion, ServiceBrowser
@@ -10,11 +10,7 @@ from device_manager.asyncio_dm.async_mdns_listener import AsyncMDnsListener
 from device_manager.asyncio_dm.async_zeroconf import AsyncZeroconf
 from device_manager.connection.adb_pairing import AdbPairing
 
-InterfacesType = Union[
-    Sequence[Union[str, int, Tuple[Tuple[str, int, int], int]]],
-    InterfaceChoice,
-]  # noqa
-
+InterfacesType = Sequence[str | int | tuple[tuple[str, int, int], int]] | InterfaceChoice
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +25,7 @@ class AsyncAdbPairing(AdbPairing):
         self,
         interfaces: InterfacesType = InterfaceChoice.Default,
         unicast: bool = False,
-        ip_version: Optional[IPVersion] = None,
+        ip_version: IPVersion | None = None,
     ):
         """Instantiates a new AsyncZeroconf instance with the given arguments.
         It uses the base class Zeroconf instance to create the new
@@ -49,11 +45,11 @@ class AsyncAdbPairing(AdbPairing):
             zc=old_instance,
         )
 
-    async def start(
+    async def start(  # pyright: ignore[reportIncompatibleMethodOverride]
         self,
         interfaces: InterfacesType = InterfaceChoice.Default,
         unicast: bool = False,
-        ip_version: Optional[IPVersion] = None,
+        ip_version: IPVersion | None = None,
     ) -> None:
         """Start the AsyncServiceBrowser to listen to the mDNS services.
         This functions accepts the interfaces, unicast, and ip_version
@@ -82,6 +78,8 @@ class AsyncAdbPairing(AdbPairing):
                 unicast=unicast,
                 ip_version=ip_version,
             )
+            if self._zeroconf is None:
+                raise AttributeError("zeroconf not configured")
             try:
                 self._browser = ServiceBrowser(
                     self._zeroconf,
@@ -104,16 +102,18 @@ class AsyncAdbPairing(AdbPairing):
 
             self._finalize = finalize(self._zeroconf, atexit)
             self._started = True
-            self._browser._async_start()
-            asyncio.sleep(5)
+            self._browser._async_start() # pyright: ignore[reportPrivateUsage]
+            await asyncio.sleep(5)
 
-    async def stop_pair_listener(self) -> None:
+    async def stop_pair_listener(self) -> None: # pyright: ignore[reportIncompatibleMethodOverride]
         """Stop the ServiceBrowser and close the Zerconf instance."""
-        await self._zeroconf._async_close()
+        if self._zeroconf is None:
+            raise AttributeError("zeroconf not configured")
+        await self._zeroconf._async_close() # pyright: ignore[reportPrivateUsage]
         self._browser = None
         self._started = False
 
-    async def pair_devices(self) -> bool:
+    async def pair_devices(self) -> bool: # pyright: ignore[reportIncompatibleMethodOverride]
         """Attempts to pair with the devices found by the mDNS listener.
         This method uses the adb command to pair with the devices. The
         connection URI is extracted from the service information found by the

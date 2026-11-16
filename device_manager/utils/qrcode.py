@@ -1,8 +1,11 @@
+import io
+from typing import Any
+
 import cv2 as cv
 import numpy as np
 import qrcode
 import qrcode.constants
-from qrcode.main import GenericImage
+from qrcode.image.base import BaseImage
 
 
 class QRCode:
@@ -56,7 +59,7 @@ class QRCode:
         return self.__qrcode_data
 
     @qrcode_string.setter
-    def qrcode_string(self, value: str) -> None:
+    def qrcode_string(self, value: Any) -> None:
         """Sets the QR code data string.
 
         Args:
@@ -67,16 +70,16 @@ class QRCode:
         self.__qrcode_data = value
 
     @property
-    def qrcode_object(self) -> qrcode.QRCode:
+    def qrcode_object(self) -> qrcode.QRCode[Any]:
         """Returns the QR code object.
 
         Returns:
-            qrcode.QRCode: The QR code object.
+            qrcode.QRCode[Any]: The QR code object.
         """
         return self.__object
 
     @property
-    def qr_image(self) -> GenericImage:
+    def qr_image(self) -> BaseImage:
         """Returns the QR code image.
 
         Returns:
@@ -101,8 +104,12 @@ class QRCode:
         Returns:
             cv.typing.MatLike: The QR code image in OpenCV format.
         """
-        img_rgb = self.__qr_image.convert('RGB')
-        img_mat = cv.cvtColor(np.array(img_rgb), cv.COLOR_RGB2BGR)
+        image_buffer = io.BytesIO()
+        self.__qr_image.save(image_buffer)
+        img_mat = cv.imdecode(
+            np.frombuffer(image_buffer.getvalue(), dtype=np.uint8),
+            cv.IMREAD_COLOR,
+        )
 
         return cv.resize(img_mat, (size, size))
 

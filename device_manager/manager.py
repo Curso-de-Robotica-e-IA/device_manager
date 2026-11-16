@@ -1,5 +1,5 @@
 from subprocess import CompletedProcess
-from typing import Iterable, List, NamedTuple, Optional, Tuple
+from typing import Iterable, NamedTuple
 
 from device_manager.adb_executor import execute_adb_command
 from device_manager.components.object_manager import ObjectManager
@@ -80,7 +80,7 @@ class DeviceManager:
             subprocess_check_flag=self.subprocess_check,
             fixed_port=self._devices_fixed_port,
         )
-        self.adb_pair: Optional[AdbPairing] = None
+        self.adb_pair: AdbPairing | None = None
         self.__device_info: ObjectManager[DeviceInfo] = ObjectManager()
         self.__device_actions: ObjectManager[DeviceActions] = ObjectManager()
         self.load_connected_usb_devices()
@@ -89,7 +89,7 @@ class DeviceManager:
     def __getitem__(
         self,
         serial_number: str,
-    ) -> Optional[Tuple[DeviceInfo, DeviceActions]]:
+    ) -> tuple[DeviceInfo, DeviceActions] | None:
         """Get the device information and actions associated with a
         serial number. If the serial number is not found, None is returned.
 
@@ -103,6 +103,10 @@ class DeviceManager:
         try:
             info = self.__device_info.get(serial_number)
             actions = self.__device_actions.get(serial_number)
+            if info is None:
+                raise ValueError("device info was not found")
+            if actions is None:
+                raise ValueError("device actions was not found")
             return info, actions
         except KeyError:
             return None
@@ -118,10 +122,19 @@ class DeviceManager:
 
         Supports usage of the `for` loop to iterate over the devices."""
         for serial in self.__device_info.keys():
+            device_info = self.__device_info.get(serial)
+            device_actions = self.__device_actions.get(serial)
+            
+            if device_info is None:
+                raise ValueError("device info was not found")
+            
+            if device_actions is None:
+                raise ValueError("device actions was not found")
+            
             yield DeviceObjects(
                 serial_number=serial,
-                device_info=self.__device_info.get(serial),
-                device_actions=self.__device_actions.get(serial),
+                device_info=device_info,
+                device_actions=device_actions,
     )
 
     def __delitem__(self, key: str) -> None:
@@ -156,7 +169,7 @@ class DeviceManager:
         return f'DeviceManager({len(self)} devices: {list(self.__device_info.keys())})'  # noqa
 
     @property
-    def connected_devices(self) -> List[str]:
+    def connected_devices(self) -> list[str]:
         """Returns the list of serial numbers of the devices that are
         currently connected.
 
@@ -185,8 +198,8 @@ class DeviceManager:
             for service in visibles_devices
         }
 
-        usb_serials = []
-        wifi_serials = []
+        usb_serials: list[str] = []
+        wifi_serials: list[str] = []
 
         for serial in serial_numbers:
             service = visible_by_serial.get(serial)
@@ -243,7 +256,7 @@ class DeviceManager:
                     self.__device_actions.remove(serial)
         return success_op
 
-    def get_device_info(self, serial_number: str) -> DeviceInfo:
+    def get_device_info(self, serial_number: str) -> DeviceInfo | None:
         """Retrieves the device information associated with a given
         serial number.
 
@@ -255,7 +268,7 @@ class DeviceManager:
         """
         return self.__device_info.get(serial_number)
 
-    def get_device_actions(self, serial_number: str) -> DeviceActions:
+    def get_device_actions(self, serial_number: str) -> DeviceActions | None:
         """Retrieves the device actions associated with a given serial number.
 
         Args:
@@ -269,12 +282,12 @@ class DeviceManager:
     def execute_adb_command(
         self,
         command: str,
-        comm_uris: Optional[List[str]] = None,
+        comm_uris: list[str] | None = None,
         shell: bool = True,
         subprocess_check_flag: bool = False,
         capture_output: bool = False,
-        **kwargs,
-    ) -> CompletedProcess:
+        **kwargs: str,
+    ) -> CompletedProcess[str]:
         """Executes a custom adb command on all connected devices.
         Additional arguments and keyword arguments can be provided to
         customize the command, which will be added to the end of the command
@@ -305,14 +318,13 @@ class DeviceManager:
         Returns:
             CompletedProcess: The result of the command execution.
         """
-        uris = comm_uris
+        uris: list[str] | None = comm_uris
         if comm_uris is None:
             uris = []
             for serial in self.__device_info.keys():
                 service_info = self.connector.connection_info.get(serial)
                 if service_info is None:
                     continue
-
 
                 if service_info.connection == ConnectionType.USB:
                     uris.append(serial)
@@ -335,7 +347,7 @@ class DeviceManager:
     def adb_pairing_instance(
         self,
         service_name: str = 'robot_celular',
-        service_regex_filter: Optional[str] = None,
+        service_regex_filter: str | None = None,
         subprocess_check_flag: bool = False,
     ) -> None:
         """Creates an instance of the AdbPairing class. This instance will

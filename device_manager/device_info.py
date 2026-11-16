@@ -1,7 +1,7 @@
 import re
-from typing import Dict, List, Optional, TypedDict
+from typing import TypedDict
 
-import uiautomator2 as u2
+import uiautomator2 as u2 # pyright: ignore[reportMissingTypeStubs]
 
 from device_manager.adb_executor import execute_adb_command
 from device_manager.connection.device_connection import DeviceConnection
@@ -73,7 +73,7 @@ class DeviceInfo:
         """
         return self.__serial_number
 
-    def actual_activity(self) -> str:
+    def actual_activity(self) -> str | None:
         """
         This method checks the device connection and executes an ADB command
         to obtain information about the top resumed activity from the Android
@@ -129,7 +129,7 @@ class DeviceInfo:
                 return True
             elif 'false' in result:
                 return False
-            raise ValueError(UNEXPECTED_ADB_OUTPUT)
+        raise ValueError(UNEXPECTED_ADB_OUTPUT)
 
     def is_device_locked(self) -> bool:
         """This method checks if the associated device is locked.
@@ -158,9 +158,9 @@ class DeviceInfo:
             elif 'false' in result:
                 return False
 
-            raise ValueError(UNEXPECTED_ADB_OUTPUT)
+        raise ValueError(UNEXPECTED_ADB_OUTPUT)
 
-    def get_screen_gui_xml(self) -> str:
+    def get_screen_gui_xml(self) -> str | None:
         """This method retrieves the .xml that represents the current state
         of the device screen.
 
@@ -176,8 +176,8 @@ class DeviceInfo:
 
     def get_properties(
         self,
-        extra_keys: Optional[List[str]] = None,
-    ) -> Dict[str, str]:
+        extra_keys: list[str] | None = None,
+    ) -> dict[str, str]:
         """This method retrieves the properties of the device, and returns a
         dictionary containing the properties. By default, it retrieves the
         serial number, brand, model, and Android version. If extra keys are
@@ -205,7 +205,7 @@ class DeviceInfo:
                 subprocess_check_flag=self.subprocess_check_flag,
                 capture_output=True,
             ).stdout
-            prop_dict = dict()
+            prop_dict: dict[str, str] = {}
             EXPECTED_LENGTH = 2
             for line in output.splitlines():
                 key_value = line.split(': ', 1)
@@ -213,7 +213,7 @@ class DeviceInfo:
                     key_ = key_value[0][1:-1]
                     value_ = key_value[1][1:-1]
                     prop_dict[key_] = value_
-            base_result = {
+            base_result: dict[str, str] = {
                 'serial_number': prop_dict['ro.serialno'],
                 'brand': prop_dict['ro.product.manufacturer'],
                 'model': prop_dict['ro.product.model'],
@@ -223,7 +223,8 @@ class DeviceInfo:
                 for key in extra_keys:
                     if key in prop_dict:
                         base_result[key] = prop_dict[key]
-            return DeviceProperties(**base_result)
+            return DeviceProperties(**base_result) # pyright: ignore[reportReturnType]
+        raise ValueError(UNEXPECTED_ADB_OUTPUT)
 
     def get_screen_dimensions(self) -> tuple[int, int]:
         """Gets the dimensions of the device screen.
@@ -246,6 +247,7 @@ class DeviceInfo:
             if len(grep_lines) > 0:
                 dimensions = grep_lines[0].split(':')[1].strip().split('x')
                 return int(dimensions[0]), int(dimensions[1])
+        raise ValueError(UNEXPECTED_ADB_OUTPUT)
 
     def app(self, package: str) -> AppInfo:
         """Returns an instance of AppInfo for the specified package.
@@ -331,11 +333,11 @@ class DeviceInfo:
             self.__serial_number,
             force_reconnect=True,
         ):
-            installed_apps = self.list_installed_apps()
+            installed_apps = self.list_installed_all_apps()
             return package_name in installed_apps
         return False
 
-    def get_app_path(self, package_name: str) -> Optional[str]:
+    def get_app_path(self, package_name: str) -> str | None:
         """Gets the installation path of an application on the device.
 
         Args:
@@ -361,7 +363,7 @@ class DeviceInfo:
                     return line.replace('package:', '').strip()
         return None
 
-    def get_location_mode(self) -> Optional[str]:
+    def get_location_mode(self) -> str | None:
         """Return the current location mode reported by the device.
 
         This method runs ``adb shell settings get secure location_mode`` and
@@ -437,7 +439,7 @@ class DeviceInfo:
                 capture_output=True,
             ).stdout
 
-            if output is not None:
+            if output is not None: # pyright: ignore[reportUnnecessaryComparison]
                 status = output.strip()
                 return status == '1'
 

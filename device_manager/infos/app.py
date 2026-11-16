@@ -1,4 +1,3 @@
-import re
 from typing import Optional
 
 from device_manager.adb_executor import execute_adb_command

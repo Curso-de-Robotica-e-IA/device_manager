@@ -1,8 +1,10 @@
-import pytest
+from unittest.mock import MagicMock
 
+import pytest
+from pytest_mock import MockerFixture
 
 @pytest.fixture
-def mock_zeroconf(mocker):
+def mock_zeroconf(mocker: MockerFixture) -> MagicMock:
     zeroconf = mocker.patch(
         'device_manager.connection.utils.mdns_listener.Zeroconf',
     )
@@ -20,7 +22,7 @@ def mock_zeroconf(mocker):
 
 
 @pytest.fixture
-def mock_mdns_context(mocker):
+def mock_mdns_context(mocker: MockerFixture) -> MagicMock:
     context = mocker.patch(
         'device_manager.connection.utils.mdns_context.MDnsContext',
     )

@@ -307,11 +307,11 @@ class DeviceActions:
                 subprocess_check_flag=self.subprocess_check_flag,
             )
     
-    def remove_file(self, remote_path: str) -> None:
+    def remove_file(self, remote_path: Path) -> None:
         """Removes a file from the device.
 
         Args:
-            remote_path (str): The path to the file on the device.
+            remote_path (Path): The path to the file on the device.
         """
         if self.validate_connection():
             execute_adb_command(
@@ -330,7 +330,7 @@ class DeviceActions:
             bytes | None: The screenshot image content as bytes, or None
             if the operation fails.
         """
-        remote_path = "/sdcard/screen.png"
+        remote_path = Path("/sdcard/screen.png")
         tmp_path = Path("._tmp_screen.png")
 
         if self.validate_connection():
@@ -371,14 +371,14 @@ class DeviceActions:
 
     def pull_file(
         self,
-        remote_path: str,
-        local_path: str,
+        remote_path: Path,
+        local_path: Path,
     ) -> None:
         """Pulls a file from the device to the local machine.
 
         Args:
-            remote_path (str): The path to the file on the device.
-            local_path (str): The destination path on the local machine.
+            remote_path (Path): The path to the file on the device.
+            local_path (Path): The destination path on the local machine.
         """
         if self.validate_connection():
             execute_adb_command(

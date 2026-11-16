@@ -1,14 +1,13 @@
 
 
 import subprocess
-from typing import Optional
 
 from device_manager.connection.utils.connection_type import ConnectionType
 from device_manager.connection.utils.service_info import ServiceInfo
 
 
 class UsbDeviceScanner:
-    def __init__(self, subprocess_check_flag):
+    def __init__(self, subprocess_check_flag: bool) -> None:
         self.__subprocess_check_flag = subprocess_check_flag
 
     def list_all_devices(self) -> dict[str, str]:
@@ -19,7 +18,7 @@ class UsbDeviceScanner:
             check=self.__subprocess_check_flag,
         ).stdout
 
-        usb_serial_numbers = {}
+        usb_serial_numbers: dict[str, str] = {}
 
         for line in connected_devices.splitlines()[1:]:
             striped_line = line.strip()
@@ -35,7 +34,7 @@ class UsbDeviceScanner:
     def validate_connection(
         self,
         serial_number: str,
-        devices_connected: Optional[str] = None,
+        devices_connected: str | None = None,
     ) -> bool:
         """Check if the device is connected to the host.
 
@@ -75,7 +74,7 @@ class UsbDeviceScanner:
             check=self.__subprocess_check_flag,
         ).stdout
 
-        usb_serial_numbers = []
+        usb_serial_numbers: list[ServiceInfo] = []
 
         for line in connected_devices.splitlines()[1:]:
             striped_line = line.strip()

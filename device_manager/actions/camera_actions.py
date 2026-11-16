@@ -1,5 +1,6 @@
 from pathlib import Path, PurePosixPath
-from typing import Callable, Optional, Union
+import re
+from typing import Callable
 
 from device_manager.adb_executor import execute_adb_command
 from device_manager.connection.device_connection import DeviceConnection
@@ -97,7 +98,7 @@ class CameraActions:
                 'Device connection is not valid. Cannot take picture.',
             )
 
-    def clear_pictures(self, source: Union[str, Path] = "/sdcard/DCIM/Camera/*") -> None:
+    def clear_pictures(self, source: str | Path | None = "/sdcard/DCIM/Camera/*") -> None:
         """
         Removes all pictures from the specified directory on the device.
 
@@ -131,7 +132,7 @@ class CameraActions:
         
     def pull_pictures(
         self,
-        destination: Union[str, Path],
+        destination: str | Path,
         amount: int = 1,
     ) -> None:
         """Pulls the last taken pictures from the device to the local machine.
@@ -183,8 +184,8 @@ class CameraActions:
     def pull_picture_by_name(
         self,
         image_name: str,
-        destination: Union[str, Path],
-        source: Union[str, Path] = Path("/sdcard/DCIM/Camera"),
+        destination: str | Path,
+        source: str | Path = Path("/sdcard/DCIM/Camera"),
     ) -> None:
         """Pulls a specific image from the device.
 
@@ -231,7 +232,7 @@ class CameraActions:
 
     def _verify_path_exists_and_create_if_not(
         self,
-        path: Union[str, Path],
+        path: str | Path,
     ) -> Path:
         """Verifies if a local directory exists and creates it if needed.
 

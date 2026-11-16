@@ -1,14 +1,13 @@
 import subprocess
 from subprocess import CompletedProcess
-from typing import List
 
 
 def build_command_list(
-    base_command: List[str],
-    comm_uri_list: List[str],
+    base_command: list[str],
+    comm_uri_list: list[str],
     custom_command: str,
-    **kwargs,
-) -> List[str]:
+    **kwargs: str,
+) -> list[str]:
     """Builds a list of commands to be executed on multiple devices.
     This method is used to build a list of commands that will be executed
     on multiple devices. The command is built using the base command
@@ -17,8 +16,8 @@ def build_command_list(
     command.
 
     Args:
-        base_command (List[str]): The base command to be executed.
-        comm_uri_list (List[str]): The list of communication URIs for the
+        base_command (list[str]): The base command to be executed.
+        comm_uri_list (list[str]): The list of communication URIs for the
             devices.
         custom_command (str): The custom command to be executed.
         **kwargs: Additional arguments to be added to the command.
@@ -38,12 +37,12 @@ def build_command_list(
 
 def execute_adb_command(
     command: str,
-    comm_uris: List[str],
+    comm_uris: list[str],
     shell: bool = False,
     subprocess_check_flag: bool = False,
     capture_output: bool = False,
-    **kwargs,
-) -> CompletedProcess:
+    **kwargs: str,
+) -> CompletedProcess[str]:
     """Executes a custom adb command on all connected devices.
     Additional arguments and keyword arguments can be provided to
     customize the command, which will be added to the end of the command
@@ -58,7 +57,7 @@ def execute_adb_command(
 
     Args:
         command (str): The adb command to execute.
-        comm_uris (List[str]): The serial numbers of the
+        comm_uris (list[str]): The serial numbers of the
             devices to execute the command on.
         shell (bool, optional): A flag to indicate if the command should
             be executed as adb shell. Defaults to False.

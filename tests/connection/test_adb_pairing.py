@@ -1,12 +1,12 @@
 from unittest.mock import MagicMock
 
 import pytest
-
+from pytest_mock import MockerFixture
 from device_manager.connection.adb_pairing import AdbPairing
 
 
 @pytest.fixture
-def sample_service(mocker):
+def sample_service(mocker: MockerFixture) -> MagicMock:
     """Provides a mock ServiceInfo object with predefined network data."""
     service = mocker.MagicMock()
     service.ip = '192.168.155.87'
@@ -15,7 +15,7 @@ def sample_service(mocker):
 
 
 @pytest.fixture
-def mock_zeroconf_adb_pairing(mocker):
+def mock_zeroconf_adb_pairing(mocker: MockerFixture) -> MagicMock:
     """Patches Zeroconf class to prevent real network socket creation."""
     mock_class = mocker.patch('device_manager.connection.adb_pairing.Zeroconf')
     instance = mock_class.return_value
@@ -31,28 +31,28 @@ def mock_zeroconf_adb_pairing(mocker):
 
 
 @pytest.fixture
-def adb_pairing(mock_zeroconf_adb_pairing):
+def adb_pairing() -> AdbPairing:
     """Provides a fresh AdbPairing instance for each test."""
     return AdbPairing()
 
 
-def test_init_with_explicit_password(mock_zeroconf_adb_pairing):
+def test_init_with_explicit_password() -> None:
     """Ensure the class accepts and stores a manually provided password."""
     custom_pass = 'my_secret_pass'
     pairing = AdbPairing(password=custom_pass)
     assert pairing.password == custom_pass
 
 
-def test_initial_properties_state(adb_pairing):
+def test_initial_properties_state(adb_pairing: AdbPairing) -> None:
     """Verify that properties return correct default values before any action."""
     assert adb_pairing.browser is None
-    assert adb_pairing.password == adb_pairing._passwd
+    assert adb_pairing.password == adb_pairing._passwd # pyright: ignore[reportPrivateUsage]
     assert adb_pairing.zeroconf_status is False
     assert adb_pairing.qrcode is not None
     assert adb_pairing.qrcode_image is not None
 
 
-def test_zeroconf_status_alive(adb_pairing, mocker):
+def test_zeroconf_status_alive(adb_pairing: AdbPairing, mocker: MockerFixture) -> None:
     """Covers line 144 by checking the alive status of the finalize object."""
     mocker.patch('device_manager.connection.adb_pairing.ServiceBrowser')
     mock_fin = mocker.patch('device_manager.connection.adb_pairing.finalize')
@@ -62,35 +62,35 @@ def test_zeroconf_status_alive(adb_pairing, mocker):
     assert adb_pairing.zeroconf_status is True
 
 
-def test_update_qrcode_persistence(adb_pairing, mocker):
+def test_update_qrcode_persistence(adb_pairing: AdbPairing, mocker: MockerFixture) -> None:
     """Verify that update_qrcode preserves the existing password when requested."""
     mock_qr = mocker.patch('device_manager.connection.adb_pairing.QRCode')
-    current_password = adb_pairing._passwd
+    current_password = adb_pairing._passwd # pyright: ignore[reportPrivateUsage]
     adb_pairing.update_qrcode(new_password=False)
-    assert adb_pairing._passwd == current_password
+    assert adb_pairing._passwd == current_password # pyright: ignore[reportPrivateUsage]
     assert mock_qr.call_count == 1
 
 
-def test_update_qrcode_rotation(adb_pairing, mocker):
+def test_update_qrcode_rotation(adb_pairing: AdbPairing, mocker: MockerFixture) -> None:
     """Verify that update_qrcode generates a new password when requested."""
     mocker.patch('device_manager.connection.adb_pairing.QRCode')
     mocker.patch(
         'device_manager.connection.adb_pairing.create_password',
         return_value='999999',
     )
-    old_password = adb_pairing._passwd
+    old_password = adb_pairing._passwd # pyright: ignore[reportPrivateUsage]
     adb_pairing.update_qrcode(new_password=True)
-    assert adb_pairing._passwd == '999999'
-    assert adb_pairing._passwd != old_password
+    assert adb_pairing._passwd == '999999' # pyright: ignore[reportPrivateUsage]
+    assert adb_pairing._passwd != old_password # pyright: ignore[reportPrivateUsage]
 
 
-def test_set_password_behavior(adb_pairing, mocker):
+def test_set_password_behavior(adb_pairing: AdbPairing, mocker: MockerFixture) -> None:
     """Test explicit password setting with and without QR code update."""
     mock_update = mocker.patch.object(adb_pairing, 'update_qrcode')
     new_pass = '123456'
 
     adb_pairing.set_password(new_pass, update_qrcode=True)
-    assert adb_pairing._passwd == new_pass
+    assert adb_pairing._passwd == new_pass # pyright: ignore[reportPrivateUsage]
     mock_update.assert_called_with(new_password=False)
 
     mock_update.reset_mock()
@@ -99,8 +99,8 @@ def test_set_password_behavior(adb_pairing, mocker):
 
 
 def test_start_engine_configuration(
-    adb_pairing, mocker, mock_zeroconf_adb_pairing
-):
+    adb_pairing: AdbPairing, mocker: MockerFixture
+) -> None:
     """Verify that start() initializes MDnsListener and ServiceBrowser correctly."""
     mock_browser = mocker.patch(
         'device_manager.connection.adb_pairing.ServiceBrowser'
@@ -116,7 +116,7 @@ def test_start_engine_configuration(
     assert adb_pairing.service_browser_started is True
 
 
-def test_start_prevents_duplicate_browsers(adb_pairing, mocker):
+def test_start_prevents_duplicate_browsers(adb_pairing: AdbPairing, mocker: MockerFixture) -> None:
     """Ensure start() does not create multiple browsers if already running."""
     mock_browser = mocker.patch(
         'device_manager.connection.adb_pairing.ServiceBrowser'
@@ -127,7 +127,7 @@ def test_start_prevents_duplicate_browsers(adb_pairing, mocker):
     assert mock_browser.call_count == 1
 
 
-def test_start_runtime_error_wrapping(adb_pairing, mocker):
+def test_start_runtime_error_wrapping(adb_pairing: AdbPairing, mocker: MockerFixture) -> None:
     """Verify that Zeroconf instance limits trigger a custom RuntimeError."""
     mocker.patch(
         'device_manager.connection.adb_pairing.ServiceBrowser',
@@ -140,7 +140,7 @@ def test_start_runtime_error_wrapping(adb_pairing, mocker):
         adb_pairing.start()
 
 
-def test_stop_cleans_resources(adb_pairing, mocker, mock_zeroconf_adb_pairing):
+def test_stop_cleans_resources(adb_pairing: AdbPairing, mocker: MockerFixture, mock_zeroconf_adb_pairing: MagicMock) -> None:
     """Verify that stop_pair_listener closes Zeroconf and resets internal state."""
     mocker.patch('device_manager.connection.adb_pairing.ServiceBrowser')
     mocker.patch('device_manager.connection.adb_pairing.finalize')
@@ -151,7 +151,7 @@ def test_stop_cleans_resources(adb_pairing, mocker, mock_zeroconf_adb_pairing):
     assert adb_pairing.service_browser_started is False
 
 
-def test_finalize_atexit_cleanup(adb_pairing, mocker):
+def test_finalize_atexit_cleanup(adb_pairing: AdbPairing, mocker: MockerFixture) -> None:
     """Verify the internal callback logic used during object finalization."""
     mocker.patch('device_manager.connection.adb_pairing.ServiceBrowser')
     mock_fin = mocker.patch('device_manager.connection.adb_pairing.finalize')
@@ -162,36 +162,36 @@ def test_finalize_atexit_cleanup(adb_pairing, mocker):
     assert adb_pairing.service_browser_started is False
 
 
-def test_new_zeroconf_instance_zombies(adb_pairing, mocker):
+def test_new_zeroconf_instance_zombies(adb_pairing: AdbPairing, mocker: MockerFixture) -> None:
     """Covers lines 237-238 by testing the logic that moves old Zeroconf instances to zombies."""
     mocker.patch('device_manager.connection.adb_pairing.Zeroconf')
-    adb_pairing._new_zeroconf_instance()
-    initial_zc = adb_pairing._zeroconf
+    adb_pairing._new_zeroconf_instance() # pyright: ignore[reportPrivateUsage]
+    initial_zc = adb_pairing._zeroconf # pyright: ignore[reportPrivateUsage]
 
-    adb_pairing._new_zeroconf_instance()
-    assert len(adb_pairing._zeroconf_zombies) == 1
-    assert adb_pairing._zeroconf_zombies[0] == initial_zc
+    adb_pairing._new_zeroconf_instance() # pyright: ignore[reportPrivateUsage]
+    assert len(adb_pairing._zeroconf_zombies) == 1 # pyright: ignore[reportPrivateUsage]
+    assert adb_pairing._zeroconf_zombies[0] == initial_zc # pyright: ignore[reportPrivateUsage]
 
 
-def test_device_discovery_status(adb_pairing, mocker, sample_service):
+def test_device_discovery_status(adb_pairing: AdbPairing, mocker: MockerFixture, sample_service: MagicMock) -> None:
     """Verify has_device_to_pairing correctly checks the online context."""
     mocker.patch.object(
-        adb_pairing._context, 'get_online_service', return_value={}
+        adb_pairing._context, 'get_online_service', return_value={} # pyright: ignore[reportPrivateUsage]
     )
     assert adb_pairing.has_device_to_pairing() is False
 
     mocker.patch.object(
-        adb_pairing._context,
+        adb_pairing._context, # pyright: ignore[reportPrivateUsage]
         'get_online_service',
         return_value={'dev': sample_service},
     )
     assert adb_pairing.has_device_to_pairing() is True
 
 
-def test_pair_devices_adb_success(adb_pairing, sample_service, mocker):
+def test_pair_devices_adb_success(adb_pairing: AdbPairing, sample_service: MagicMock, mocker: MockerFixture) -> None:
     """Verify success return when ADB pairing command output is valid."""
     mocker.patch.object(
-        adb_pairing._context,
+        adb_pairing._context, # pyright: ignore[reportPrivateUsage]
         'get_online_service',
         return_value={'dev': sample_service},
     )
@@ -205,10 +205,10 @@ def test_pair_devices_adb_success(adb_pairing, sample_service, mocker):
     assert adb_pairing.pair_devices() is True
 
 
-def test_pair_devices_adb_failure(adb_pairing, sample_service, mocker):
+def test_pair_devices_adb_failure(adb_pairing: AdbPairing, sample_service: MagicMock, mocker: MockerFixture) -> None:
     """Verify False return when ADB pairing command fails."""
     mocker.patch.object(
-        adb_pairing._context,
+        adb_pairing._context, # pyright: ignore[reportPrivateUsage]
         'get_online_service',
         return_value={'dev': sample_service},
     )
@@ -220,15 +220,15 @@ def test_pair_devices_adb_failure(adb_pairing, sample_service, mocker):
     assert adb_pairing.pair_devices() is False
 
 
-def test_pair_devices_no_online_services(adb_pairing, mocker):
+def test_pair_devices_no_online_services(adb_pairing: AdbPairing, mocker: MockerFixture) -> None:
     """Covers line 341 by ensuring it returns False when the service list is empty."""
     mocker.patch.object(
-        adb_pairing._context, 'get_online_service', return_value={}
+        adb_pairing._context, 'get_online_service', return_value={} # pyright: ignore[reportPrivateUsage]
     )
     assert adb_pairing.pair_devices() is False
 
 
-def test_context_manager_lifecycle(adb_pairing, mocker):
+def test_context_manager_lifecycle(adb_pairing: AdbPairing, mocker: MockerFixture) -> None:
     mock_start = mocker.patch.object(adb_pairing, 'start')
     mock_stop = mocker.patch.object(adb_pairing, 'stop_pair_listener')
     mock_pair = mocker.patch.object(
@@ -243,7 +243,7 @@ def test_context_manager_lifecycle(adb_pairing, mocker):
     mock_stop.assert_called_once()
 
 
-def test_context_manager_retry_limit(adb_pairing, mocker):
+def test_context_manager_retry_limit(adb_pairing: AdbPairing, mocker: MockerFixture) -> None:
     """Verify that the context manager respects the max_attempts on failure."""
     mocker.patch.object(adb_pairing, 'start')
     mocker.patch.object(adb_pairing, 'stop_pair_listener')

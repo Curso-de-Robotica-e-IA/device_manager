@@ -1,7 +1,8 @@
 from zeroconf.asyncio import AsyncZeroconf as AZc
+from zeroconf import Zeroconf
 
 
-class AsyncZeroconf(AZc):
+class AsyncZeroconf(AZc, Zeroconf):
     """AsyncZeroconf class to inherit from the Asynchronous implementation of
     the Zeroconf class provided by the zeroconf library. Since the
     AsyncServiceBrowser class requires attributes not directly available in

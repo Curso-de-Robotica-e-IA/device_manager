@@ -1,34 +1,38 @@
 import pytest
 
+from device_manager.connection.utils.connection_type import ConnectionType
 from device_manager.connection.utils.mdns_context import MDnsContext
 from device_manager.connection.utils.service_info import ServiceInfo
 
 
 @pytest.fixture
-def sample_service_info():
+def sample_service_info() -> ServiceInfo:
     return ServiceInfo(
         serial_number='abc123xyz',
         ip='111.000.101.01',
         port=8000,
+        connection=ConnectionType.WIFI
     )
 
 
 @pytest.fixture
-def empty_mdns_context():
+def empty_mdns_context() -> MDnsContext:
     return MDnsContext()
 
 
 @pytest.fixture
-def mdns_context_with_services(sample_service_info):
+def mdns_context_with_services(sample_service_info: ServiceInfo) -> MDnsContext:
     s2 = ServiceInfo(
         serial_number='def456uvw',
         ip='111.000.101.01',
         port=8002,
+        connection=ConnectionType.WIFI
     )
     s3 = ServiceInfo(
         serial_number='ghi789rst',
         ip='111.000.101.01',
         port=8003,
+        connection=ConnectionType.WIFI
     )
     context = MDnsContext()
     context.add_service(sample_service_info.serial_number, sample_service_info)
@@ -37,7 +41,7 @@ def mdns_context_with_services(sample_service_info):
     return context
 
 
-def test_mdns_context_add_service(empty_mdns_context, sample_service_info):
+def test_mdns_context_add_service(empty_mdns_context: MDnsContext, sample_service_info: ServiceInfo) -> None:
     empty_mdns_context.add_service(
         sample_service_info.serial_number,
         sample_service_info,
@@ -47,13 +51,14 @@ def test_mdns_context_add_service(empty_mdns_context, sample_service_info):
 
 
 def test_mdns_context_add_multiple_services(
-    empty_mdns_context,
-    sample_service_info,
-):
+    empty_mdns_context: MDnsContext,
+    sample_service_info: ServiceInfo,
+) -> None:
     second_service = ServiceInfo(
         serial_number='def456uvw',
         ip='000.111.010.10',
         port=8001,
+        connection=ConnectionType.WIFI
     )
     empty_mdns_context.add_service(
         sample_service_info.serial_number,
@@ -70,9 +75,9 @@ def test_mdns_context_add_multiple_services(
 
 
 def test_mdns_context_update_service(
-    mdns_context_with_services,
-    sample_service_info,
-):
+    mdns_context_with_services: MDnsContext,
+    sample_service_info: ServiceInfo,
+) -> None:
     NEW_PORT = 5555
     sample_service_info.port = NEW_PORT
     mdns_context_with_services.update_service(
@@ -85,9 +90,9 @@ def test_mdns_context_update_service(
 
 
 def test_mdns_context_to_offline_service(
-    mdns_context_with_services,
-    sample_service_info,
-):
+    mdns_context_with_services: MDnsContext,
+    sample_service_info: ServiceInfo,
+) -> None:
     mdns_context_with_services.to_offline_service(
         sample_service_info.serial_number,
         sample_service_info,
@@ -101,8 +106,8 @@ def test_mdns_context_to_offline_service(
 
 
 def test_adding_service_already_in_offline_list(
-    mdns_context_with_services,
-    sample_service_info,
+    mdns_context_with_services: MDnsContext,
+    sample_service_info: ServiceInfo,
 ):
     mdns_context_with_services.to_offline_service(
         sample_service_info.serial_number,
@@ -122,9 +127,9 @@ def test_adding_service_already_in_offline_list(
 
 
 def test_updating_service_from_offline_list(
-    mdns_context_with_services,
-    sample_service_info,
-):
+    mdns_context_with_services: MDnsContext,
+    sample_service_info: ServiceInfo,
+) -> None:
     mdns_context_with_services.to_offline_service(
         sample_service_info.serial_number,
         sample_service_info,
@@ -143,7 +148,7 @@ def test_updating_service_from_offline_list(
     assert sample_service_info.serial_number not in offline_list.keys()
 
 
-def test_online_service_list_property(mdns_context_with_services):
+def test_online_service_list_property(mdns_context_with_services: MDnsContext) -> None:
     online_list = mdns_context_with_services.online_service_list
     expected_length = 3
     assert len(online_list) == expected_length
@@ -151,8 +156,8 @@ def test_online_service_list_property(mdns_context_with_services):
 
 
 def test_offline_service_list_property(
-    mdns_context_with_services,
-    sample_service_info,
+    mdns_context_with_services: MDnsContext,
+    sample_service_info: ServiceInfo,
 ):
     mdns_context_with_services.to_offline_service(
         sample_service_info.serial_number,

@@ -6,7 +6,7 @@ class DeviceManagerSingleton(DeviceManager):
 
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls): # pyright: ignore[reportInconsistentConstructor]
         if cls._instance is None:
             cls._instance = super(DeviceManagerSingleton, cls).__new__(cls)
         return cls._instance

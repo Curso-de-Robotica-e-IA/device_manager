@@ -1,7 +1,11 @@
 # If you exceptionally want to enable socket for one particular execution pass
 # --force-enable-socket. It takes precedence over --disable-socket.
-import pytest
+from unittest.mock import MagicMock
 
+import pytest
+from pytest_mock import MockerFixture
+from device_manager.connection.utils.connection_type import ConnectionType
+from device_manager.connection.utils.mdns_context import MDnsContext
 from device_manager.connection.utils.mdns_listener import (
     DEFAULT_REGEX_FILTER,
     MDnsListener,
@@ -10,7 +14,10 @@ from device_manager.connection.utils.mdns_listener import (
 
 
 @pytest.fixture
-def mdns_listener(mock_mdns_context, mocker):
+def mdns_listener(
+    mock_mdns_context: MDnsContext,
+    mocker: MockerFixture,
+) -> MDnsListener:
     listener = MDnsListener(mock_mdns_context)
     extract_info = mocker.patch(
         'device_manager.connection.utils.mdns_listener.MDnsListener._extract_info',  # noqa
@@ -19,21 +26,22 @@ def mdns_listener(mock_mdns_context, mocker):
         serial_number='emulator',
         ip='127.0.0.1',
         port=5555,
+        connection=ConnectionType.WIFI
     )
     return listener
 
 
 def test_extract_info_with_no_filter(
-    mock_zeroconf,
-    mock_mdns_context,
-    mocker,
-):
+    mock_zeroconf: MagicMock,
+    mock_mdns_context: MagicMock,
+    mocker: MockerFixture,
+) -> None:
     listener = MDnsListener(mock_mdns_context)
     mocker.patch(
         'device_manager.connection.utils.mdns_listener.socket.inet_ntoa',
         return_value='127.0.0.1',
     )
-    result = listener._extract_info(
+    result = listener._extract_info( # pyright: ignore[reportPrivateUsage]
         mock_zeroconf.get_service_info(
             'test-type',
             'test-name',
@@ -44,15 +52,16 @@ def test_extract_info_with_no_filter(
         serial_number='adb-emulator-5555',
         ip='127.0.0.1',
         port=5555,
+        connection=ConnectionType.WIFI,
     )
     assert result == expected
 
 
 def test_extract_info_with_re_filter(
-    mock_zeroconf,
-    mock_mdns_context,
-    mocker,
-):
+    mock_zeroconf: MagicMock,
+    mock_mdns_context: MagicMock,
+    mocker: MockerFixture,
+) -> None:
     listener = MDnsListener(
         mock_mdns_context,
         re_filter=DEFAULT_REGEX_FILTER,
@@ -61,7 +70,7 @@ def test_extract_info_with_re_filter(
         'device_manager.connection.utils.mdns_listener.socket.inet_ntoa',
         return_value='127.0.0.1',
     )
-    result = listener._extract_info(
+    result = listener._extract_info( # pyright: ignore[reportPrivateUsage]
         mock_zeroconf.get_service_info(
             'test-type',
             'test-name',
@@ -71,16 +80,17 @@ def test_extract_info_with_re_filter(
         serial_number='emulator',
         ip='127.0.0.1',
         port=5555,
+        connection=ConnectionType.WIFI
     )
     assert result == expected
 
 
 def test_extract_info_with_no_match(
-    mock_zeroconf,
-    mock_mdns_context,
-    mocker,
-    capsys,
-):
+    mock_zeroconf: MagicMock,
+    mock_mdns_context: MagicMock,
+    mocker: MockerFixture,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     listener = MDnsListener(
         mock_mdns_context,
         re_filter=r'a-bad-filter',
@@ -89,7 +99,7 @@ def test_extract_info_with_no_match(
         'device_manager.connection.utils.mdns_listener.socket.inet_ntoa',
         return_value='127.0.0.1',
     )
-    listener._extract_info(
+    listener._extract_info( # pyright: ignore[reportPrivateUsage]
         mock_zeroconf.get_service_info(
             'test-type',
             'test-name',
@@ -99,7 +109,7 @@ def test_extract_info_with_no_match(
     assert '' in captured.out
 
 
-def test_add_service(mdns_listener, mock_zeroconf, mock_mdns_context):
+def test_add_service(mdns_listener: MDnsListener, mock_zeroconf: MagicMock, mock_mdns_context: MagicMock) -> None:
     mdns_listener.add_service(
         mock_zeroconf,
         'test-type',
@@ -113,6 +123,7 @@ def test_add_service(mdns_listener, mock_zeroconf, mock_mdns_context):
         serial_number='emulator',
         ip='127.0.0.1',
         port=5555,
+        connection=ConnectionType.WIFI
     )
     mock_mdns_context.add_service.assert_called_once_with(
         info.serial_number,
@@ -120,7 +131,7 @@ def test_add_service(mdns_listener, mock_zeroconf, mock_mdns_context):
     )
 
 
-def test_update_service(mdns_listener, mock_zeroconf, mock_mdns_context):
+def test_update_service(mdns_listener: MDnsListener, mock_zeroconf: MagicMock, mock_mdns_context: MagicMock) -> None:
     mdns_listener.update_service(
         mock_zeroconf,
         'test-type',
@@ -134,6 +145,7 @@ def test_update_service(mdns_listener, mock_zeroconf, mock_mdns_context):
         serial_number='emulator',
         ip='127.0.0.1',
         port=5555,
+        connection=ConnectionType.WIFI
     )
     mock_mdns_context.update_service.assert_called_once_with(
         info.serial_number,
@@ -141,7 +153,7 @@ def test_update_service(mdns_listener, mock_zeroconf, mock_mdns_context):
     )
 
 
-def test_remove_service(mdns_listener, mock_zeroconf, mock_mdns_context):
+def test_remove_service(mdns_listener: MDnsListener, mock_zeroconf: MagicMock, mock_mdns_context: MagicMock) -> None:
     mdns_listener.remove_service(
         mock_zeroconf,
         'test-type',
@@ -155,6 +167,7 @@ def test_remove_service(mdns_listener, mock_zeroconf, mock_mdns_context):
         serial_number='emulator',
         ip='127.0.0.1',
         port=5555,
+        connection=ConnectionType.WIFI
     )
     mock_mdns_context.to_offline_service.assert_called_once_with(
         info.serial_number,
