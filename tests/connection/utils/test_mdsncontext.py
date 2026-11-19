@@ -80,7 +80,7 @@ def test_mdns_context_update_service(
 ) -> None:
     NEW_PORT = 5555
     sample_service_info.port = NEW_PORT
-    mdns_context_with_services.update_service(
+    mdns_context_with_services.add_service(
         sample_service_info.serial_number,
         sample_service_info,
     )
@@ -136,7 +136,7 @@ def test_updating_service_from_offline_list(
     )
 
     sample_service_info.port = 5555
-    mdns_context_with_services.update_service(
+    mdns_context_with_services.add_service(
         sample_service_info.serial_number,
         sample_service_info,
     )

@@ -162,3 +162,19 @@ def test_check_adb_dependecy_not_found(
     assert not output.out
     assert not output.err
     assert not caplog.text
+
+
+def test_check_adb_dependency_file_not_found(monkeypatch):
+    def _raise_not_found(*args, **kwargs):
+        raise FileNotFoundError('adb not found')
+
+    monkeypatch.setattr(
+        'device_manager.utils.dm_warnings.subprocess.run',
+        _raise_not_found,
+    )
+
+    with pytest.raises(DependencyNotFoundError):
+        check_adb_dependencies_version(
+            adb_version=ADB_VERSION,
+            sdk_version=SDK_VERSION,
+        )

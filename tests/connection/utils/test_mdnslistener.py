@@ -147,7 +147,7 @@ def test_update_service(mdns_listener: MDnsListener, mock_zeroconf: MagicMock, m
         port=5555,
         connection=ConnectionType.WIFI
     )
-    mock_mdns_context.update_service.assert_called_once_with(
+    mock_mdns_context.add_service.assert_called_once_with(
         info.serial_number,
         info,
     )

@@ -1,22 +1,19 @@
-from typing import Any
+from unittest.mock import MagicMock
 
-from device_manager.manager_singleton import DeviceManagerSingleton
-from _pytest.monkeypatch import MonkeyPatch
+from device_manager.manager_singleton import (
+    get_device_manager,
+    reset_device_manager,
+)
 
-def test_singleton(monkeypatch: MonkeyPatch):
-    """Test the singleton behavior of DeviceManagerSingleton."""
 
-    def _noop_init(self: Any) -> None:
-        """Bypass __init__ to keep the singleton behavior isolated."""
-        return None
+def test_shared_device_manager_provider_initializes_only_once() -> None:
+    """Ensure get_device_manager returns a single shared instance without inheritance."""
+    reset_device_manager()
+    conn = MagicMock()
+    conn.usb_scanner.list_connected_devices.return_value = []
 
-    monkeypatch.setattr(
-        'device_manager.manager_singleton.DeviceManagerSingleton.__init__',
-        _noop_init,
-    )
-    instance1 = DeviceManagerSingleton()
-    instance2 = DeviceManagerSingleton()
+    instance1 = get_device_manager(check_dependencies=False, connector=conn)
+    instance2 = get_device_manager(check_dependencies=False, connector=conn)
 
-    assert id(instance1) == id(instance2), (
-        'DeviceManagerSingleton instances should have the same ID.'
-    )
+    assert instance1 is instance2
+    reset_device_manager()
