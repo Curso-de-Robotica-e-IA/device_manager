@@ -191,7 +191,16 @@ class AsyncAdbPairing:
                     output=stdout,
                     stderr=stderr_bytes.decode(errors='replace'),
                 )
-            all_ops.append(f'Successfully paired to {comm_uri}' in stdout)
+            paired = f'Successfully paired to {comm_uri}' in stdout
+            if paired:
+                logger.info('Successfully paired device asynchronously: uri=%s', comm_uri)
+            else:
+                logger.warning(
+                    'Failed to pair device asynchronously: uri=%s output=%s',
+                    comm_uri,
+                    stdout.strip(),
+                )
+            all_ops.append(paired)
 
         return all(all_ops)
 

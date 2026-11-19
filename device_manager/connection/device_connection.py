@@ -171,9 +171,14 @@ class DeviceConnection:
         """
         success = False
         connection = None
-        for _ in range(max_retries):
+        for attempt in range(1, max_retries + 1):
             if not success:
-                logger.info('Trying to connect to %s...', device_serial_number)
+                logger.info(
+                    'Trying to connect to %s (attempt %d/%d)...',
+                    device_serial_number,
+                    attempt,
+                    max_retries,
+                )
                 connection = self.connection.device_connect(
                     device_serial_number,
                 )
@@ -182,7 +187,10 @@ class DeviceConnection:
                 success = True
             else:
                 logger.warning(
-                    f'ADB Connection for device {device_serial_number} failed',
+                    'ADB connection attempt failed: serial=%s attempt=%d/%d',
+                    device_serial_number,
+                    attempt,
+                    max_retries,
                 )
 
         if connection is not None:

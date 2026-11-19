@@ -1,3 +1,4 @@
+import logging
 from typing import TYPE_CHECKING, Protocol
 
 from device_manager.connection.utils.connection_status import (
@@ -8,6 +9,8 @@ from device_manager.connection.utils.service_info import ServiceInfo
 
 if TYPE_CHECKING:
     from device_manager.connection.device_connection import DeviceConnection
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectionStrategy(Protocol):
@@ -96,8 +99,22 @@ class WifiConnectionStrategy:
         )
         if coninfostatus != ConnectionInfoStatus.UPDATED or not adb_connected:
             if not force_reconnect:
+                logger.debug(
+                    'Wi-Fi validation failed (no reconnect): serial=%s uri=%s mdns_status=%s adb_connected=%s',
+                    service.serial_number,
+                    comm_uri,
+                    coninfostatus.name,
+                    adb_connected,
+                )
                 return False
 
+            logger.warning(
+                'Wi-Fi connection invalid; forcing ADB server reconnect: serial=%s uri=%s mdns_status=%s adb_connected=%s',
+                service.serial_number,
+                comm_uri,
+                coninfostatus.name,
+                adb_connected,
+            )
             connector.establish_first_connection(service.serial_number)
             connector.disconnect()
             connector.connect_all_devices()

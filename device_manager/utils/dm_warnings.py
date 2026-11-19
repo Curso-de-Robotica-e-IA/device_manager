@@ -62,7 +62,11 @@ def check_adb_dependencies_version(
                 int(req_sdk[idx]),
                 sdk_version,
             )
-        logger.log(1, 'No problem with the Dependecies Versions.')
+        logger.debug(
+            'ADB dependencies verified (adb=%s, sdk=%s)',
+            '.'.join(curr_adb),
+            '.'.join(curr_sdk),
+        )
 
     except (ValueError, FileNotFoundError, subprocess.CalledProcessError) as exc:
         raise DependencyNotFoundError(

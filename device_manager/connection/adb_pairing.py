@@ -137,7 +137,16 @@ class AdbPairing:
                 text=True,
                 check=self._subprocess_check_flag,
             )
-            all_ops.append(f'Successfully paired to {comm_uri}' in result.stdout)
+            paired = f'Successfully paired to {comm_uri}' in result.stdout
+            if paired:
+                logger.info('Successfully paired device: uri=%s', comm_uri)
+            else:
+                logger.warning(
+                    'Failed to pair device: uri=%s output=%s',
+                    comm_uri,
+                    result.stdout.strip(),
+                )
+            all_ops.append(paired)
 
         return all(all_ops)
 
@@ -170,4 +179,13 @@ class AdbPairing:
             text=True,
             check=self._subprocess_check_flag,
         )
-        return f'Successfully paired to {comm_uri}' in result.stdout
+        success = f'Successfully paired to {comm_uri}' in result.stdout
+        if success:
+            logger.info('Successfully paired device with code: uri=%s', comm_uri)
+        else:
+            logger.warning(
+                'Failed to pair device with code: uri=%s output=%s',
+                comm_uri,
+                result.stdout.strip(),
+            )
+        return success

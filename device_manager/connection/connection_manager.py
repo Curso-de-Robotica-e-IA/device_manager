@@ -1,6 +1,7 @@
 import logging
 import subprocess
 from time import sleep
+import warnings
 
 from device_manager.adb_gateway import AdbGateway, resolve_gateway
 from device_manager.connection.adb_connection_discovery import (
@@ -88,8 +89,13 @@ class ConnectionManager:
     @staticmethod
     def device_pairing(timeout_s: float) -> bool:
         """Pairs a device via ADB using the QRCode window (`show_qr_window`)."""
+        warnings.warn(
+            'ConnectionManager.device_pairing is deprecated; use AdbPairing directly.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
         logger.warning(
-            msg="This method is being deprecated. Check the documentation on how to pair devices.",  # noqa
+            'ConnectionManager.device_pairing is deprecated; use AdbPairing directly.',
         )
 
         adb_pairing = AdbPairing()
@@ -111,17 +117,31 @@ class ConnectionManager:
         """
         info = self.__discovery.get_service_info_for(serial_num)
         if info is None:
-            logger.warning("Device service not online or located")
+            logger.warning(
+                'Device service not online or located: serial=%s',
+                serial_num,
+            )
         else:
-            comm_uri = f"{info.ip}:{info.port}"
+            comm_uri = f'{info.ip}:{info.port}'
             result = self._get_gateway().run(
-                ["adb", "connect", comm_uri],
+                ['adb', 'connect', comm_uri],
                 capture_output=True,
                 text=True,
                 check=self.__subprocess_check_flag,
             )
-            if f"failed to connect to {comm_uri}" in result.stdout:
-                logger.warning("Failed to connect device")
+            if f'failed to connect to {comm_uri}' in result.stdout:
+                logger.warning(
+                    'Failed to connect device: serial=%s uri=%s output=%s',
+                    serial_num,
+                    comm_uri,
+                    result.stdout.strip(),
+                )
+            else:
+                logger.info(
+                    'Connected to device: serial=%s uri=%s',
+                    serial_num,
+                    comm_uri,
+                )
         return info
 
     def check_wireless_adb_service_for(

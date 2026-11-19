@@ -1,8 +1,12 @@
+import logging
 import shlex
 import subprocess
 from subprocess import CompletedProcess
+from time import perf_counter
 
 from device_manager.adb_gateway import AdbGateway, resolve_gateway
+
+logger = logging.getLogger(__name__)
 
 
 def execute_adb_command(
@@ -31,11 +35,31 @@ def execute_adb_command(
     last_result: CompletedProcess[str] | None = None
     for uri in comm_uris:
         cmd_args = ['adb', '-s', uri, *tokens, *extra_args]
+        started_at = perf_counter()
         last_result = active_gateway.run(
             cmd_args,
             check=subprocess_check_flag,
             capture_output=capture_output,
             text=capture_output if capture_output else None,
         )
+        duration_ms = (perf_counter() - started_at) * 1000
+        if last_result.returncode != 0:
+            stderr_preview = (last_result.stderr or '').strip() if capture_output else ''
+            logger.warning(
+                'ADB command failed: uri=%s command=%s returncode=%d duration_ms=%.1f stderr=%s',
+                uri,
+                command,
+                last_result.returncode,
+                duration_ms,
+                stderr_preview,
+            )
+        else:
+            logger.debug(
+                'ADB command succeeded: uri=%s command=%s returncode=%d duration_ms=%.1f',
+                uri,
+                command,
+                last_result.returncode,
+                duration_ms,
+            )
     assert last_result is not None
     return last_result

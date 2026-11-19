@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-import logging
 from typing import Any, Generator
 
 from zeroconf import ServiceBrowser
@@ -16,8 +15,6 @@ from device_manager.connection.utils.mdns_listener import (
     DEFAULT_REGEX_FILTER,
 )
 from device_manager.connection.utils.mdns_session import MdnsBrowserSession
-
-logger = logging.getLogger(__name__)
 
 
 class AdbConnectionDiscovery:

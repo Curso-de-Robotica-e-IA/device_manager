@@ -1,4 +1,5 @@
 from collections import defaultdict
+import logging
 from subprocess import CompletedProcess
 from types import TracebackType
 from typing import Iterable, NamedTuple
@@ -15,6 +16,8 @@ from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
 from device_manager.exceptions.errors import DeviceNotFoundError
 from device_manager.utils.dm_warnings import check_adb_dependencies_version
+
+logger = logging.getLogger(__name__)
 
 DeviceObjects = NamedTuple(
     'DeviceObjects',
@@ -186,6 +189,10 @@ class DeviceManager:
         for serial in serial_numbers:
             service = visible_by_serial.get(serial)
             if service is None:
+                logger.warning(
+                    'Requested device not visible for connection: serial=%s',
+                    serial,
+                )
                 continue
             serials_by_type[service.connection].append(serial)
 
@@ -197,6 +204,11 @@ class DeviceManager:
         for serial in connected_serials:
             self._register_device(serial)
 
+        logger.info(
+            'Connected devices: requested=%d connected=%s',
+            len(serial_numbers),
+            connected_serials,
+        )
         return connected_serials
 
     def disconnect_devices(self, *serial_number: str) -> bool:
@@ -215,6 +227,12 @@ class DeviceManager:
                 sbn = self.connector.connection_info.get(serial)
                 if sbn is None:  # Should Be None
                     self._devices.pop(serial, None)
+            logger.info('Disconnected devices: serials=%s', serial_number_list)
+        else:
+            logger.warning(
+                'Failed to disconnect all requested devices: serials=%s',
+                serial_number_list,
+            )
         return success_op
 
     def get_device_info(self, serial_number: str) -> DeviceInfo | None:
@@ -360,3 +378,9 @@ class DeviceManager:
                 self.connector.connection_info.add(serial, service)
 
             self._register_device(serial)
+
+        if usb_devices:
+            logger.info(
+                'Loaded connected USB devices: serials=%s',
+                [service.serial_number for service in usb_devices],
+            )

@@ -79,6 +79,12 @@ class MDnsListener(ServiceListener):
         """
         info = self._extract_info(zc.get_service_info(type_, name))
         if info:
+            logger.debug(
+                'mDNS service updated: serial=%s endpoint=%s:%d',
+                info.serial_number,
+                info.ip,
+                info.port,
+            )
             self._service_context.add_service(info.serial_number, info)
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
@@ -91,6 +97,12 @@ class MDnsListener(ServiceListener):
         """
         info = self._extract_info(zc.get_service_info(type_, name))
         if info:
+            logger.debug(
+                'mDNS service offline: serial=%s endpoint=%s:%d',
+                info.serial_number,
+                info.ip,
+                info.port,
+            )
             self._service_context.to_offline_service(info.serial_number, info)
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
@@ -105,6 +117,12 @@ class MDnsListener(ServiceListener):
             zc.get_service_info(type_, name),
         )
         if info:
+            logger.debug(
+                'mDNS service discovered: serial=%s endpoint=%s:%d',
+                info.serial_number,
+                info.ip,
+                info.port,
+            )
             self._service_context.add_service(info.serial_number, info)
 
     def _extract_info(
@@ -139,9 +157,16 @@ class MDnsListener(ServiceListener):
                 return ServiceInfo(serial_num, ip, port, connection=ConnectionType.WIFI)
             else:
                 logger.warning(
-                    f'AdbMDns not match: {info.name}',
-                    extra={'info': info},
+                    'AdbMDns service name did not match filter: %s',
+                    info.name,
+                    extra={
+                        'service_name': info.name,
+                        'service_type': self.__type_filter,
+                    },
                 )
-        except Exception as e:  # pragma: no cover
-            logger.error(e)
-            raise e
+        except Exception:  # pragma: no cover
+            logger.exception(
+                'Failed to extract mDNS service info for %s',
+                info.name,
+            )
+            raise
