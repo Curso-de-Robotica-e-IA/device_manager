@@ -1,9 +1,8 @@
+from contextlib import contextmanager
 import logging
 from typing import Any, Generator
-import weakref
-from contextlib import contextmanager
 
-from zeroconf import ServiceBrowser, Zeroconf
+from zeroconf import ServiceBrowser
 
 from device_manager.connection.utils.connection_status import (
     ConnectionInfoStatus,
@@ -15,8 +14,8 @@ from device_manager.connection.utils.mdns_context import (
 from device_manager.connection.utils.mdns_listener import (
     CONNECT_SERVICE_TYPE,
     DEFAULT_REGEX_FILTER,
-    MDnsListener,
 )
+from device_manager.connection.utils.mdns_session import MdnsBrowserSession
 
 logger = logging.getLogger(__name__)
 
@@ -48,42 +47,17 @@ class AdbConnectionDiscovery:
             instance.
     """
 
-    def __init__(self):
-        self.__started = False
-        self.__service_re_filter = DEFAULT_REGEX_FILTER
-        self.__service_type = CONNECT_SERVICE_TYPE
-        self.__zeroconf: Zeroconf | None = None
-        self.__finalize: weakref.finalize[Any, Any] | None = None
-        self.__browser: ServiceBrowser | None = None
+    def __init__(self) -> None:
         self.__context = MDnsContext()
+        self.__session = MdnsBrowserSession(
+            context=self.__context,
+            service_type=CONNECT_SERVICE_TYPE,
+            service_re_filter=DEFAULT_REGEX_FILTER,
+        )
 
     def start(self) -> None:
         """Start the ServiceBrowser to listen to the mDNS services."""
-        if not self.__started:
-            self.__zeroconf = Zeroconf()
-            self.__browser = ServiceBrowser(
-                self.__zeroconf,
-                self.__service_type,
-                MDnsListener(
-                    self.__context,
-                    self.__service_re_filter,
-                    self.__service_type,
-                ),
-            )
-
-            def atexit() -> None:
-                """Callback function to update the __started attribute and
-                the __browser attribute, once the Zeroconf service has been
-                finalized."""
-                logger.debug('Finalizing Zeroconf instance.')
-                self.__browser = None
-                self.__started = False
-
-            self.__finalize = weakref.finalize(
-                self.__zeroconf,
-                atexit,
-            )
-            self.__started = True
+        self.__session.start()
 
     @contextmanager
     def start_discovery_listener(self) -> Generator[None, Any, None]:
@@ -104,7 +78,7 @@ class AdbConnectionDiscovery:
         Returns:
             bool: True if the ServiceBrowser has been started, False otherwise.
         """
-        return self.__started
+        return self.__session.started
 
     @property
     def browser(self) -> ServiceBrowser | None:
@@ -113,7 +87,7 @@ class AdbConnectionDiscovery:
         Returns:
             ServiceBrowser: The ServiceBrowser instance.
         """
-        return self.__browser
+        return self.__session.browser
 
     @property
     def zeroconf_status(self) -> bool:
@@ -122,9 +96,7 @@ class AdbConnectionDiscovery:
         Returns:
             bool: True if the Zeroconf instance is active, False otherwise.
         """
-        if self.__finalize is None:
-            return False
-        return self.__finalize.alive
+        return self.__session.zeroconf_status
 
     def online_devices(self) -> dict[str, ServiceInfo]:
         """Get the online devices from the class Context.
@@ -201,6 +173,4 @@ class AdbConnectionDiscovery:
 
     def stop_discovery_listener(self) -> None:
         """Stop the ServiceBrowser and close the Zeroconf instance."""
-        if self.__zeroconf is None:
-            raise AttributeError("ServiceBrowser not started")
-        self.__zeroconf.close()
+        self.__session.stop()

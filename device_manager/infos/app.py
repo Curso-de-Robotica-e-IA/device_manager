@@ -1,38 +1,38 @@
 from typing import Optional
 
-from device_manager.adb_executor import execute_adb_command
+from device_manager.adb_gateway import AdbGateway
+from device_manager.base_device_component import BaseDeviceComponent
 from device_manager.connection.device_connection import DeviceConnection
 from device_manager.utils.util_functions import grep
 
 
-class AppInfo:
+class AppInfo(BaseDeviceComponent):
     def __init__(
         self,
         package: str,
         device_connection: DeviceConnection,
         serial_number: str,
         subprocess_check_flag: bool = False,
+        gateway: AdbGateway | None = None,
     ) -> None:
-        self.package = package
-        self.subprocess_check_flag = subprocess_check_flag
-        self.device_connection = device_connection
-        self.__serial_number = serial_number
-        self.current_comm_uri = self.device_connection.build_comm_uri(
-            self.__serial_number,
+        super().__init__(
+            device_connection=device_connection,
+            serial_number=serial_number,
+            subprocess_check_flag=subprocess_check_flag,
+            gateway=gateway,
         )
+        self.package = package
+        self.dumpsys: str = ''
         self.setup()
 
     def setup(self) -> None:
         """Sets up the AppInfo instance by validating the device connection."""
         if self.device_connection.validate_connection(
-            self.__serial_number,
+            self._serial_number,
             force_reconnect=True,
         ):
-            self.dumpsys = execute_adb_command(
-                command=f'dumpsys package {self.package}',
-                shell=True,
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
+            self.dumpsys = self._run_adb(
+                f'dumpsys package {self.package}',
                 capture_output=True,
             ).stdout
 

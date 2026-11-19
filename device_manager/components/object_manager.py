@@ -1,135 +1,66 @@
-from typing import Any, Iterator, KeysView, TypeVar
+from collections.abc import Iterator, KeysView, MutableMapping
+from typing import Any, TypeVar
 
 T = TypeVar('T')
 
 
-class ObjectManager[T]:
-    """Generic object manager class to manage objects of a specific type.
-    The class provides methods to add, remove, get, edit, and iterate over
-    objects of a specific type.
-
-    The class is generic and can be used to manage objects of any type, but
-    the type of the objects must be consistent. The class will raise a
-    TypeError if an object of a different type is added to the manager.
+class ObjectManager(MutableMapping[str, T]):
+    """Strict `MutableMapping[str, T]` container enforcing string keys and
+    homogeneous object types across all write operations.
     """
 
-    def __init__(self):
-        self.__objects: dict[str, T] = dict()
+    def __init__(self) -> None:
+        self.__objects: dict[str, T] = {}
+
+    def _validate_key(self, key: Any) -> str:
+        if not isinstance(key, str):
+            raise TypeError(f'Key of type {type(key)} not allowed')
+        return key
+
+    def _validate_value(self, obj: T) -> None:
+        if self.__objects:
+            expected_type = type(next(iter(self.__objects.values())))
+            if not isinstance(obj, expected_type):
+                raise TypeError(f'Object of type {type(obj)} not allowed')
 
     def keys(self) -> KeysView[str]:
-        """Get the keys of the objects in the manager.
-
-        Returns:
-            MappingProxyType: A read-only view of the keys in the manager.
-        """
         return self.__objects.keys()
 
     def add(self, key: Any, obj: T) -> None:
-        """Add an object to the manager.
-
-        Args:
-            key (str): The key to associate with the object.
-            obj (T): The object to add to the manager.
-
-        Raises:
-            TypeError: If the key is not a string.
-            TypeError: If the object is not of the same type as the objects
-                already in the manager.
-        """
-        if not isinstance(key, str):
-            raise TypeError(f'Key of type {type(key)} not allowed')
-        if len(self.__objects) > 0:
-            if not isinstance(obj, type(list(self.__objects.values())[0])):
-                raise TypeError(f'Object of type {type(obj)} not allowed')
         self[key] = obj
 
     def remove(self, key: Any) -> None:
-        """Remove an object from the manager.
+        validated_key = self._validate_key(key)
+        self.__objects.pop(validated_key, None)
 
-        Args:
-            key (str): The key of the object to remove.
-        """
-        if not isinstance(key, str):
-            raise TypeError(f'Key of type {type(key)} not allowed')
-        if key in self.__objects:
-            del self[key]
-
-    def get(self, key: Any) -> T | None:
-        """Get an object from the manager.
-
-        Args:
-            key (str): The key of the object to get.
-
-        Returns:
-            Optional[T]: The object associated with the key, or None if the key
-                is not found.
-        """
-        if not isinstance(key, str):
-            raise TypeError(f'Key of type {type(key)} not allowed')
-        return self[key]
+    def get(self, key: Any, default: Any = None) -> T | Any:
+        validated_key = self._validate_key(key)
+        return self.__objects.get(validated_key, default)
 
     def edit(self, key: Any, new_obj: T) -> None:
-        """Edit an object in the manager.
-
-        Args:
-            key (str): The key of the object to edit.
-            new_obj (T): The new object to replace the existing object.
-        """
-        if not isinstance(key, str):
-            raise TypeError(f'Key of type {type(key)} not allowed')
-        if key in self.__objects:
-            self[key] = new_obj
+        validated_key = self._validate_key(key)
+        if validated_key in self.__objects:
+            self._validate_value(new_obj)
+            self.__objects[validated_key] = new_obj
 
     def __len__(self) -> int:
-        """Get the number of objects in the manager.
-
-        Returns:
-            int: The number of objects in the manager.
-        """
         return len(self.__objects)
 
-    def __iter__(self) -> Iterator[T]:
-        """Iterate over the objects in the manager."""
-        return iter(self.__objects.values())
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.__objects)
 
-    def __getitem__(self, key: str) -> T | None:
-        """Get an object from the manager.
-
-        Args:
-            key (str): The key of the object to get.
-
-        Returns:
-            T: The object associated with the key.
-        """
-        try:
-            return self.__objects[key]
-        except KeyError:
-            return None
+    def __getitem__(self, key: str) -> T:
+        validated_key = self._validate_key(key)
+        return self.__objects[validated_key]
 
     def __setitem__(self, key: str, obj: T) -> None:
-        """Set an object in the manager.
-
-        Args:
-            key (str): The key to associate with the object.
-            obj (T): The object to add to the manager.
-        """
-        self.__objects[key] = obj
+        validated_key = self._validate_key(key)
+        self._validate_value(obj)
+        self.__objects[validated_key] = obj
 
     def __delitem__(self, key: str) -> None:
-        """Remove an object from the manager.
+        validated_key = self._validate_key(key)
+        del self.__objects[validated_key]
 
-        Args:
-            key (str): The key of the object to remove.
-        """
-        del self.__objects[key]
-
-    def __contains__(self, key: str) -> bool:
-        """Check if the manager contains an object with the specified key.
-
-        Args:
-            key (str): The key to check for in the manager.
-
-        Returns:
-            bool: True if the manager contains the key, False otherwise.
-        """
+    def __contains__(self, key: object) -> bool:
         return key in self.__objects

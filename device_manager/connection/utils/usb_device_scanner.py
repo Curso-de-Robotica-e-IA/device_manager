@@ -2,21 +2,31 @@
 
 import subprocess
 
+from device_manager.adb_gateway import AdbGateway, resolve_gateway
 from device_manager.connection.utils.connection_type import ConnectionType
 from device_manager.connection.utils.service_info import ServiceInfo
 
 
 class UsbDeviceScanner:
-    def __init__(self, subprocess_check_flag: bool) -> None:
+    def __init__(
+        self,
+        subprocess_check_flag: bool,
+        gateway: AdbGateway | None = None,
+    ) -> None:
         self.__subprocess_check_flag = subprocess_check_flag
+        self._gateway = gateway
 
-    def list_all_devices(self) -> dict[str, str]:
-        connected_devices = subprocess.run(
+    def _adb_devices(self) -> str:
+        gateway = resolve_gateway(self._gateway, subprocess.run)
+        return gateway.run(
             ['adb', 'devices'],
             capture_output=True,
             text=True,
             check=self.__subprocess_check_flag,
         ).stdout
+
+    def list_all_devices(self) -> dict[str, str]:
+        connected_devices = self._adb_devices()
 
         usb_serial_numbers: dict[str, str] = {}
 
@@ -24,10 +34,11 @@ class UsbDeviceScanner:
             striped_line = line.strip()
 
             if striped_line:
-                serial = striped_line.split('\t')[0]
-                status = striped_line.split('\t')[1]
-                if serial.isalnum():
-                    usb_serial_numbers[serial] = status
+                parts = striped_line.split('\t')
+                if len(parts) >= 2:
+                    serial, status = parts[0], parts[1]
+                    if serial and ':' not in serial:
+                        usb_serial_numbers[serial] = status
 
         return usb_serial_numbers
 
@@ -45,12 +56,7 @@ class UsbDeviceScanner:
             bool: True if the device is connected, False otherwise.
         """
         if devices_connected is None:
-            devices_connected = subprocess.run(
-                ['adb', 'devices'],
-                capture_output=True,
-                text=True,
-                check=self.__subprocess_check_flag,
-            ).stdout
+            devices_connected = self._adb_devices()
 
         substr = f'{serial_number}\tdevice'
 
@@ -67,12 +73,7 @@ class UsbDeviceScanner:
         Returns:
             List[str]: A list of serial numbers of devices connected via USB.
         """
-        connected_devices = subprocess.run(
-            ['adb', 'devices'],
-            capture_output=True,
-            text=True,
-            check=self.__subprocess_check_flag,
-        ).stdout
+        connected_devices = self._adb_devices()
 
         usb_serial_numbers: list[ServiceInfo] = []
 
@@ -82,7 +83,7 @@ class UsbDeviceScanner:
             if striped_line.endswith('\tdevice'):
                 serial = striped_line.split('\t')[0]
 
-                if serial.isalnum():
+                if serial and ':' not in serial:
                     usb_serial_numbers.append(ServiceInfo(
                         serial_number=serial,
                         ip="",
@@ -104,12 +105,7 @@ class UsbDeviceScanner:
         Returns:
             bool: True if the device is authorized, False otherwise.
         """
-        connected_devices = subprocess.run(
-            ['adb', 'devices'],
-            capture_output=True,
-            text=True,
-            check=self.__subprocess_check_flag,
-        ).stdout
+        connected_devices = self._adb_devices()
 
         for line in connected_devices.splitlines()[1:]:
             striped_line = line.strip()

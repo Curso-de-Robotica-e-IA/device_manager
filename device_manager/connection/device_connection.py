@@ -1,23 +1,20 @@
 import logging
 import subprocess
+from types import TracebackType
 
-from rich.console import Console
-from rich.prompt import Prompt
-
+from device_manager.adb_gateway import AdbGateway, resolve_gateway
 from device_manager.components.object_manager import ObjectManager
 from device_manager.connection.connection_manager import (
-    ConnectionManagerSingleton,
+    ConnectionManager,
 )
-from device_manager.connection.utils.connection_status import (
-    ConnectionInfoStatus,
-)
-from device_manager.connection.utils.connection_type import ConnectionType
+from device_manager.connection.strategies import get_connection_strategy
 from device_manager.connection.utils.mdns_context import (
     ServiceInfo,
 )
-
 from device_manager.connection.utils.usb_device_scanner import (
-    UsbDeviceScanner,)
+    UsbDeviceScanner,
+)
+from device_manager.exceptions.errors import DeviceNotFoundError
 
 DEFAULT_FIXED_PORT = 5555
 MAX_CONNECTION_RETRIES = 5
@@ -26,158 +23,42 @@ logger = logging.getLogger(__name__)
 
 
 class DeviceConnection:
-    """This class is responsible for managing the connection with devices.
-    It provides methods to establish, validate, and close connections with
-    devices. It also provides methods to check the status of the current
-    connections and to build communication URIs for the devices.
-
-    Args:
-        subprocess_check_flag (bool, optional): A flag to check if the
-                subprocess execution was successful, passed to the subprocess
-                `check` argument. Defaults to False.
-                Check the subprocess documentation for more information.
-        fixed_port (int, optional): The fixed port to use for the ADB
-            connection. Defaults to 5555.
-
-    Attributes:
-        console (Console): A rich console to print messages.
-        connection (ConnectionManager): A connection manager to manage the
-            ADB connections.
-        connection_info (ObjectManager[ServiceInfo]): An object manager to
-            store the service information of the connected devices.
-
-    methods:
-        check_pairing: Checks if a device is already paired with the host.
-        select_devices_to_connect: Prompts the user to select devices to
-            connect to.
-        prompt_device_connection: Prompts the user to select devices to connect
-            to.
-        visible_devices: Returns a list of visible devices in the network.
-        close: Terminates any ongoing device discovery process managed by the
-            `connection_manager`.
-        check_connections: Checks the status of the current connections.
-        build_comm_uri: Constructs a communication URI for the specified
-            device.
-        establish_first_connection: Attempts to establish an ADB connection
-            with the specified device.
-        validate_connection: Validates the current connection with the
-            specified device.
-        connect_all_devices: Connects to all devices in the `connection_info`
-            attribute.
-        start_connection: Starts the connection process for the selected
-            devices.
-        stop_connection: Disconnects the selected devices from the host.
-        is_connected: Check if the device is connected to the host.
-        disconnect: Kills the ADB server, effectively disconnecting the current
-            session with the specified device.
+    """Manages ADB device connections, validation, URI resolution, and server
+    lifecycle.
     """
 
     def __init__(
         self,
         subprocess_check_flag: bool = False,
         fixed_port: int = DEFAULT_FIXED_PORT,
+        gateway: AdbGateway | None = None,
     ):
-        self.console = Console()
         self.__subprocess_check_flag = subprocess_check_flag
-        self.connection = ConnectionManagerSingleton(
+        self._gateway = gateway
+        self.connection = ConnectionManager(
             subprocess_check_flag=self.__subprocess_check_flag,
+            gateway=self._gateway,
         )
         self.usb_scanner = UsbDeviceScanner(
             subprocess_check_flag=self.__subprocess_check_flag,
+            gateway=self._gateway,
         )
         self.connection_info: ObjectManager[ServiceInfo] = ObjectManager()
         self.fixed_port = fixed_port
 
-    # region: user_interaction
-    def check_pairing(self) -> None:
-        """Checks if a device is already paired with the host.
-        Case it is not, it calls the `ConnectionManager` to pair the device.
-        """
-        prompt = Prompt()
-        options = ['Y', 'N']
-        response = prompt.ask(
-            'Device already paired with host?',
-            choices=options,
-            case_sensitive=False,
-        )
-        paired = False if response.upper() == 'N' else True
+    def _get_gateway(self) -> AdbGateway:
+        return resolve_gateway(self._gateway, subprocess.run)
 
-        if not paired:
-            self.console.print('Scan QRCode to pair and close window')
-            if self.connection.device_pairing(5):
-                self.console.print('Success in pairing new host!')
-            else:
-                self.console.print('Failed in pairing new host!')
+    def __enter__(self) -> 'DeviceConnection':
+        return self
 
-    def select_devices_to_connect(self) -> list[str]:
-        """Prompts the user to select devices to connect to.
-
-        Returns:
-            List[str]: A list of serial numbers of the devices selected by the
-                user.
-        """
-        prompt = Prompt()
-
-        device_idx = None
-        finish_loop = False
-        available_devices = self.connection.available_devices()
-        selected_devices: list[str] = []
-        while not finish_loop:
-            prompt_options = {
-                str(i + 1): f'{srnmb} on IP: {available_devices[srnmb].ip}'
-                for i, srnmb in enumerate(available_devices)
-            }
-            self.console.print('Available devices found in the network:')
-            for key, prompt_msg in prompt_options.items():
-                self.console.print(f'  [{key}] - {prompt_msg}')
-            options = list(prompt_options.keys())
-            options.append('0')
-            response = prompt.ask(
-                'Select device index to connect, or 0 to search devices again',
-                choices=options,
-            )
-
-            if response == '0':
-                available_devices = self.connection.available_devices()
-            else:
-                device_idx = int(response) - 1
-                device = list(available_devices.keys())[device_idx]
-                selected_devices.append(device)
-
-                connect_another = prompt.ask(
-                    'Do you want to connect to another device?',
-                    choices=['Y', 'N'],
-                    case_sensitive=False,
-                )
-                if connect_another == 'N':
-                    finish_loop = True
-
-        return selected_devices
-
-    def prompt_device_connection(self) -> list[str]:
-        """Prompts the user to select devices to connect to.
-        If the devices are not paired, it calls the `check_pairing` method to
-        pair the devices. After the pairing process, it prompts the user to
-        select the devices to connect to.
-
-        Returns:
-            List[str]: A list of serial numbers of the devices selected by the
-                user.
-        """
-        prompt = Prompt()
-        done = False
-        while not done:
-            self.check_pairing()
-            res = prompt.ask(
-                'Do you want to pair another device?',
-                choices=['Y', 'N'],
-                case_sensitive=False,
-            )
-            done = True if res == 'N' else False
-        selected_devices = self.select_devices_to_connect()
-        return selected_devices
-
-    # endregion
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self.close()
 
     def visible_devices(self) -> list[ServiceInfo]:
         """Returns a list of visible devices in the network.
@@ -219,11 +100,9 @@ class DeviceConnection:
         device = self.connection_info.get(serial_number)
         if device is None:
             return False
-        
-        if device.connection == ConnectionType.USB:
-            substr = f'{serial_number}\tdevice'
-        else:
-            substr = f'{device.ip}:{device.port}\tdevice'
+
+        strategy = get_connection_strategy(device.connection)
+        substr = strategy.format_adb_device_entry(device)
 
         if substr in devices_connected:
             result = True
@@ -241,7 +120,7 @@ class DeviceConnection:
         """
 
         devices_connected = self._adb_devices_output()
-        self.console.print(devices_connected)
+        logger.debug('Connected ADB devices:\n%s', devices_connected)
         serial_numbers = self.connection_info.keys()
         if len(serial_numbers) == 0:
             return False
@@ -264,16 +143,14 @@ class DeviceConnection:
             serial_number (str): The serial number of the device to connect to.
 
         Returns:
-            str: The communication URI in the format `ip:port`.
+            str: The communication URI in the format `ip:port` or serial number.
         """
 
         device = self.connection_info.get(serial_number)
         if device is None:
-            raise ValueError("device was not found")
-        if device.connection == ConnectionType.USB:
-            return serial_number
-
-        return f'{device.ip}:{device.port}'
+            raise DeviceNotFoundError('device was not found')
+        strategy = get_connection_strategy(device.connection)
+        return strategy.build_comm_uri(device)
 
     def establish_first_connection(
         self,
@@ -296,7 +173,7 @@ class DeviceConnection:
         connection = None
         for _ in range(max_retries):
             if not success:
-                self.console.print('Trying to connect ...')
+                logger.info('Trying to connect to %s...', device_serial_number)
                 connection = self.connection.device_connect(
                     device_serial_number,
                 )
@@ -344,34 +221,15 @@ class DeviceConnection:
         """
         device = self.connection_info.get(serial_number)
         if device is None:
-            self.console.print('No devices currently connected')
+            logger.debug('No devices currently connected for %s', serial_number)
             return False
 
-        if device.connection == ConnectionType.USB:
-            return self.usb_scanner.validate_connection(serial_number)
-
-        comm_uri = f'{device.ip}:{device.port}'
-
-        coninfostatus = self.connection.check_wireless_adb_service_for(
+        strategy = get_connection_strategy(device.connection)
+        return strategy.validate(
+            self,
             device,
+            force_reconnect=force_reconnect,
         )
-        adb_connected = self.connection.check_devices_adb_connection(comm_uri)
-        if (coninfostatus != ConnectionInfoStatus.UPDATED
-            or not adb_connected):
-            
-            if not force_reconnect:
-                return False
-            
-            self.establish_first_connection(serial_number)
-            self.disconnect()
-            self.connect_all_devices()
-
-            return self.validate_connection(
-                serial_number,
-                force_reconnect,
-            )
-        
-        return True
 
     def connect_all_devices(self) -> None:
         """Connects to all devices in the `connection_info` attribute.
@@ -430,7 +288,7 @@ class DeviceConnection:
         all_ops: list[bool] = [False] * len(selected_devices)
         for idx, serial_num in enumerate(selected_devices):
             selected_uri = self.build_comm_uri(serial_num)
-            result = subprocess.run(
+            result = self._get_gateway().run(
                 ['adb', 'disconnect', selected_uri],
                 check=self.__subprocess_check_flag,
                 capture_output=True,
@@ -453,7 +311,7 @@ class DeviceConnection:
 
         if self.validate_connection(serial_number):
             comm_uri = self.build_comm_uri(serial_number)
-            subprocess.run(
+            self._get_gateway().run(
                 ['adb', '-s', comm_uri, 'tcpip', f'{self.fixed_port}'],
                 check=self.__subprocess_check_flag,
             )
@@ -471,7 +329,7 @@ class DeviceConnection:
         device = self.connection_info.get(serial_number)
         if device is None:
             raise ValueError("device was not found")
-        subprocess.run(
+        self._get_gateway().run(
             ['adb', 'connect', f'{device.ip}:{self.fixed_port}'],
             check=self.__subprocess_check_flag,
         )
@@ -502,7 +360,7 @@ class DeviceConnection:
          Returns:
              str: The output of the ADB command listing connected devices.
          """
-        return subprocess.run(
+        return self._get_gateway().run(
             ['adb', 'devices'],
             capture_output=True,
             text=True,

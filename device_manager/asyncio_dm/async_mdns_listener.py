@@ -21,7 +21,7 @@ class AsyncMDnsListener(MDnsListener):
         zcinfo = await zc.async_get_service_info(type_, name)
         info = self._extract_info(zcinfo)
         if info:
-            self.__service_context.update_service( # pyright: ignore[reportPrivateUsage]
+            self._service_context.add_service(
                 info.serial_number,
                 info,
             )
@@ -42,7 +42,7 @@ class AsyncMDnsListener(MDnsListener):
         zcinfo = await zc.async_get_service_info(type_, name)
         info = self._extract_info(zcinfo)
         if info:
-            self.__service_context.to_offline_service( # pyright: ignore[reportPrivateUsage]
+            self._service_context.to_offline_service(
                 info.serial_number,
                 info,
             )
@@ -63,7 +63,7 @@ class AsyncMDnsListener(MDnsListener):
         zcinfo = await zc.async_get_service_info(type_, name)
         info = self._extract_info(zcinfo)
         if info:
-            self.__service_context.add_service( # pyright: ignore[reportPrivateUsage]
+            self._service_context.add_service(
                 info.serial_number,
                 info,
             )

@@ -1,14 +1,26 @@
-import re
-from typing import TypedDict
+from typing import Any, Callable, TypedDict
 
 import uiautomator2 as u2 # pyright: ignore[reportMissingTypeStubs]
 
-from device_manager.adb_executor import execute_adb_command
+from device_manager.adb_gateway import AdbGateway
+from device_manager.base_device_component import BaseDeviceComponent
 from device_manager.connection.device_connection import DeviceConnection
+from device_manager.exceptions.errors import (
+    DeviceDisconnectedError,
+    UnexpectedAdbOutputError,
+)
 from device_manager.infos.app import AppInfo
-from device_manager.utils.util_functions import grep
-
-UNEXPECTED_ADB_OUTPUT = 'Unexpected output from ADB command'
+from device_manager.utils.adb_parsers import (
+    UNEXPECTED_ADB_OUTPUT,
+    parse_app_path,
+    parse_bool_flag,
+    parse_current_activity,
+    parse_display_orientation,
+    parse_getprop,
+    parse_installed_packages,
+    parse_location_mode,
+    parse_screen_dimensions,
+)
 
 
 class DeviceProperties(TypedDict):
@@ -20,7 +32,7 @@ class DeviceProperties(TypedDict):
     android_version: str
 
 
-class DeviceInfo:
+class DeviceInfo(BaseDeviceComponent):
     """Class responsible for retrieving information from a single device.
     It is able to execute predefined actions at the device.
 
@@ -56,22 +68,25 @@ class DeviceInfo:
         device_connection: DeviceConnection,
         serial_number: str,
         subprocess_check_flag: bool = False,
+        gateway: AdbGateway | None = None,
+        ui_connector: Callable[[str], Any] | None = None,
     ):
-        self.subprocess_check_flag = subprocess_check_flag
-        self.device_connection = device_connection
-        self.__serial_number = serial_number
-        self.current_comm_uri = self.device_connection.build_comm_uri(
-            self.__serial_number,
+        super().__init__(
+            device_connection=device_connection,
+            serial_number=serial_number,
+            subprocess_check_flag=subprocess_check_flag,
+            gateway=gateway,
         )
+        self._ui_connector = ui_connector
 
-    @property
-    def serial_number(self) -> str:
-        """The serial number associated with the device.
-
-        Returns:
-            str: The device serial number.
-        """
-        return self.__serial_number
+    def _query_adb(self, command: str) -> str | None:
+        """Template helper: validates connection and runs a shell ADB query."""
+        if not self.device_connection.validate_connection(
+            self._serial_number,
+            force_reconnect=True,
+        ):
+            return None
+        return self._run_adb(command, capture_output=True).stdout
 
     def actual_activity(self) -> str | None:
         """
@@ -82,28 +97,10 @@ class DeviceInfo:
         Returns:
             str: The name of the currently resumed activity.
         """
-
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            output = execute_adb_command(
-                command='dumpsys activity activities',
-                shell=True,
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
-                capture_output=True,
-            ).stdout
-            greplines = grep(output, 'mCurrentFocus')
-            if len(greplines) == 0:
-                return 'No activity'
-            package_pattern = re.compile(
-                r'com\.[a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*'
-            )
-            result = re.findall(package_pattern, greplines[0])
-            if len(result) == 0:
-                return 'No activity'
-            return '/'.join(result)
+        output = self._query_adb('dumpsys activity activities')
+        if output is None:
+            return None
+        return parse_current_activity(output)
 
     def is_screen_on(self) -> bool:
         """This method checks if the associated device screen is on.
@@ -111,25 +108,10 @@ class DeviceInfo:
         Returns:
             bool: True if the screen is on, false otherwise.
         """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            output = execute_adb_command(
-                command='dumpsys deviceidle',
-                shell=True,
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
-                capture_output=True,
-            ).stdout
-            greplines = grep(output, 'mScreenOn')
-            assert len(greplines) == 1
-            result = greplines[0].split('=')
-            if 'true' in result:
-                return True
-            elif 'false' in result:
-                return False
-        raise ValueError(UNEXPECTED_ADB_OUTPUT)
+        output = self._query_adb('dumpsys deviceidle')
+        if output is None:
+            raise UnexpectedAdbOutputError(UNEXPECTED_ADB_OUTPUT)
+        return parse_bool_flag(output, 'mScreenOn')
 
     def is_device_locked(self) -> bool:
         """This method checks if the associated device is locked.
@@ -137,28 +119,10 @@ class DeviceInfo:
         Returns:
             bool: True if the device is locked, false otherwise.
         """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            output = execute_adb_command(
-                command='dumpsys deviceidle',
-                shell=True,
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
-                capture_output=True,
-            ).stdout
-            grep_lines = grep(output, 'mScreenLocked')
-            if len(grep_lines) != 1:
-                raise ValueError(UNEXPECTED_ADB_OUTPUT)
-
-            result = grep_lines[0].split('=')
-            if 'true' in result:
-                return True
-            elif 'false' in result:
-                return False
-
-        raise ValueError(UNEXPECTED_ADB_OUTPUT)
+        output = self._query_adb('dumpsys deviceidle')
+        if output is None:
+            raise UnexpectedAdbOutputError(UNEXPECTED_ADB_OUTPUT)
+        return parse_bool_flag(output, 'mScreenLocked')
 
     def get_screen_gui_xml(self) -> str | None:
         """This method retrieves the .xml that represents the current state
@@ -168,10 +132,11 @@ class DeviceInfo:
             str: The device screen xml as a string.
         """
         if self.device_connection.validate_connection(
-            self.__serial_number,
+            self._serial_number,
             force_reconnect=True,
         ):
-            device = u2.connect(self.current_comm_uri)
+            connector = self._ui_connector or u2.connect
+            device = connector(self.current_comm_uri)
             return device.dump_hierarchy()
 
     def get_properties(
@@ -194,37 +159,11 @@ class DeviceInfo:
             Dict[str, str]: A dictionary containing the properties of the
                 device.
         """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            output = execute_adb_command(
-                command='getprop',
-                shell=True,
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
-                capture_output=True,
-            ).stdout
-            prop_dict: dict[str, str] = {}
-            EXPECTED_LENGTH = 2
-            for line in output.splitlines():
-                key_value = line.split(': ', 1)
-                if len(key_value) == EXPECTED_LENGTH:
-                    key_ = key_value[0][1:-1]
-                    value_ = key_value[1][1:-1]
-                    prop_dict[key_] = value_
-            base_result: dict[str, str] = {
-                'serial_number': prop_dict['ro.serialno'],
-                'brand': prop_dict['ro.product.manufacturer'],
-                'model': prop_dict['ro.product.model'],
-                'android_version': prop_dict['ro.build.version.release'],
-            }
-            if extra_keys is not None:
-                for key in extra_keys:
-                    if key in prop_dict:
-                        base_result[key] = prop_dict[key]
-            return DeviceProperties(**base_result) # pyright: ignore[reportReturnType]
-        raise ValueError(UNEXPECTED_ADB_OUTPUT)
+        output = self._query_adb('getprop')
+        if output is None:
+            raise UnexpectedAdbOutputError(UNEXPECTED_ADB_OUTPUT)
+        base_result = parse_getprop(output, extra_keys=extra_keys)
+        return DeviceProperties(**base_result)  # pyright: ignore[reportReturnType]
 
     def get_screen_dimensions(self) -> tuple[int, int]:
         """Gets the dimensions of the device screen.
@@ -232,22 +171,10 @@ class DeviceInfo:
         Returns:
             tuple[int, int]: The width and height of the device screen.
         """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            result = execute_adb_command(
-                command='wm size',
-                shell=True,
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
-                capture_output=True,
-            ).stdout
-            grep_lines = grep(result, 'Physical size:')
-            if len(grep_lines) > 0:
-                dimensions = grep_lines[0].split(':')[1].strip().split('x')
-                return int(dimensions[0]), int(dimensions[1])
-        raise ValueError(UNEXPECTED_ADB_OUTPUT)
+        output = self._query_adb('wm size')
+        if output is None:
+            raise UnexpectedAdbOutputError(UNEXPECTED_ADB_OUTPUT)
+        return parse_screen_dimensions(output)
 
     def app(self, package: str) -> AppInfo:
         """Returns an instance of AppInfo for the specified package.
@@ -261,7 +188,7 @@ class DeviceInfo:
         return AppInfo(
             package=package,
             device_connection=self.device_connection,
-            serial_number=self.__serial_number,
+            serial_number=self._serial_number,
             subprocess_check_flag=self.subprocess_check_flag,
         )
 
@@ -271,30 +198,10 @@ class DeviceInfo:
         Returns:
             str: The current orientation of the device [Portrait, Landscape, Reverse Portrait or Reverse Landscape ].
         """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            result = execute_adb_command(
-                command='dumpsys display',
-                shell=True,
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
-                capture_output=True,
-            ).stdout
-            grep_lines = grep(result, 'mCurrentOrientation')
-            if len(grep_lines) > 0:
-                orientation_value = grep_lines[0].split('=')[1].strip()
-                orientation_map = {
-                    '0': 'Portrait',
-                    '1': 'Landscape',
-                    '2': 'Reverse Portrait',
-                    '3': 'Reverse Landscape',
-                }
-                return orientation_map.get(orientation_value, 'Unknown')
-            raise ValueError(UNEXPECTED_ADB_OUTPUT)
-        else:
-            raise ConnectionError('Device not connected')
+        output = self._query_adb('dumpsys display')
+        if output is None:
+            raise DeviceDisconnectedError('Device not connected')
+        return parse_display_orientation(output)
 
     def list_installed_all_apps(self) -> list[str]:
         """Lists installed applications on the device.
@@ -302,23 +209,10 @@ class DeviceInfo:
         Returns:
             list[str]: A list with application package names.
         """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            output = execute_adb_command(
-                command='pm list packages',
-                shell=True,
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
-                capture_output=True,
-            ).stdout
-            return [
-                line.replace('package:', '').strip()
-                for line in output.splitlines()
-                if line.strip().startswith('package:')
-            ]
-        return []
+        output = self._query_adb('pm list packages')
+        if output is None:
+            return []
+        return parse_installed_packages(output)
 
     def is_app_installed(self, package_name: str) -> bool:
         """Checks if an application is installed on the device.
@@ -330,7 +224,7 @@ class DeviceInfo:
             bool: True if the application is installed, False otherwise.
         """
         if self.device_connection.validate_connection(
-            self.__serial_number,
+            self._serial_number,
             force_reconnect=True,
         ):
             installed_apps = self.list_installed_all_apps()
@@ -347,21 +241,10 @@ class DeviceInfo:
             Optional[str]: The full path to the APK file on the device,
                 or None if the app is not installed.
         """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            output = execute_adb_command(
-                command=f'pm path {package_name}',
-                shell=True,
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
-                capture_output=True,
-            ).stdout
-            for line in output.splitlines():
-                if line.strip().startswith('package:'):
-                    return line.replace('package:', '').strip()
-        return None
+        output = self._query_adb(f'pm path {package_name}')
+        if output is None:
+            return None
+        return parse_app_path(output)
 
     def get_location_mode(self) -> str | None:
         """Return the current location mode reported by the device.
@@ -381,25 +264,10 @@ class DeviceInfo:
             2: Battery Saving
             3: High Accuracy
         """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            output = execute_adb_command(
-                command='settings get secure location_mode',
-                shell=True,
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
-                capture_output=True,
-            ).stdout.strip()
-            location_modes = {
-                '0': 'Off',
-                '1': 'Sensors Only',
-                '2': 'Battery Saving',
-                '3': 'High Accuracy',
-            }
-            return location_modes.get(output, None)
-        return None
+        output = self._query_adb('settings get secure location_mode')
+        if output is None:
+            return None
+        return parse_location_mode(output)
 
     def is_stay_awake_enabled(self) -> bool:
         """Checks if the "Stay Awake" developer option is enabled on the device.
@@ -407,19 +275,10 @@ class DeviceInfo:
         Returns:
             bool: True if "Stay Awake" is enabled, False otherwise.
         """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            output = execute_adb_command(
-                command='settings get global stay_on_while_plugged_in',
-                shell=True,
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
-                capture_output=True,
-            ).stdout.strip()
-            return output != '0'
-        return False
+        output = self._query_adb('settings get global stay_on_while_plugged_in')
+        if output is None:
+            return False
+        return output.strip() != '0'
 
     def is_airplane_mode_enabled(self) -> bool:
         """Gets the current airplane mode status of the device.
@@ -427,20 +286,7 @@ class DeviceInfo:
         Returns:
             bool: True if airplane mode is enabled, False otherwise.
         """
-        if self.device_connection.validate_connection(
-            self.__serial_number,
-            force_reconnect=True,
-        ):
-            output = execute_adb_command(
-                command='settings get global airplane_mode_on',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
-                capture_output=True,
-            ).stdout
-
-            if output is not None: # pyright: ignore[reportUnnecessaryComparison]
-                status = output.strip()
-                return status == '1'
-
-        return False
+        output = self._query_adb('settings get global airplane_mode_on')
+        if output is None:
+            return False
+        return output.strip() == '1'

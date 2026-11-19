@@ -1,19 +1,20 @@
+from collections import defaultdict
 from subprocess import CompletedProcess
+from types import TracebackType
 from typing import Iterable, NamedTuple
 
 from device_manager.adb_executor import execute_adb_command
-from device_manager.components.object_manager import ObjectManager
 from device_manager.connection.adb_pairing import AdbPairing
 from device_manager.connection.device_connection import (
     DEFAULT_FIXED_PORT,
     DeviceConnection,
 )
+from device_manager.connection.strategies import get_connection_strategy
 from device_manager.connection.utils.connection_type import ConnectionType
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
+from device_manager.exceptions.errors import DeviceNotFoundError
 from device_manager.utils.dm_warnings import check_adb_dependencies_version
-
-check_adb_dependencies_version()
 
 DeviceObjects = NamedTuple(
     'DeviceObjects',
@@ -26,94 +27,91 @@ DeviceObjects = NamedTuple(
 
 
 class DeviceManager:
-    """This class is able to manage multiple device connections, storing
-    each of their reference internally. It is able to retrieve the associated
-    `DeviceInfo` and `DeviceAction` for each device, by accessing this
-    class as a dict, using the device serial used for connection as key.
-
-    Args:
-        subprocess_check_flag (bool, optional): A flag to check if the
-            subprocess execution was successful, passed to the subprocess
-            `check` argument. Defaults to False.
-            Check the subprocess documentation for more information.
-        fixed_port (int, optional): The fixed port to be used by the devices.
-            Defaults to DEFAULT_FIXED_PORT.
-
-    Attributes:
-        `connected_devices` (List[str]): The list of serial numbers of the
-            devices that are currently connected.
-        `connector` (DeviceConnection): The `DeviceConnection` object used to
-            manage the device connections.
-        `adb_pair` (Optional[AdbPairing]): The `AdbPairing` object used to
-            manage the pairing of devices.
-
-    Properties:
-        - `connected_devices` (List[str]): The list of serial numbers of the
-            devices that are currently connected.
-
-    Methods:
-        connect_devices: Connects to the devices with the provided serial
-            numbers.
-        get_device_info: Retrieves the device information associated with a
-            given serial number.
-        get_device_actions: Retrieves the device actions associated with a
-            given serial number.
-        build_command_list: Builds a list of commands to be executed on
-            multiple devices.
-        execute_adb_command: Executes a custom adb command on all connected
-            devices.
-        adb_pairing_instance: Creates an instance of the AdbPairing class.
-        is_connected: Checks if a device with the provided serial number is
-            connected.
-        disconnect_devices: Disconnects the devices with the provided serial
-            numbers.
+    """Manages multiple ADB device connections and exposes per-device
+    `DeviceInfo` and `DeviceActions` aggregates indexed by serial number.
     """
 
     def __init__(
         self,
         subprocess_check_flag: bool = False,
         fixed_port: int = DEFAULT_FIXED_PORT,
+        check_dependencies: bool = True,
+        connector: DeviceConnection | None = None,
     ):
+        if check_dependencies:
+            check_adb_dependencies_version()
         self.subprocess_check = subprocess_check_flag
         self._devices_fixed_port = fixed_port
-        self.connector = DeviceConnection(
-            subprocess_check_flag=self.subprocess_check,
-            fixed_port=self._devices_fixed_port,
+        self.connector = (
+            connector
+            if connector is not None
+            else DeviceConnection(
+                subprocess_check_flag=self.subprocess_check,
+                fixed_port=self._devices_fixed_port,
+            )
         )
         self.adb_pair: AdbPairing | None = None
-        self.__device_info: ObjectManager[DeviceInfo] = ObjectManager()
-        self.__device_actions: ObjectManager[DeviceActions] = ObjectManager()
+        self._devices: dict[str, DeviceObjects] = {}
         self.load_connected_usb_devices()
 
+    def __enter__(self) -> 'DeviceManager':
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self.close()
+
+    def close(self) -> None:
+        """Release underlying discovery and connection resources."""
+        self.connector.close()
+
+    def _register_device(self, serial: str) -> None:
+        """Create and register a DeviceObjects aggregate for `serial`."""
+        if serial not in self._devices:
+            dev_info = DeviceInfo(
+                self.connector,
+                serial,
+                subprocess_check_flag=self.subprocess_check,
+            )
+            dev_actions = DeviceActions(
+                self.connector,
+                serial,
+                subprocess_check_flag=self.subprocess_check,
+            )
+            self._devices[serial] = DeviceObjects(
+                serial_number=serial,
+                device_info=dev_info,
+                device_actions=dev_actions,
+            )
 
     def __getitem__(
         self,
         serial_number: str,
-    ) -> tuple[DeviceInfo, DeviceActions] | None:
+    ) -> tuple[DeviceInfo, DeviceActions]:
         """Get the device information and actions associated with a
-        serial number. If the serial number is not found, None is returned.
+        serial number.
 
         Args:
             serial_number (str): The serial number of the device.
 
         Returns:
-            Optional[Tuple[DeviceInfo, DeviceActions]]: The device information
+            Tuple[DeviceInfo, DeviceActions]: The device information
             and actions associated with the serial number.
         """
-        try:
-            info = self.__device_info.get(serial_number)
-            actions = self.__device_actions.get(serial_number)
-            if info is None:
-                raise ValueError("device info was not found")
-            if actions is None:
-                raise ValueError("device actions was not found")
-            return info, actions
-        except KeyError:
-            return None
+        device = self._devices.get(serial_number)
+        if device is None:
+            raise DeviceNotFoundError(
+                f'Device {serial_number!r} was not found'
+            )
+        return device.device_info, device.device_actions
 
     def __len__(self) -> int:
         """Returns the number of devices currently managed by this class."""
-        return len(self.__device_info)
+        return len(self._devices)
 
     def __iter__(self) -> Iterable[DeviceObjects]:
         """Iterates over the devices being managed by this class.
@@ -121,21 +119,7 @@ class DeviceManager:
         device information and device actions.
 
         Supports usage of the `for` loop to iterate over the devices."""
-        for serial in self.__device_info.keys():
-            device_info = self.__device_info.get(serial)
-            device_actions = self.__device_actions.get(serial)
-            
-            if device_info is None:
-                raise ValueError("device info was not found")
-            
-            if device_actions is None:
-                raise ValueError("device actions was not found")
-            
-            yield DeviceObjects(
-                serial_number=serial,
-                device_info=device_info,
-                device_actions=device_actions,
-    )
+        return iter(self._devices.values())
 
     def __delitem__(self, key: str) -> None:
         """Removes a device from the manager.
@@ -143,8 +127,7 @@ class DeviceManager:
         Args:
             key (str): The serial number of the device to remove.
         """
-        del self.__device_info[key]
-        del self.__device_actions[key]
+        del self._devices[key]
 
     def __contains__(self, key: str) -> bool:
         """Checks if a device with the provided serial number is managed.
@@ -155,7 +138,7 @@ class DeviceManager:
         Returns:
             bool: True if the device is managed, False otherwise.
         """
-        return key in self.__device_info
+        return key in self._devices
 
     def __repr__(self) -> str:
         """Returns a string representation of the class.
@@ -163,10 +146,10 @@ class DeviceManager:
         Returns:
             str: The string representation of the class.
         """
-        return f'device_manager.DeviceManager({len(self)} devices: {list(self.__device_info.keys())})'  # noqa
+        return f'device_manager.DeviceManager({len(self)} devices: {list(self._devices.keys())})'  # noqa
 
     def __str__(self) -> str:
-        return f'DeviceManager({len(self)} devices: {list(self.__device_info.keys())})'  # noqa
+        return f'DeviceManager({len(self)} devices: {list(self._devices.keys())})'  # noqa
 
     @property
     def connected_devices(self) -> list[str]:
@@ -176,7 +159,7 @@ class DeviceManager:
         Returns:
             List[str]: The list of serial numbers of the connected devices.
         """
-        return list(self.__device_info.keys())
+        return list(self._devices.keys())
 
     def connect_devices(self, *serial_numbers: str) -> list[str]:
         """
@@ -198,42 +181,21 @@ class DeviceManager:
             for service in visibles_devices
         }
 
-        usb_serials: list[str] = []
-        wifi_serials: list[str] = []
+        serials_by_type: dict[ConnectionType, list[str]] = defaultdict(list)
 
         for serial in serial_numbers:
             service = visible_by_serial.get(serial)
-
-            if not service:
+            if service is None:
                 continue
+            serials_by_type[service.connection].append(serial)
 
-            if service.connection == ConnectionType.USB:
-                if self.connector.is_connected(serial):
-                    usb_serials.append(serial)
-
-            elif service.connection == ConnectionType.WIFI:
-                wifi_serials.append(serial)
-
-        connected_wifi = []
-        if wifi_serials:
-            connected_wifi = self.connector.start_connection(wifi_serials)
-
-        connected_serials = usb_serials + connected_wifi
+        connected_serials: list[str] = []
+        for connection_type, serials in serials_by_type.items():
+            strategy = get_connection_strategy(connection_type)
+            connected_serials.extend(strategy.connect(self.connector, serials))
 
         for serial in connected_serials:
-            if serial not in self.__device_info:
-                dev_info = DeviceInfo(
-                    self.connector,
-                    serial,
-                    subprocess_check_flag=self.subprocess_check,
-                )
-                dev_actions = DeviceActions(
-                    self.connector,
-                    serial,
-                    subprocess_check_flag=self.subprocess_check,
-                )
-                self.__device_info.add(serial, dev_info)
-                self.__device_actions.add(serial, dev_actions)
+            self._register_device(serial)
 
         return connected_serials
 
@@ -241,7 +203,7 @@ class DeviceManager:
         """Disconnects the devices with the provided serial numbers.
         This method will stop the connection to the devices and remove
         the associated DeviceInfo and DeviceActions objects from the
-        internal object manager objects.
+        internal registry.
 
         Returns:
             bool: True if the disconnection was successful, False otherwise.
@@ -252,8 +214,7 @@ class DeviceManager:
             for serial in serial_number_list:
                 sbn = self.connector.connection_info.get(serial)
                 if sbn is None:  # Should Be None
-                    self.__device_info.remove(serial)
-                    self.__device_actions.remove(serial)
+                    self._devices.pop(serial, None)
         return success_op
 
     def get_device_info(self, serial_number: str) -> DeviceInfo | None:
@@ -266,7 +227,8 @@ class DeviceManager:
         Returns:
             DeviceInfo: The device information object.
         """
-        return self.__device_info.get(serial_number)
+        device = self._devices.get(serial_number)
+        return device.device_info if device is not None else None
 
     def get_device_actions(self, serial_number: str) -> DeviceActions | None:
         """Retrieves the device actions associated with a given serial number.
@@ -277,7 +239,8 @@ class DeviceManager:
         Returns:
             DeviceActions: The device actions object.
         """
-        return self.__device_actions.get(serial_number)
+        device = self._devices.get(serial_number)
+        return device.device_actions if device is not None else None
 
     def execute_adb_command(
         self,
@@ -321,7 +284,7 @@ class DeviceManager:
         uris: list[str] | None = comm_uris
         if comm_uris is None:
             uris = []
-            for serial in self.__device_info.keys():
+            for serial in self._devices:
                 service_info = self.connector.connection_info.get(serial)
                 if service_info is None:
                     continue
@@ -341,7 +304,7 @@ class DeviceManager:
             shell=shell,
             subprocess_check_flag=subprocess_check_flag,
             capture_output=capture_output,
-            **kwargs,
+            **kwargs, # pyright: ignore[reportArgumentType]
         )
 
     def adb_pairing_instance(
@@ -383,9 +346,8 @@ class DeviceManager:
         return self.connector.is_connected(serial_number)
 
     def clear(self) -> None:
-        """Clears the internal object managers, removing all devices."""
-        self.__device_info = ObjectManager()
-        self.__device_actions = ObjectManager()
+        """Clears the internal device registry, removing all devices."""
+        self._devices.clear()
 
     def load_connected_usb_devices(self) -> None:
         """Detects already connected USB devices and registers them."""
@@ -397,17 +359,4 @@ class DeviceManager:
             if self.connector.connection_info.get(serial) is None:
                 self.connector.connection_info.add(serial, service)
 
-            if serial not in self.__device_info.keys():
-                dev_info = DeviceInfo(
-                    self.connector,
-                    serial,
-                    subprocess_check_flag=self.subprocess_check,
-                )
-                dev_actions = DeviceActions(
-                    self.connector,
-                    serial,
-                    subprocess_check_flag=self.subprocess_check,
-                )
-
-                self.__device_info.add(serial, dev_info)
-                self.__device_actions.add(serial, dev_actions)
+            self._register_device(serial)

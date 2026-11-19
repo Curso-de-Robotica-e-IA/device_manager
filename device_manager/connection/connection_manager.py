@@ -1,7 +1,8 @@
 import logging
 import subprocess
-from time import sleep, time
+from time import sleep
 
+from device_manager.adb_gateway import AdbGateway, resolve_gateway
 from device_manager.connection.adb_connection_discovery import (
     AdbConnectionDiscovery,
 )
@@ -10,6 +11,7 @@ from device_manager.connection.utils.connection_status import (
     ConnectionInfoStatus,
 )
 from device_manager.connection.utils.service_info import ServiceInfo
+from device_manager.cli.qrcode_viewer import show_qr_window
 
 logger = logging.getLogger(__name__)
 
@@ -18,26 +20,30 @@ class ConnectionManager:
     # Connection Manager has been developed based in to code available on
     # https://github.com/openatx/adbutils/issues/111#issuecomment-2094694894
 
-    __start_discovery = True
-
     def __init__(
         self,
         subprocess_check_flag: bool = False,
+        restart_adb_server: bool = False,
+        gateway: AdbGateway | None = None,
     ) -> None:
         self.__subprocess_check_flag = subprocess_check_flag
-        if self.__start_discovery:
-            subprocess.run(
-                ["adb", "kill-server"],
+        self._gateway = gateway
+        active_gateway = self._get_gateway()
+        if restart_adb_server:
+            active_gateway.run(
+                ['adb', 'kill-server'],
                 check=self.__subprocess_check_flag,
             )
-            self.__discovery = AdbConnectionDiscovery()
-            subprocess.run(
-                ["adb", "start-server"],
-                check=self.__subprocess_check_flag,
-            )
-            self.__discovery.start()
-            sleep(2)
-        self.__start_discovery = False
+        self.__discovery = AdbConnectionDiscovery()
+        active_gateway.run(
+            ['adb', 'start-server'],
+            check=self.__subprocess_check_flag,
+        )
+        self.__discovery.start()
+        sleep(2)
+
+    def _get_gateway(self) -> AdbGateway:
+        return resolve_gateway(self._gateway, subprocess.run)
 
     @staticmethod
     def check_devices_adb_connection(
@@ -81,30 +87,15 @@ class ConnectionManager:
 
     @staticmethod
     def device_pairing(timeout_s: float) -> bool:
-        """Pairs a device via ADB using the QRCode method.
-        :warning: The user must close the QRCode window shown by the
-        method `qrcode_cv_window_show` to continue the execution of the
-        script.
-
-        Args:
-            timeout_s (float): The maximum time to wait for the device to
-            be paired.
-
-        Returns:
-            bool: True if the device was paired, False otherwise.
-        """
+        """Pairs a device via ADB using the QRCode window (`show_qr_window`)."""
         logger.warning(
             msg="This method is being deprecated. Check the documentation on how to pair devices.",  # noqa
         )
+
         adb_pairing = AdbPairing()
         adb_pairing.start()
-        adb_pairing._qrcode.qrcode_cv_window_show() # pyright: ignore[reportPrivateUsage]
-        start_time = time()
-        while (
-            not adb_pairing.has_device_to_pairing()
-            and (time() - start_time) <= timeout_s
-        ):
-            sleep(0.1)
+        show_qr_window(adb_pairing.qrcode_image)
+        adb_pairing._context.wait_for_online_service(timeout=timeout_s) # pyright: ignore[reportPrivateUsage]
         result = adb_pairing.pair_devices()
         adb_pairing.stop_pair_listener()
         return result
@@ -123,7 +114,7 @@ class ConnectionManager:
             logger.warning("Device service not online or located")
         else:
             comm_uri = f"{info.ip}:{info.port}"
-            result = subprocess.run(
+            result = self._get_gateway().run(
                 ["adb", "connect", comm_uri],
                 capture_output=True,
                 text=True,
@@ -168,14 +159,3 @@ class ConnectionManager:
     def close_discovery(self) -> None:
         """Close the discovery listener."""
         self.__discovery.stop_discovery_listener()
-
-
-class ConnectionManagerSingleton(ConnectionManager):
-    """Singleton class to manage the ConnectionManager instance."""
-
-    _instance = None
-
-    def __new__(cls, *args, **kwargs): # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
-        if cls._instance is None:
-            cls._instance = super(ConnectionManagerSingleton, cls).__new__(cls)
-        return cls._instance

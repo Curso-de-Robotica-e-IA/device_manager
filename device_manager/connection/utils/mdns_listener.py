@@ -65,7 +65,7 @@ class MDnsListener(ServiceListener):
         service_type: str = CONNECT_SERVICE_TYPE,
     ) -> None:
         super().__init__()
-        self.__service_context = service_context
+        self._service_context = service_context
         self.__re_filter = re_filter
         self.__type_filter = service_type
 
@@ -79,7 +79,7 @@ class MDnsListener(ServiceListener):
         """
         info = self._extract_info(zc.get_service_info(type_, name))
         if info:
-            self.__service_context.update_service(info.serial_number, info)
+            self._service_context.add_service(info.serial_number, info)
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Removes the service information from the service context.
@@ -91,7 +91,7 @@ class MDnsListener(ServiceListener):
         """
         info = self._extract_info(zc.get_service_info(type_, name))
         if info:
-            self.__service_context.to_offline_service(info.serial_number, info)
+            self._service_context.to_offline_service(info.serial_number, info)
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Adds the service information to the service context.
@@ -105,7 +105,7 @@ class MDnsListener(ServiceListener):
             zc.get_service_info(type_, name),
         )
         if info:
-            self.__service_context.add_service(info.serial_number, info)
+            self._service_context.add_service(info.serial_number, info)
 
     def _extract_info(
         self,
