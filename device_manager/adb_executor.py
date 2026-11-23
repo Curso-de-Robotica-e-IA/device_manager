@@ -32,19 +32,22 @@ def execute_adb_command(
         extra_args.extend([key, value])
 
     active_gateway = resolve_gateway(gateway, subprocess.run)
+    should_capture = capture_output or subprocess_check_flag
     last_result: CompletedProcess[str] | None = None
     for uri in comm_uris:
         cmd_args = ['adb', '-s', uri, *tokens, *extra_args]
         started_at = perf_counter()
         last_result = active_gateway.run(
             cmd_args,
-            check=subprocess_check_flag,
-            capture_output=capture_output,
-            text=capture_output if capture_output else None,
+            check=False,
+            capture_output=should_capture,
+            text=should_capture if should_capture else None,
         )
         duration_ms = (perf_counter() - started_at) * 1000
         if last_result.returncode != 0:
-            stderr_preview = (last_result.stderr or '').strip() if capture_output else ''
+            stderr_preview = (
+                (last_result.stderr or '').strip() if should_capture else ''
+            )
             logger.warning(
                 'ADB command failed: uri=%s command=%s returncode=%d duration_ms=%.1f stderr=%s',
                 uri,
@@ -53,6 +56,13 @@ def execute_adb_command(
                 duration_ms,
                 stderr_preview,
             )
+            if subprocess_check_flag:
+                raise subprocess.CalledProcessError(
+                    returncode=last_result.returncode,
+                    cmd=cmd_args,
+                    output=last_result.stdout,
+                    stderr=last_result.stderr,
+                )
         else:
             logger.debug(
                 'ADB command succeeded: uri=%s command=%s returncode=%d duration_ms=%.1f',

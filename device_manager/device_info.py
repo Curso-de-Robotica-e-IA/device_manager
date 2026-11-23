@@ -140,20 +140,38 @@ class DeviceInfo(BaseDeviceComponent):
             parse_bool_flag(output, 'mScreenLocked'),
         )
 
-    def get_screen_gui_xml(self) -> str | None:
-        """This method retrieves the .xml that represents the current state
-        of the device screen.
+    def get_screen_gui_xml(self, use_uiautomator2: bool = False) -> str | None:
+        """Retrieves the UI hierarchy XML for the current screen.
 
-        Returns:
-            str: The device screen xml as a string.
+        Uses native `adb shell uiautomator dump` by default (no `uiautomator2`
+        agent required), or `uiautomator2` when `use_uiautomator2=True` or a
+        custom `ui_connector` was injected.
         """
-        if self.device_connection.validate_connection(
-            self._serial_number,
-            force_reconnect=True,
-        ):
-            connector = self._ui_connector or u2.connect
-            device = connector(self.current_comm_uri)
-            return device.dump_hierarchy()
+        if self._ui_connector is not None or use_uiautomator2:
+            if self.device_connection.validate_connection(
+                self._serial_number,
+                force_reconnect=True,
+            ):
+                connector = self._ui_connector or u2.connect
+                device = connector(self.current_comm_uri)
+                return device.dump_hierarchy()
+            return None
+
+        output = self._query_adb('uiautomator dump /dev/tty')
+        if output is None:
+            return None
+        xml_start = output.find('<?xml')
+        if xml_start != -1:
+            return output[xml_start:]
+
+        fallback = self._query_adb(
+            'uiautomator dump /sdcard/window_dump.xml && '
+            'cat /sdcard/window_dump.xml && rm -f /sdcard/window_dump.xml'
+        )
+        if fallback is None:
+            return None
+        xml_start = fallback.find('<?xml')
+        return fallback[xml_start:] if xml_start != -1 else None
 
     def get_properties(
         self,

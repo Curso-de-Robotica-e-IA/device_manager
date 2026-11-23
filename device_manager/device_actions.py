@@ -11,6 +11,10 @@ from device_manager.base_device_component import (
 from device_manager.connection.device_connection import DeviceConnection
 from device_manager.enumerations.adb_keyevents import ADBKeyEvent
 from device_manager.exceptions.errors import DeviceDisconnectedError
+from device_manager.utils.adb_parsers import (
+    find_text_bounds_center,
+    parse_bool_flag,
+)
 
 
 class DeviceActions(BaseDeviceComponent):
@@ -53,6 +57,27 @@ class DeviceActions(BaseDeviceComponent):
     def click_by_coordinates(self, x: int, y: int) -> None:
         """Simulates a tap at the provided (x, y) coordinates."""
         self._run_adb(f'input tap {x} {y}')
+
+    @require_connection(raise_on_disconnect=True)
+    def click_by_text(
+        self,
+        text: str,
+        *,
+        exact: bool = False,
+        xml_content: str | None = None,
+    ) -> bool:
+        """Finds a UI element by text/content-desc in the screen XML and taps its center."""
+        if xml_content is None:
+            res = self._run_adb('uiautomator dump /dev/tty', capture_output=True)
+            out = res.stdout or ''
+            xml_start = out.find('<?xml')
+            xml_content = out[xml_start:] if xml_start != -1 else ''
+
+        center = find_text_bounds_center(xml_content, text, exact=exact)
+        if center is None:
+            return False
+        self._run_adb(f'input tap {center[0]} {center[1]}')
+        return True
 
     @require_connection(raise_on_disconnect=True)
     def swipe(self, x1: int, y1: int, x2: int, y2: int, time: int) -> None:
@@ -116,9 +141,19 @@ class DeviceActions(BaseDeviceComponent):
         self._run_adb(f'input keyevent {ADBKeyEvent.KEYCODE_POWER.value}')
 
     @require_connection(raise_on_disconnect=True)
-    def unlock_screen(self) -> None:
-        """Executes `keyevent KEYCODE_MENU`."""
+    def unlock_screen(self, fallback_swipe: bool = True) -> None:
+        """Unlocks the screen using `KEYCODE_MENU`, with swipe fallback if still locked."""
         self._run_adb(f'input keyevent {ADBKeyEvent.KEYCODE_MENU.value}')
+        if not fallback_swipe:
+            return
+        res = self._run_adb('dumpsys deviceidle', capture_output=True)
+        try:
+            still_locked = parse_bool_flag(res.stdout or '', 'mScreenLocked')
+        except ValueError:
+            still_locked = False
+        if still_locked:
+            self._run_adb('wm dismiss-keyguard')
+            self._run_adb('input swipe 500 1800 500 400 300')
 
     def turn_on_and_unlock_screen(self) -> None:
         """Turns on and unlocks the device screen."""

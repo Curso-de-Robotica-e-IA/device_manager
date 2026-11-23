@@ -1,4 +1,5 @@
 import re
+import xml.etree.ElementTree as ET
 
 from device_manager.exceptions.errors import UnexpectedAdbOutputError
 from device_manager.utils.util_functions import grep
@@ -108,3 +109,36 @@ def parse_app_path(output: str) -> str | None:
 def parse_location_mode(output: str) -> str | None:
     """Maps `settings get secure location_mode` numeric output to label."""
     return LOCATION_MODES.get(output.strip(), None)
+
+
+_BOUNDS_RE = re.compile(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]')
+
+
+def find_text_bounds_center(
+    xml_content: str,
+    text: str,
+    *,
+    exact: bool = False,
+) -> tuple[int, int] | None:
+    """Finds the center `(x, y)` of the first UI node matching `text` or `content-desc`."""
+    if not xml_content or not text:
+        return None
+    try:
+        root = ET.fromstring(xml_content)
+    except ET.ParseError:
+        return None
+
+    target = text if exact else text.lower()
+    for node in root.iter():
+        for attr in ('text', 'content-desc'):
+            val = node.attrib.get(attr, '')
+            if not val:
+                continue
+            matched = val == target if exact else target in val.lower()
+            if matched:
+                bounds = node.attrib.get('bounds', '')
+                m = _BOUNDS_RE.search(bounds)
+                if m:
+                    x1, y1, x2, y2 = (int(g) for g in m.groups())
+                    return (x1 + x2) // 2, (y1 + y2) // 2
+    return None

@@ -199,7 +199,7 @@ def test_wifi_strategy_validate_force_reconnect_logs_exact_warning(
         ConnectionInfoStatus.UPDATED
     )
     connector.connection.check_devices_adb_connection.return_value = False
-    connector.validate_connection.return_value = True
+    connector.validate_connection.side_effect = [False, True]
     svc = ServiceInfo('WIFI-2', '10.0.0.2', 5555, ConnectionType.WIFI)
 
     with caplog.at_level(
@@ -213,11 +213,9 @@ def test_wifi_strategy_validate_force_reconnect_logs_exact_warning(
     connector.establish_first_connection.assert_called_once_with('WIFI-2')
     connector.disconnect.assert_called_once_with()
     connector.connect_all_devices.assert_called_once_with()
-    connector.validate_connection.assert_called_once_with(
-        'WIFI-2', force_reconnect=False
-    )
+    assert connector.validate_connection.call_count == 2
     expected_msg = (
-        'Wi-Fi connection invalid; forcing ADB server reconnect: '
+        'Wi-Fi connection invalid; attempting targeted reconnect: '
         'serial=WIFI-2 uri=10.0.0.2:5555 mdns_status=UPDATED adb_connected=False'
     )
     assert any(r.message == expected_msg for r in caplog.records)

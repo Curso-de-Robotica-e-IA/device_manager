@@ -58,7 +58,7 @@ def test_basic_input_and_app_actions(
     apk.write_bytes(b'apk')
     actions.install_apk(str(apk), replace=True)
 
-    assert mock_exec.call_count == 19
+    assert mock_exec.call_count == 20
 
     with pytest.raises(FileNotFoundError):
         actions.install_apk(str(tmp_path / 'missing.apk'))

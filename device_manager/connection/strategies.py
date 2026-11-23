@@ -109,13 +109,24 @@ class WifiConnectionStrategy:
                 return False
 
             logger.warning(
-                'Wi-Fi connection invalid; forcing ADB server reconnect: serial=%s uri=%s mdns_status=%s adb_connected=%s',
+                'Wi-Fi connection invalid; attempting targeted reconnect: serial=%s uri=%s mdns_status=%s adb_connected=%s',
                 service.serial_number,
                 comm_uri,
                 coninfostatus.name,
                 adb_connected,
             )
             connector.establish_first_connection(service.serial_number)
+            if connector.validate_connection(
+                service.serial_number,
+                force_reconnect=False,
+            ):
+                return True
+
+            logger.warning(
+                'Targeted Wi-Fi reconnect failed; falling back to full ADB server reconnect: serial=%s uri=%s',
+                service.serial_number,
+                comm_uri,
+            )
             connector.disconnect()
             connector.connect_all_devices()
 

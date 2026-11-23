@@ -39,7 +39,7 @@ def test_execute_adb_command_uses_shell_false_and_preserves_quoted_paths(
         '/tmp/out dir',
     ]
     assert first_call_kwargs['shell'] is False
-    assert first_call_kwargs['check'] is True
+    assert first_call_kwargs['check'] is False
     assert first_call_kwargs['capture_output'] is True
     assert first_call_kwargs['text'] is True
 

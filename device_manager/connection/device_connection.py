@@ -14,7 +14,10 @@ from device_manager.connection.utils.mdns_context import (
 from device_manager.connection.utils.usb_device_scanner import (
     UsbDeviceScanner,
 )
-from device_manager.exceptions.errors import DeviceNotFoundError
+from device_manager.exceptions.errors import (
+    DeviceDisconnectedError,
+    DeviceNotFoundError,
+)
 
 DEFAULT_FIXED_PORT = 5555
 MAX_CONNECTION_RETRIES = 5
@@ -209,35 +212,34 @@ class DeviceConnection:
         self,
         serial_number: str,
         force_reconnect: bool = False,
+        raise_on_error: bool = False,
     ) -> bool:
-        """
-        This method validates the current connection with the specified device.
-        If the connection is not valid, the method attempts to reconnect to the
-        device, if the `force_reconnect` parameter is set to True.
-        Be aware that to ensure the reconnection, the method will kill the ADB
-        server and reconnect all devices in the `connection_info` attribute.
+        """Validates the current connection with the specified device.
 
-        Args:
-            serial_number (str): The serial number of the device to validate
-                the connection.
-            force_reconnect (bool, optional): A flag to indicate whether the
-                method should force the reconnection to the device. Defaults to
-                False.
-
-        Returns:
-            bool: True if the connection is valid, False otherwise.
+        If `force_reconnect=True` and the connection is invalid, attempts to
+        reconnect. If `raise_on_error=True` and validation fails, raises
+        `DeviceDisconnectedError`.
         """
         device = self.connection_info.get(serial_number)
         if device is None:
             logger.debug('No devices currently connected for %s', serial_number)
+            if raise_on_error:
+                raise DeviceDisconnectedError(
+                    f'No devices currently connected for {serial_number}'
+                )
             return False
 
         strategy = get_connection_strategy(device.connection)
-        return strategy.validate(
+        is_valid = strategy.validate(
             self,
             device,
             force_reconnect=force_reconnect,
         )
+        if not is_valid and raise_on_error:
+            raise DeviceDisconnectedError(
+                f'Failed to validate connection for device {serial_number}'
+            )
+        return is_valid
 
     def connect_all_devices(self) -> None:
         """Connects to all devices in the `connection_info` attribute.
