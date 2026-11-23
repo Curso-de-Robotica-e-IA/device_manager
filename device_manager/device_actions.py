@@ -10,6 +10,7 @@ from device_manager.base_device_component import (
 )
 from device_manager.connection.device_connection import DeviceConnection
 from device_manager.enumerations.adb_keyevents import ADBKeyEvent
+from device_manager.exceptions.errors import DeviceDisconnectedError
 
 
 class DeviceActions(BaseDeviceComponent):
@@ -28,6 +29,7 @@ class DeviceActions(BaseDeviceComponent):
             subprocess_check_flag=subprocess_check_flag,
             gateway=gateway,
         )
+        self._ui_device: object | None = None
         self.camera = CameraActions(
             device_connection=self.device_connection,
             serial_number=self._serial_number,
@@ -142,17 +144,54 @@ class DeviceActions(BaseDeviceComponent):
         """Removes a file from the device."""
         self._run_adb(f'rm {remote_path}')
 
-    @require_connection(raise_on_disconnect=True)
-    def safe_screencap_bytes(self) -> bytes | None:
-        """Takes a screenshot and returns image bytes via `adb exec-out`."""
+    def safe_screencap_bytes(self, fast: bool = False) -> bytes | None:
+        """Takes a screenshot and returns PNG bytes.
+
+        When `fast=True`, uses a cached `uiautomator2` connection (~200 ms)
+        and encodes PNG locally with OpenCV, falling back to `adb exec-out
+        screencap -p` if `uiautomator2` is unavailable.
+        """
+        if fast:
+            import cv2
+            import uiautomator2 as u2
+
+            try:
+                if self._ui_device is None:
+                    self._ui_device = u2.connect(self.current_comm_uri)
+                img = self._ui_device.screenshot(format='opencv')  # type: ignore[attr-defined]
+                ok, buf = cv2.imencode(
+                    '.png', img, [cv2.IMWRITE_PNG_COMPRESSION, 1]
+                )
+                if ok:
+                    return buf.tobytes()
+            except Exception:
+                self._ui_device = None
+
         gateway = resolve_gateway(self._gateway, subprocess.run)
+        cmd = [
+            'adb',
+            '-s',
+            self.current_comm_uri,
+            'exec-out',
+            'screencap',
+            '-p',
+        ]
         result = gateway.run(
-            ['adb', '-s', self.current_comm_uri, 'exec-out', 'screencap', '-p'],
+            cmd,
             capture_output=True,
             check=self.subprocess_check_flag,
         )
         if result.returncode != 0 or not result.stdout:
-            return None
+            if not self.validate_connection():
+                raise DeviceDisconnectedError('Device not connected')
+            result = gateway.run(
+                cmd,
+                capture_output=True,
+                check=self.subprocess_check_flag,
+            )
+            if result.returncode != 0 or not result.stdout:
+                return None
+
         return result.stdout
 
     @require_connection(raise_on_disconnect=True)

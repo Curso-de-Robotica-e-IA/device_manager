@@ -75,15 +75,18 @@ class DeviceManager:
     def _register_device(self, serial: str) -> None:
         """Create and register a DeviceObjects aggregate for `serial`."""
         if serial not in self._devices:
+            gateway = getattr(self.connector, '_gateway', None)
             dev_info = DeviceInfo(
                 self.connector,
                 serial,
                 subprocess_check_flag=self.subprocess_check,
+                gateway=gateway,
             )
             dev_actions = DeviceActions(
                 self.connector,
                 serial,
                 subprocess_check_flag=self.subprocess_check,
+                gateway=gateway,
             )
             self._devices[serial] = DeviceObjects(
                 serial_number=serial,
@@ -322,6 +325,7 @@ class DeviceManager:
             shell=shell,
             subprocess_check_flag=subprocess_check_flag,
             capture_output=capture_output,
+            gateway=getattr(self.connector, '_gateway', None),
             **kwargs, # pyright: ignore[reportArgumentType]
         )
 

@@ -457,6 +457,7 @@ def test_device_manager_defaults_forwarding_and_logs(
         shell=True,
         subprocess_check_flag=False,
         capture_output=False,
+        gateway=mock_dc_inst._gateway,
     )
     with pytest.raises(
         TypeError,

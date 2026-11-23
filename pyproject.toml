@@ -53,6 +53,7 @@ testpaths = [
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "device: marks tests that require a physical Android device and measure latency benchmarks (run with --device)",
 ]
 
 [tool.coverage.run]
@@ -76,7 +77,7 @@ do_not_mutate = [
     "device_manager/cli/*",
 ]
 omit = [
-    "*/tests/*",
+    "**/tests/*",
     "__init__.py"
 ]
 
@@ -128,7 +129,9 @@ docstring-code-format = false
 lint = 'ruff check . && ruff check . --diff'
 format = 'ruff check . --fix && ruff format .'
 pre_test = 'task format'
-test = 'pytest -vv --cov=device_manager --cov-report=term-missing -p no:warnings --disable-socket'
+test = 'pytest -vv --cov=device_manager --cov-branch --cov-report=term-missing -p no:warnings --disable-socket'
+test_mock = 'pytest -vv -m "not device" --cov=device_manager --cov-branch --cov-report=term-missing -p no:warnings'
+test_device = 'pytest -vv -m device --device -o addopts= -s'
 post_test = 'coverage html'
 docs = "mkdocs serve"
 bdocs = "mkdocs build"

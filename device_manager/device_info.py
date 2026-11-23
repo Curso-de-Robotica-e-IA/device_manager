@@ -78,15 +78,21 @@ class DeviceInfo(BaseDeviceComponent):
             gateway=gateway,
         )
         self._ui_connector = ui_connector
+        self._cached_properties: dict[str, str] | None = None
+        self._cached_screen_dimensions: tuple[int, int] | None = None
 
     def _query_adb(self, command: str) -> str | None:
-        """Template helper: validates connection and runs a shell ADB query."""
+        """Try-first ADB shell query: runs directly and only validates/reconnects on failure."""
+        result = self._run_adb(command, capture_output=True)
+        if result.returncode == 0:
+            return result.stdout
         if not self.device_connection.validate_connection(
             self._serial_number,
             force_reconnect=True,
         ):
             return None
-        return self._run_adb(command, capture_output=True).stdout
+        retry = self._run_adb(command, capture_output=True)
+        return retry.stdout if retry.returncode == 0 else None
 
     def actual_activity(self) -> str | None:
         """
@@ -124,6 +130,16 @@ class DeviceInfo(BaseDeviceComponent):
             raise UnexpectedAdbOutputError(UNEXPECTED_ADB_OUTPUT)
         return parse_bool_flag(output, 'mScreenLocked')
 
+    def get_screen_state(self) -> tuple[bool, bool]:
+        """Returns `(is_screen_on, is_device_locked)` using a single `dumpsys deviceidle` call."""
+        output = self._query_adb('dumpsys deviceidle')
+        if output is None:
+            raise UnexpectedAdbOutputError(UNEXPECTED_ADB_OUTPUT)
+        return (
+            parse_bool_flag(output, 'mScreenOn'),
+            parse_bool_flag(output, 'mScreenLocked'),
+        )
+
     def get_screen_gui_xml(self) -> str | None:
         """This method retrieves the .xml that represents the current state
         of the device screen.
@@ -142,39 +158,34 @@ class DeviceInfo(BaseDeviceComponent):
     def get_properties(
         self,
         extra_keys: list[str] | None = None,
+        refresh: bool = False,
     ) -> dict[str, str]:
-        """This method retrieves the properties of the device, and returns a
-        dictionary containing the properties. By default, it retrieves the
-        serial number, brand, model, and Android version. If extra keys are
-        provided, it will also retrieve those properties.
-        The properties are obtained by executing the `adb shell getprop`
-        command, so the extra keys must be valid properties, without the
-        trailing brackets (`[]`).
+        """Retrieves device properties (cached on the instance when `extra_keys` is None)."""
+        if (
+            extra_keys is None
+            and not refresh
+            and self._cached_properties is not None
+        ):
+            return dict(self._cached_properties)
 
-        Args:
-            extra_keys (Optional[List[str]]): A list of extra keys to retrieve
-                from the device properties. Defaults to None.
-
-        Returns:
-            Dict[str, str]: A dictionary containing the properties of the
-                device.
-        """
         output = self._query_adb('getprop')
         if output is None:
             raise UnexpectedAdbOutputError(UNEXPECTED_ADB_OUTPUT)
         base_result = parse_getprop(output, extra_keys=extra_keys)
-        return DeviceProperties(**base_result)  # pyright: ignore[reportReturnType]
+        props = DeviceProperties(**base_result)  # pyright: ignore[reportReturnType]
+        if extra_keys is None:
+            self._cached_properties = dict(props)
+        return props
 
-    def get_screen_dimensions(self) -> tuple[int, int]:
-        """Gets the dimensions of the device screen.
-
-        Returns:
-            tuple[int, int]: The width and height of the device screen.
-        """
+    def get_screen_dimensions(self, refresh: bool = False) -> tuple[int, int]:
+        """Gets the dimensions of the device screen (cached on the instance)."""
+        if not refresh and self._cached_screen_dimensions is not None:
+            return self._cached_screen_dimensions
         output = self._query_adb('wm size')
         if output is None:
             raise UnexpectedAdbOutputError(UNEXPECTED_ADB_OUTPUT)
-        return parse_screen_dimensions(output)
+        self._cached_screen_dimensions = parse_screen_dimensions(output)
+        return self._cached_screen_dimensions
 
     def app(self, package: str) -> AppInfo:
         """Returns an instance of AppInfo for the specified package.

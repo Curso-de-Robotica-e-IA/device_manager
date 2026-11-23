@@ -91,6 +91,9 @@ def test_safe_screencap_bytes_uses_exec_out_in_memory(
     )
 
     mock_connection.validate_connection.return_value = False
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=1, stdout=b''
+    )
     from device_manager.exceptions.errors import DeviceDisconnectedError
 
     with pytest.raises(DeviceDisconnectedError):
