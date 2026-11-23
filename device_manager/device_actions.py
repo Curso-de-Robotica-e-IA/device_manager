@@ -256,3 +256,78 @@ class DeviceActions(BaseDeviceComponent):
         self._run_adb(
             f'settings put system accelerometer_rotation {rotation_value}'
         )
+
+    @require_connection(raise_on_disconnect=True)
+    def set_android_setting(
+        self,
+        setting_name: str,
+        value: str,
+        namespace: str = 'system',
+    ) -> None:
+        """Sets an arbitrary Android setting via `settings put <namespace> <name> <value>`."""
+        self._run_adb(f'settings put {namespace} {setting_name} {value}')
+
+    @require_connection(raise_on_disconnect=True)
+    def start_app(
+        self,
+        package_name: str,
+        activity: str,
+        *,
+        extras: dict[str, object] | None = None,
+        stop_first: bool = False,
+    ) -> None:
+        """Starts an Android activity with optional `-S` flag and typed Intent extras."""
+        parts = ['am', 'start']
+        if stop_first:
+            parts.append('-S')
+        parts.extend(['-n', f'{package_name}/{activity}'])
+        if extras:
+            for key, val in extras.items():
+                if isinstance(val, bool):
+                    parts.extend(['--ez', key, str(val).lower()])
+                elif isinstance(val, int):
+                    parts.extend(['--ei', key, str(val)])
+                elif isinstance(val, float):
+                    parts.extend(['--ef', key, str(val)])
+                else:
+                    parts.extend(['--es', key, str(val)])
+        self._run_adb(' '.join(parts))
+
+    @require_connection(raise_on_disconnect=True)
+    def wake_up_screen(self) -> None:
+        """Idempotently wakes up the screen using KEYCODE_WAKEUP (224) + dismiss-keyguard."""
+        self._run_adb('input keyevent 224')
+        self._run_adb('wm dismiss-keyguard')
+
+    @require_connection(raise_on_disconnect=True)
+    def keep_screen_on_and_awake(self, timeout_ms: int = 1800000) -> None:
+        """Configures stay-on, screen timeout, and wakes the display."""
+        self._run_adb('svc power stayon true')
+        self._run_adb('settings put global stay_on_while_plugged_in 7')
+        self._run_adb(
+            f'settings put system screen_off_timeout {timeout_ms}'
+        )
+        self._run_adb('input keyevent 224')
+        self._run_adb('wm dismiss-keyguard')
+
+    def take_screenshot_to_file(
+        self, local_path: str | Path
+    ) -> Path | None:
+        """Captures PNG screenshot bytes in memory and writes them to `local_path`."""
+        img_bytes = self.safe_screencap_bytes()
+        if not img_bytes:
+            return None
+        dest = Path(local_path).resolve()
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(img_bytes)
+        return dest
+
+    def start_getevent_process(self) -> subprocess.Popen[str]:
+        """Starts a streaming `adb -s <uri> shell -tt getevent` subprocess."""
+        return subprocess.Popen(
+            ['adb', '-s', self.current_comm_uri, 'shell', '-tt', 'getevent'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            bufsize=1,
+        )

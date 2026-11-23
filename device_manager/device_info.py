@@ -9,6 +9,7 @@ from device_manager.exceptions.errors import (
 )
 from device_manager.infos.app import AppInfo
 from device_manager.utils.adb_parsers import (
+    TouchscreenInfo,
     UNEXPECTED_ADB_OUTPUT,
     parse_app_path,
     parse_bool_flag,
@@ -18,6 +19,7 @@ from device_manager.utils.adb_parsers import (
     parse_installed_packages,
     parse_location_mode,
     parse_screen_dimensions,
+    parse_touchscreen_devices,
 )
 
 
@@ -76,6 +78,8 @@ class DeviceInfo(BaseDeviceComponent):
         )
         self._cached_properties: dict[str, str] | None = None
         self._cached_screen_dimensions: tuple[int, int] | None = None
+        self._cached_touchscreens: dict[str, TouchscreenInfo] | None = None
+        self._cached_touchscreen_events: list[str] | None = None
 
     def _query_adb(self, command: str) -> str | None:
         """Try-first ADB shell query: runs directly and only validates/reconnects on failure."""
@@ -300,3 +304,60 @@ class DeviceInfo(BaseDeviceComponent):
         if output is None:
             return False
         return output.strip() == '1'
+
+    def get_device_model(self, refresh: bool = False) -> str:
+        """Returns `'brand model'` from cached device properties."""
+        props = self.get_properties(refresh=refresh)
+        brand = props.get('brand', '').strip()
+        model = props.get('model', '').strip()
+        return f'{brand} {model}'.strip() if (brand or model) else 'unknown'
+
+    def is_app_running(self, package_name: str) -> bool:
+        """Checks whether `package_name` currently has an active process (`pidof`)."""
+        output = self._query_adb(f'pidof {package_name}')
+        return bool(output and output.strip())
+
+    def get_all_touchscreens(
+        self, refresh: bool = False
+    ) -> dict[str, TouchscreenInfo]:
+        """Returns all detected touchscreen devices mapped by `/dev/input/` node."""
+        if not refresh and self._cached_touchscreens is not None:
+            return dict(self._cached_touchscreens)
+        output = self._query_adb('getevent -p -l')
+        if not output:
+            return {}
+        touch_map, nodes = parse_touchscreen_devices(output)
+        self._cached_touchscreens = touch_map
+        self._cached_touchscreen_events = nodes
+        return dict(touch_map)
+
+    def get_touchscreen_events(self, refresh: bool = False) -> list[str]:
+        """Returns prioritized touchscreen event nodes (direct touch first)."""
+        if not refresh and self._cached_touchscreen_events is not None:
+            return list(self._cached_touchscreen_events)
+        self.get_all_touchscreens(refresh=refresh)
+        return list(self._cached_touchscreen_events or [])
+
+    def get_touchscreen_info(self, refresh: bool = False) -> TouchscreenInfo:
+        """Returns the primary touchscreen info, or a safe fallback if undetected."""
+        touch_map = self.get_all_touchscreens(refresh=refresh)
+        events = self._cached_touchscreen_events or []
+        if events and events[0] in touch_map:
+            return touch_map[events[0]]
+        return TouchscreenInfo(
+            node='event8', name='', x_range=(0, 0), y_range=(0, 0)
+        )
+
+    def get_touch_axis_ranges(
+        self, event_node: str | None = None
+    ) -> tuple[tuple[int, int], tuple[int, int]]:
+        """Returns `(x_range, y_range)` for `event_node` or the primary touchscreen."""
+        touch_map = self.get_all_touchscreens()
+        if event_node is not None:
+            clean = event_node.rsplit('/', 1)[-1]
+            if clean in touch_map:
+                info = touch_map[clean]
+                return info.x_range, info.y_range
+            return (0, 0), (0, 0)
+        primary = self.get_touchscreen_info()
+        return primary.x_range, primary.y_range
