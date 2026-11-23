@@ -114,17 +114,11 @@ def test_benchmark_device_actions_all(
 ) -> None:
     _, info, actions = real_device
 
-    png_fast = benchmark_recorder.measure(
-        'DeviceActions.safe_screencap_bytes(fast=True)',
-        lambda: actions.safe_screencap_bytes(fast=True),
+    png = benchmark_recorder.measure(
+        'DeviceActions.safe_screencap_bytes',
+        actions.safe_screencap_bytes,
     )
-    assert png_fast is not None and png_fast.startswith(b'\x89PNG\r\n\x1a\n')
-
-    png_adb = benchmark_recorder.measure(
-        'DeviceActions.safe_screencap_bytes(fast=False)',
-        lambda: actions.safe_screencap_bytes(fast=False),
-    )
-    assert png_adb is not None and png_adb.startswith(b'\x89PNG\r\n\x1a\n')
+    assert png is not None and png.startswith(b'\x89PNG\r\n\x1a\n')
 
     benchmark_recorder.measure(
         'DeviceActions.click_by_coordinates',

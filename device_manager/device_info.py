@@ -1,6 +1,4 @@
-from typing import Any, Callable, TypedDict
-
-import uiautomator2 as u2 # pyright: ignore[reportMissingTypeStubs]
+from typing import TypedDict # pyright: ignore[reportMissingTypeStubs]
 
 from device_manager.adb_gateway import AdbGateway
 from device_manager.base_device_component import BaseDeviceComponent
@@ -69,7 +67,6 @@ class DeviceInfo(BaseDeviceComponent):
         serial_number: str,
         subprocess_check_flag: bool = False,
         gateway: AdbGateway | None = None,
-        ui_connector: Callable[[str], Any] | None = None,
     ):
         super().__init__(
             device_connection=device_connection,
@@ -77,7 +74,6 @@ class DeviceInfo(BaseDeviceComponent):
             subprocess_check_flag=subprocess_check_flag,
             gateway=gateway,
         )
-        self._ui_connector = ui_connector
         self._cached_properties: dict[str, str] | None = None
         self._cached_screen_dimensions: tuple[int, int] | None = None
 
@@ -140,23 +136,8 @@ class DeviceInfo(BaseDeviceComponent):
             parse_bool_flag(output, 'mScreenLocked'),
         )
 
-    def get_screen_gui_xml(self, use_uiautomator2: bool = False) -> str | None:
-        """Retrieves the UI hierarchy XML for the current screen.
-
-        Uses native `adb shell uiautomator dump` by default (no `uiautomator2`
-        agent required), or `uiautomator2` when `use_uiautomator2=True` or a
-        custom `ui_connector` was injected.
-        """
-        if self._ui_connector is not None or use_uiautomator2:
-            if self.device_connection.validate_connection(
-                self._serial_number,
-                force_reconnect=True,
-            ):
-                connector = self._ui_connector or u2.connect
-                device = connector(self.current_comm_uri)
-                return device.dump_hierarchy()
-            return None
-
+    def get_screen_gui_xml(self) -> str | None:
+        """Retrieves the UI hierarchy XML for the current screen via native ADB."""
         output = self._query_adb('uiautomator dump /dev/tty')
         if output is None:
             return None

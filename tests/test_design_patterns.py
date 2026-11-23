@@ -210,16 +210,20 @@ def test_async_adb_pairing_decoupled_from_sync_lsp() -> None:
     assert isinstance(ObjectManager(), MutableMapping)
 
 
-def test_device_info_ui_connector_injection() -> None:
+def test_device_info_native_xml_via_injected_gateway() -> None:
     conn = MagicMock()
     conn.build_comm_uri.return_value = 'emulator-5554'
     conn.validate_connection.return_value = True
 
-    fake_ui = MagicMock()
-    fake_ui.dump_hierarchy.return_value = '<hierarchy />'
-    info = DeviceInfo(conn, 'emulator-5554', ui_connector=lambda uri: fake_ui)
+    gw = MagicMock()
+    gw.run.return_value = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout='UI dumped\n<?xml version="1.0"?><hierarchy />',
+    )
+    info = DeviceInfo(conn, 'emulator-5554', gateway=gw)
 
-    assert info.get_screen_gui_xml() == '<hierarchy />'
+    assert info.get_screen_gui_xml() == '<?xml version="1.0"?><hierarchy />'
 
 
 def test_usb_scanner_accepts_injected_gateway() -> None:

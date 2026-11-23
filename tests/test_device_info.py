@@ -168,12 +168,9 @@ def test_device_info_try_first_retry_cache_and_screen_state(
     assert mock_exec.call_count == 2
 
 
-def test_safe_screencap_bytes_try_first_and_fast_u2(
+def test_safe_screencap_bytes_try_first(
     mock_connection: MagicMock,
-    mocker: MockerFixture,
 ) -> None:
-    import numpy as np
-
     from device_manager.device_actions import DeviceActions
 
     # 1. Try-first retry on failure (reconnect succeeds, then fails on retry; then retry succeeds)
@@ -198,26 +195,3 @@ def test_safe_screencap_bytes_try_first_and_fast_u2(
     )
     with pytest.raises(ConnectionError, match='Device not connected'):
         actions.safe_screencap_bytes()
-
-    # 3. fast=True uses cached uiautomator2 connection and returns valid PNG bytes
-    fake_u2_dev = MagicMock()
-    fake_u2_dev.screenshot.return_value = np.zeros((4, 4, 3), dtype=np.uint8)
-    mock_connect = mocker.patch(
-        'uiautomator2.connect', return_value=fake_u2_dev
-    )
-    png1 = actions.safe_screencap_bytes(fast=True)
-    png2 = actions.safe_screencap_bytes(fast=True)
-    assert png1 is not None and png1.startswith(b'\x89PNG\r\n\x1a\n')
-    assert png2 is not None and png2.startswith(b'\x89PNG\r\n\x1a\n')
-    mock_connect.assert_called_once_with('192.168.1.10:5555')
-
-    # 4. fast=True falls back to adb exec-out when imencode returns False or u2 raises
-    mocker.patch('cv2.imencode', return_value=(False, None))
-    gw.run.return_value = subprocess.CompletedProcess(
-        args=[], returncode=0, stdout=b'\x89PNG\r\n\x1a\nfallback'
-    )
-    assert actions.safe_screencap_bytes(fast=True) == b'\x89PNG\r\n\x1a\nfallback'
-
-    fake_u2_dev.screenshot.side_effect = RuntimeError('u2 down')
-    assert actions.safe_screencap_bytes(fast=True) == b'\x89PNG\r\n\x1a\nfallback'
-    assert actions._ui_device is None

@@ -235,7 +235,6 @@ def test_device_info_native_get_screen_gui_xml(
         args=[], returncode=1, stdout=''
     )
     assert info.get_screen_gui_xml() is None
-    assert info.get_screen_gui_xml(use_uiautomator2=True) is None
 
     mock_exec.side_effect = [
         subprocess.CompletedProcess(args=[], returncode=0, stdout='no xml'),
