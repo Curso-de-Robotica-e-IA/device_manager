@@ -62,19 +62,11 @@ branch = true
 
 [tool.mutmut]
 source_paths = ["device_manager"]
-pytest_add_cli_args = ["-o", "addopts=", "-q", "--no-header", "-p", "no:warnings"]
+pytest_add_cli_args = ["-o", "addopts=", "-m", "not device", "-q", "--no-header", "-p", "no:warnings"]
 pytest_add_cli_args_test_selection = ["tests/"]
-only_mutate = [
-    "device_manager/connection/device_connection.py",
-    "device_manager/manager.py",
-    "device_manager/connection/adb_pairing.py",
-    "device_manager/connection/utils/usb_device_scanner.py",
-    "device_manager/connection/utils/mdns_session.py",
-]
 do_not_mutate = [
     "device_manager/enumerations/*",
     "device_manager/exceptions/*",
-    "device_manager/cli/*",
 ]
 omit = [
     "**/tests/*",

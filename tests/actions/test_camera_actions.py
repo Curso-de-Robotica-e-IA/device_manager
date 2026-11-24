@@ -76,3 +76,61 @@ def test_camera_actions_raises_when_disconnected() -> None:
         cam.take_picture()
     with pytest.raises(RuntimeError):
         cam.clear_pictures()
+
+
+def test_camera_actions_exact_adb_commands(
+    mocker,
+    tmp_path,
+) -> None:
+    import subprocess
+    from unittest.mock import MagicMock
+
+    from device_manager.actions.camera_actions import CameraActions
+
+    conn = MagicMock()
+    conn.build_comm_uri.return_value = 'SER1'
+    conn.validate_connection.return_value = True
+    cam = CameraActions(conn, 'SER1', True, 'SER1')
+
+    mock_exec = mocker.patch(
+        'device_manager.base_device_component.execute_adb_command',
+        side_effect=[
+            subprocess.CompletedProcess(args=[], returncode=0, stdout='img1.jpg\n'),
+            subprocess.CompletedProcess(args=[], returncode=0, stdout=''),
+            subprocess.CompletedProcess(
+                args=[], returncode=0, stdout='1 file pulled, 0 skipped.\n'
+            ),
+            subprocess.CompletedProcess(args=[], returncode=0, stdout=''),
+        ],
+    )
+
+    dest = tmp_path / 'pics'
+    cam.pull_pictures(str(dest))
+    mock_exec.assert_called_with(
+        command=f'pull /sdcard/DCIM/Camera/img1.jpg {dest.resolve()}',
+        comm_uris=['SER1'],
+        shell=False,
+        subprocess_check_flag=True,
+        capture_output=False,
+        gateway=None,
+    )
+
+    cam.pull_picture_by_name('photo.jpg', str(dest))
+    mock_exec.assert_called_with(
+        command=f'pull "/sdcard/DCIM/Camera/photo.jpg" "{dest.resolve() / "photo.jpg"}"',
+        comm_uris=['SER1'],
+        shell=False,
+        subprocess_check_flag=True,
+        capture_output=True,
+        gateway=None,
+    )
+
+    cam.clear_pictures()
+    mock_exec.assert_called_with(
+        command='rm -rf /sdcard/DCIM/Camera/*',
+        comm_uris=['SER1'],
+        shell=True,
+        subprocess_check_flag=True,
+        capture_output=False,
+        gateway=None,
+    )

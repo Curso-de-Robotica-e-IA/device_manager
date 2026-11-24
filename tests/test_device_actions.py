@@ -98,3 +98,54 @@ def test_safe_screencap_bytes_uses_exec_out_in_memory(
 
     with pytest.raises(DeviceDisconnectedError):
         actions.safe_screencap_bytes()
+
+
+def test_device_actions_exact_commands_and_flags(
+    mocker: MockerFixture,
+    tmp_path,
+) -> None:
+    conn = MagicMock()
+    conn.build_comm_uri.return_value = 'SER1'
+    conn.validate_connection.return_value = True
+    gw = MagicMock()
+    gw.run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout=b'\x89PNG\r\n\x1a\nok'
+    )
+    actions = DeviceActions(conn, 'SER1', subprocess_check_flag=True, gateway=gw)
+
+    assert actions.validate_connection() is True
+    conn.validate_connection.assert_called_once_with('SER1', force_reconnect=False)
+
+    assert actions.safe_screencap_bytes() == b'\x89PNG\r\n\x1a\nok'
+    gw.run.assert_called_once_with(
+        ['adb', '-s', 'SER1', 'exec-out', 'screencap', '-p'],
+        capture_output=True,
+        check=True,
+    )
+
+    apk = tmp_path / 'demo.apk'
+    apk.write_bytes(b'apk')
+    mock_exec = mocker.patch(
+        'device_manager.base_device_component.execute_adb_command',
+        return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout=''),
+    )
+    actions.install_apk(str(apk), replace=False)
+    mock_exec.assert_called_with(
+        command=f'install {apk.resolve().as_posix()}',
+        comm_uris=['SER1'],
+        shell=False,
+        subprocess_check_flag=True,
+        capture_output=False,
+        gateway=gw,
+    )
+    actions.install_apk(str(apk), replace=True)
+    mock_exec.assert_called_with(
+        command=f'install -r -g {apk.resolve().as_posix()}',
+        comm_uris=['SER1'],
+        shell=False,
+        subprocess_check_flag=True,
+        capture_output=False,
+        gateway=gw,
+    )
+    with pytest.raises(FileNotFoundError, match=r'^File not found: missing\.apk$'):
+        actions.install_apk('missing.apk')

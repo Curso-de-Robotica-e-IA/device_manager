@@ -80,3 +80,44 @@ def test_check_authorization(mocker: MockerFixture) -> None:
     assert scanner.check_authorization('emulator-5554') is True
     assert scanner.check_authorization('UNAUTH-01') is False
     assert scanner.check_authorization('MISSING') is False
+
+
+def test_usb_scanner_exact_adb_args_and_service_fields() -> None:
+    import subprocess
+    from unittest.mock import MagicMock
+
+    from device_manager.connection.utils.connection_type import ConnectionType
+    from device_manager.connection.utils.service_info import ServiceInfo
+    from device_manager.connection.utils.usb_device_scanner import (
+        UsbDeviceScanner,
+    )
+
+    gw = MagicMock()
+    gw.run.return_value = subprocess.CompletedProcess(
+        args=['adb', 'devices'],
+        returncode=0,
+        stdout=(
+            'List of devices attached\n'
+            'USB-01\tdevice\n'
+            '192.168.1.5:5555\tdevice\n'
+            'USB-02\tunauthorized\n'
+        ),
+    )
+    scanner = UsbDeviceScanner(subprocess_check_flag=True, gateway=gw)
+
+    devices = scanner.list_connected_devices()
+
+    gw.run.assert_called_once_with(
+        ['adb', 'devices'],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert devices == [
+        ServiceInfo(
+            serial_number='USB-01',
+            ip='',
+            port=0,
+            connection=ConnectionType.USB,
+        )
+    ]

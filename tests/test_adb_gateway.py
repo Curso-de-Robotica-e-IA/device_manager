@@ -97,3 +97,74 @@ def test_adbutils_gateway_error_handling() -> None:
     assert res_bin.returncode == 1
     assert res_bin.stdout == b''
     assert b'adb server down' in res_bin.stderr
+
+
+def test_adbutils_gateway_exact_args_outputs_and_edge_fallbacks() -> None:
+    fallback = MagicMock()
+    fallback.run.return_value = subprocess.CompletedProcess(
+        args=['fallback'], returncode=0, stdout='fb', stderr=''
+    )
+    fake_device = MagicMock()
+    fake_device.shell.side_effect = ['out\n', b'RAW']
+    fake_client = MagicMock()
+    fake_client.list.return_value = [
+        SimpleNamespace(serial='S1', state='device'),
+        SimpleNamespace(serial='S2', state='offline'),
+    ]
+    fake_client.device.return_value = fake_device
+
+    gw = AdbutilsAdbGateway(client=fake_client, fallback=fallback)
+
+    gw.run(['ls', '-l'], check=True, capture_output=True, text=True)
+    fallback.run.assert_called_with(
+        ['ls', '-l'], check=True, capture_output=True, text=True
+    )
+
+    r_dev = gw.run(['adb', 'devices'], capture_output=True, text=True)
+    assert r_dev.args == ['adb', 'devices']
+    assert r_dev.returncode == 0
+    assert r_dev.stdout == 'List of devices attached\nS1\tdevice\nS2\toffline\n'
+    assert r_dev.stderr == ''
+
+    r_sh = gw.run(['adb', '-s', 'S1', 'shell', 'echo', 'hi'])
+    fake_client.device.assert_called_with(serial='S1')
+    fake_device.shell.assert_any_call(['echo', 'hi'])
+    assert r_sh.args == ['adb', '-s', 'S1', 'shell', 'echo', 'hi']
+    assert r_sh.stdout == 'out\n'
+    assert r_sh.stderr == ''
+
+    r_ex = gw.run(['adb', '-s', 'S1', 'exec-out', 'screencap', '-p'])
+    fake_device.shell.assert_any_call(['screencap', '-p'], encoding=None)
+    assert r_ex.args == ['adb', '-s', 'S1', 'exec-out', 'screencap', '-p']
+    assert r_ex.stdout == b'RAW'
+    assert r_ex.stderr == b''
+
+    r_push = gw.run(['adb', '-s', 'S1', 'push', 'src.txt', '/sdcard/dst.txt'])
+    fake_device.sync.push.assert_called_once_with('src.txt', '/sdcard/dst.txt')
+    assert r_push.args == ['adb', '-s', 'S1', 'push', 'src.txt', '/sdcard/dst.txt']
+    assert r_push.stdout == '' and r_push.stderr == ''
+
+    r_pull = gw.run(['adb', '-s', 'S1', 'pull', '/sdcard/dst.txt', 'out.txt'])
+    fake_device.sync.pull.assert_called_once_with('/sdcard/dst.txt', 'out.txt')
+    assert r_pull.args == ['adb', '-s', 'S1', 'pull', '/sdcard/dst.txt', 'out.txt']
+    assert r_pull.stdout == '' and r_pull.stderr == ''
+
+    for cmd in (
+        ['adb', '-s', 'S1', 'shell'],
+        ['adb', '-s', 'S1', 'exec-out'],
+        ['adb', '-s', 'S1', 'push', 'only_one'],
+        ['adb', '-s', 'S1', 'pull', 'only_one'],
+    ):
+        fallback.run.reset_mock()
+        assert gw.run(cmd, check=True, capture_output=True, text=False).stdout == 'fb'
+        fallback.run.assert_called_once_with(
+            cmd, check=True, capture_output=True, text=False
+        )
+
+    fake_client.device.side_effect = RuntimeError('boom')
+    with pytest.raises(subprocess.CalledProcessError) as exc_info:
+        gw.run(['adb', '-s', 'S1', 'shell', 'ls'], check=True)
+    assert exc_info.value.returncode == 1
+    assert exc_info.value.cmd == ['adb', '-s', 'S1', 'shell', 'ls']
+    assert exc_info.value.output == ''
+    assert exc_info.value.stderr == 'boom'

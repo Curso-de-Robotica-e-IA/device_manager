@@ -535,3 +535,168 @@ def test_device_manager_execute_adb_command_weak_robust_invalid(
 
     with pytest.raises(expected_exc, match=match_pattern):
         dm.execute_adb_command('input keyevent 3', comm_uris=comm_uris)  # type: ignore[arg-type]
+
+
+def test_parse_getprop_preserves_colons_in_values_and_all_base_keys() -> None:
+    from device_manager.utils.adb_parsers import parse_getprop
+
+    raw = (
+        '[ro.serialno]: [SER-01]\n'
+        '[ro.product.manufacturer]: [Google]\n'
+        '[ro.product.model]: [Pixel: Pro: Max]\n'
+        '[ro.build.version.release]: [14]\n'
+        '[custom.prop]: [a: b: c]\n'
+    )
+    result = parse_getprop(raw, extra_keys=['custom.prop'])
+    assert result == {
+        'serial_number': 'SER-01',
+        'brand': 'Google',
+        'model': 'Pixel: Pro: Max',
+        'android_version': '14',
+        'custom.prop': 'a: b: c',
+    }
+
+
+def test_qrcode_defaults_and_rebuild_parameters(mocker) -> None:
+    import qrcode.constants
+
+    from device_manager.utils.qrcode import QRCode
+
+    qr = QRCode(qrcode_data='HELLO-QR')
+    assert qr.qrcode_string == 'HELLO-QR'
+    assert qr.qrcode_object.version == 1
+    assert qr.qrcode_object.error_correction == qrcode.constants.ERROR_CORRECT_L
+    assert qr.qrcode_object.box_size == 20
+    assert qr.qrcode_object.border == 2
+    img1 = qr.qr_image
+    assert img1 is not None
+
+    qr.qrcode_string = 'UPDATED-QR-LONGER-PAYLOAD-1234567890'
+    assert qr.qrcode_string == 'UPDATED-QR-LONGER-PAYLOAD-1234567890'
+    assert qr.qr_image is not img1
+
+    # Verify default fill_color/back_color and custom colors passed to make_image
+    mock_qr_cls = mocker.patch('device_manager.utils.qrcode.qrcode.QRCode')
+    mock_qr_inst = mock_qr_cls.return_value
+    QRCode(qrcode_data='COLOR-DEFAULT')
+    mock_qr_cls.assert_called_once_with(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=20,
+        border=2,
+    )
+    mock_qr_inst.add_data.assert_called_once_with('COLOR-DEFAULT')
+    mock_qr_inst.make_image.assert_called_once_with(
+        fill_color='black',
+        back_color='white',
+    )
+
+
+def test_device_prompt_cli_exact_prompts_and_console_outputs(mocker) -> None:
+    from unittest.mock import MagicMock
+
+    from rich.console import Console
+
+    from device_manager.cli.device_prompt import DevicePromptCLI
+    from device_manager.connection.utils.connection_type import ConnectionType
+    from device_manager.connection.utils.service_info import ServiceInfo
+
+    conn = MagicMock()
+    cli_default = DevicePromptCLI(conn)
+    assert isinstance(cli_default.console, Console)
+
+    console = MagicMock()
+    cli = DevicePromptCLI(conn, console=console)
+
+    mock_prompt = mocker.patch(
+        'device_manager.cli.device_prompt.Prompt'
+    ).return_value
+    mock_prompt.ask.return_value = 'n'
+    conn.device_pairing.return_value = True
+    cli.check_pairing()
+    mock_prompt.ask.assert_called_once_with(
+        'Device already paired with host?',
+        choices=['Y', 'N'],
+        case_sensitive=False,
+    )
+    conn.device_pairing.assert_called_once_with(5)
+    assert console.print.call_args_list == [
+        mocker.call('Scan QRCode to pair and close window'),
+        mocker.call('Success in pairing new host!'),
+    ]
+
+    console.print.reset_mock()
+    conn.device_pairing.return_value = False
+    cli.check_pairing()
+    assert console.print.call_args_list == [
+        mocker.call('Scan QRCode to pair and close window'),
+        mocker.call('Failed in pairing new host!'),
+    ]
+
+    # select_devices_to_connect exact prints and prompts
+    console.print.reset_mock()
+    mock_prompt.ask.reset_mock()
+    conn.available_devices.return_value = {
+        'SER1': ServiceInfo('SER1', '10.0.0.1', 5555, ConnectionType.WIFI),
+    }
+    mock_prompt.ask.side_effect = ['0', '1', 'n']
+    selected = cli.select_devices_to_connect()
+    assert selected == ['SER1']
+    console.print.assert_any_call('Available devices found in the network:')
+    console.print.assert_any_call('  [1] - SER1 on IP: 10.0.0.1')
+    mock_prompt.ask.assert_any_call(
+        'Select device index to connect, or 0 to search devices again',
+        choices=['1', '0'],
+    )
+    mock_prompt.ask.assert_any_call(
+        'Do you want to connect to another device?',
+        choices=['Y', 'N'],
+        case_sensitive=False,
+    )
+
+    # prompt_device_connection exact prompt
+    mock_prompt.ask.reset_mock()
+    mock_prompt.ask.side_effect = ['y', 'n', '1', 'n']
+    assert cli.prompt_device_connection() == ['SER1']
+    mock_prompt.ask.assert_any_call(
+        'Do you want to pair another device?',
+        choices=['Y', 'N'],
+        case_sensitive=False,
+    )
+
+
+def test_qrcode_viewer_and_util_functions_exact_defaults(mocker) -> None:
+    import string
+    from unittest.mock import MagicMock
+
+    import numpy as np
+
+    from device_manager.cli.qrcode_viewer import show_qr_cli, show_qr_window
+    from device_manager.utils.util_functions import create_password, grep
+
+    qr_obj = MagicMock()
+    show_qr_cli(qr_obj)
+    qr_obj.print_ascii.assert_called_once_with(tty=True)
+
+    qr_img = MagicMock()
+    qr_img.save.side_effect = lambda buf: buf.write(b'\x01\x02\x03')
+    mock_cv = mocker.patch('device_manager.cli.qrcode_viewer.cv')
+    mock_cv.IMREAD_COLOR = 1
+    mock_cv.imdecode.return_value = 'decoded'
+    mock_cv.resize.return_value = 'resized'
+
+    show_qr_window(qr_img)
+    imdecode_args = mock_cv.imdecode.call_args.args
+    assert isinstance(imdecode_args[0], np.ndarray)
+    assert imdecode_args[0].dtype == np.uint8
+    assert imdecode_args[1] == 1
+    mock_cv.resize.assert_called_once_with('decoded', (400, 400))
+    mock_cv.imshow.assert_called_once_with('QRCode', 'resized')
+    mock_cv.waitKey.assert_called_once_with(delay=0)
+    mock_cv.destroyAllWindows.assert_called_once()
+
+    pwd = create_password()
+    assert len(pwd) == 8
+    assert all(ch in string.ascii_letters + string.digits for ch in pwd)
+    assert grep('Foo\nbar', 'foo') == []
+    assert grep('Foo\nbar', 'foo', ignore_case=True) == ['Foo']

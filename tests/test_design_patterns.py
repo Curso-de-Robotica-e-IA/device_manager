@@ -244,3 +244,123 @@ def test_usb_scanner_accepts_injected_gateway() -> None:
         gateway=FakeGateway(),
     )
     assert scanner.list_all_devices() == {'emulator-5554': 'device'}
+
+
+def test_mdns_session_defaults_factory_args_zombies_and_logs(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import logging
+
+    from zeroconf import InterfaceChoice
+
+    ctx = MDnsContext()
+    created_zcs: list[MagicMock] = []
+    browser_calls: list[tuple[object, str, object]] = []
+
+    def zc_factory(**kwargs):
+        zc = MagicMock()
+        zc.init_kwargs = kwargs
+        created_zcs.append(zc)
+        return zc
+
+    def browser_factory(zc, service_type, listener):
+        browser_calls.append((zc, service_type, listener))
+        return MagicMock()
+
+    session = MdnsBrowserSession(
+        context=ctx,
+        service_type='_adb._tcp.local.',
+        service_re_filter=r'^adb-',
+        zeroconf_factory=zc_factory,
+        browser_factory=browser_factory,
+    )
+    assert session._max_zc_instances == 10
+
+    with caplog.at_level(
+        logging.DEBUG, logger='device_manager.connection.utils.mdns_session'
+    ):
+        session.start()
+
+    assert len(created_zcs) == 1
+    assert created_zcs[0].init_kwargs == {
+        'interfaces': InterfaceChoice.Default,
+        'unicast': False,
+        'ip_version': None,
+        'apple_p2p': False,
+    }
+    zc_arg, svc_type_arg, listener_arg = browser_calls[0]
+    assert zc_arg is created_zcs[0]
+    assert svc_type_arg == '_adb._tcp.local.'
+    assert listener_arg._service_context is ctx  # type: ignore[attr-defined]
+    assert listener_arg._MDnsListener__re_filter == r'^adb-'  # type: ignore[attr-defined]
+    assert listener_arg._MDnsListener__type_filter == '_adb._tcp.local.'  # type: ignore[attr-defined]
+    assert any(
+        r.message == 'Started mDNS browser for service_type=_adb._tcp.local.'
+        for r in caplog.records
+    )
+
+    assert session._finalize is not None
+    with caplog.at_level(
+        logging.DEBUG, logger='device_manager.connection.utils.mdns_session'
+    ):
+        session._finalize()
+    assert session.browser is None
+    assert session.started is False
+    assert any(
+        r.message == 'Finalizing Zeroconf instance.' for r in caplog.records
+    )
+
+    with caplog.at_level(
+        logging.DEBUG, logger='device_manager.connection.utils.mdns_session'
+    ):
+        session.stop()
+    created_zcs[0].close.assert_called_once_with()
+    assert any(
+        r.message == 'Stopped mDNS browser for service_type=_adb._tcp.local.'
+        for r in caplog.records
+    )
+
+
+def test_mdns_session_exact_error_messages_and_zombie_boundary() -> None:
+    ctx = MDnsContext()
+    session = MdnsBrowserSession(
+        context=ctx,
+        service_type='_adb._tcp.local.',
+        max_zeroconf_instances=1,
+        zeroconf_factory=lambda **kw: MagicMock(),
+        browser_factory=lambda zc, st, lst: MagicMock(),
+    )
+
+    with pytest.raises(AttributeError, match=r'^ServiceBrowser not started$'):
+        session.stop()
+
+    session._zeroconf_zombies = [MagicMock()]
+    session._zeroconf = MagicMock()
+    session.start()
+    assert len(session._zeroconf_zombies) == 2
+
+    session2 = MdnsBrowserSession(
+        context=ctx,
+        service_type='_adb._tcp.local.',
+        max_zeroconf_instances=0,
+        zeroconf_factory=lambda **kw: MagicMock(),
+        browser_factory=lambda zc, st, lst: MagicMock(),
+    )
+    session2._zeroconf_zombies = [MagicMock()]
+    with pytest.raises(AttributeError, match=r'^Zeroconf not configured$'):
+        session2.start()
+
+    def failing_browser(zc, st, lst):
+        raise RuntimeError('boom')
+
+    session3 = MdnsBrowserSession(
+        context=ctx,
+        service_type='_adb._tcp.local.',
+        zeroconf_factory=lambda **kw: MagicMock(),
+        browser_factory=failing_browser,
+    )
+    with pytest.raises(
+        RuntimeError,
+        match=r'^Maximum number of Zeroconf instances reached\.$',
+    ):
+        session3.start()

@@ -301,3 +301,115 @@ def test_context_manager_retry_limit(
         pass
 
     assert mock_pair.call_count == 3
+
+
+def test_adb_pairing_defaults_start_and_exact_gateway_calls_and_logs(
+    caplog,
+) -> None:
+    import logging
+    import subprocess
+    from unittest.mock import MagicMock
+
+    from zeroconf import InterfaceChoice
+
+    from device_manager.connection.adb_pairing import AdbPairing
+    from device_manager.connection.utils.connection_type import ConnectionType
+    from device_manager.connection.utils.mdns_listener import (
+        PAIRING_SERVICE_TYPE,
+    )
+    from device_manager.connection.utils.service_info import ServiceInfo
+
+    default_pairing = AdbPairing(password='123456')
+    assert default_pairing._name == 'robot-celular'
+    assert default_pairing._subprocess_check_flag is False
+    assert default_pairing._session._service_type == PAIRING_SERVICE_TYPE
+    assert default_pairing._session._service_re_filter is None
+    assert default_pairing._session._max_zc_instances == 10
+
+    mock_session = MagicMock()
+    gw = MagicMock()
+    pairing = AdbPairing(
+        service_name='svc-a',
+        subprocess_check_flag=True,
+        password='654321',
+        gateway=gw,
+        session=mock_session,
+    )
+    pairing.start()
+    mock_session.start.assert_called_once_with(
+        interfaces=InterfaceChoice.All,
+        unicast=False,
+        ip_version=None,
+    )
+
+    pairing._context.add_service(
+        'SER1', ServiceInfo('SER1', '10.0.0.1', 37123, ConnectionType.WIFI)
+    )
+    gw.run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout='Successfully paired to 10.0.0.1:37123\n'
+    )
+    with caplog.at_level(
+        logging.INFO, logger='device_manager.connection.adb_pairing'
+    ):
+        assert pairing.pair_devices() is True
+
+    gw.run.assert_called_with(
+        ['adb', 'pair', '10.0.0.1:37123', '654321'],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert any(
+        r.message == 'Successfully paired device: uri=10.0.0.1:37123'
+        for r in caplog.records
+    )
+
+    gw.run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=1, stdout='  bad code  \n'
+    )
+    with caplog.at_level(
+        logging.WARNING, logger='device_manager.connection.adb_pairing'
+    ):
+        assert pairing.pair_devices() is False
+    assert any(
+        r.message
+        == 'Failed to pair device: uri=10.0.0.1:37123 output=bad code'
+        for r in caplog.records
+    )
+
+    gw.run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout='Successfully paired to 10.0.0.2:44444\n'
+    )
+    with caplog.at_level(
+        logging.INFO, logger='device_manager.connection.adb_pairing'
+    ):
+        assert (
+            pairing.pair_device_with_paring_code('10.0.0.2:44444', '999888')
+            is True
+        )
+    gw.run.assert_called_with(
+        ['adb', 'pair', '10.0.0.2:44444', '999888'],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert any(
+        r.message == 'Successfully paired device with code: uri=10.0.0.2:44444'
+        for r in caplog.records
+    )
+
+    gw.run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=1, stdout='  rejected  \n'
+    )
+    with caplog.at_level(
+        logging.WARNING, logger='device_manager.connection.adb_pairing'
+    ):
+        assert (
+            pairing.pair_device_with_paring_code('10.0.0.2:44444', '000000')
+            is False
+        )
+    assert any(
+        r.message
+        == 'Failed to pair device with code: uri=10.0.0.2:44444 output=rejected'
+        for r in caplog.records
+    )

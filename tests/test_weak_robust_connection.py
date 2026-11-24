@@ -311,3 +311,112 @@ def test_mdns_browser_session_zombies_and_limit() -> None:
     session._zeroconf = None
     with pytest.raises(AttributeError, match='Zeroconf not configured'):
         session.start()
+
+
+def test_usb_strategy_validate_passes_exact_serial() -> None:
+    from unittest.mock import MagicMock
+
+    from device_manager.connection.strategies import UsbConnectionStrategy
+    from device_manager.connection.utils.connection_type import ConnectionType
+    from device_manager.connection.utils.service_info import ServiceInfo
+
+    connector = MagicMock()
+    connector.usb_scanner.validate_connection.return_value = True
+    svc = ServiceInfo('USB-99', '', 0, ConnectionType.USB)
+
+    assert UsbConnectionStrategy().validate(connector, svc) is True
+    connector.usb_scanner.validate_connection.assert_called_once_with('USB-99')
+
+
+@pytest.mark.parametrize(
+    ('mdns_status', 'adb_connected'),
+    [
+        pytest.param(
+            ConnectionInfoStatus.UPDATED,
+            False,
+            id='updated_but_adb_disconnected',
+        ),
+        pytest.param(
+            ConnectionInfoStatus.CHANGED,
+            True,
+            id='changed_but_adb_connected',
+        ),
+    ],
+)
+def test_wifi_strategy_validate_single_fault_no_reconnect(
+    mdns_status: ConnectionInfoStatus,
+    adb_connected: bool,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import logging
+    from unittest.mock import MagicMock
+
+    from device_manager.connection.strategies import WifiConnectionStrategy
+    from device_manager.connection.utils.connection_type import ConnectionType
+    from device_manager.connection.utils.service_info import ServiceInfo
+
+    connector = MagicMock()
+    connector.connection.check_wireless_adb_service_for.return_value = (
+        mdns_status
+    )
+    connector.connection.check_devices_adb_connection.return_value = (
+        adb_connected
+    )
+    svc = ServiceInfo('WIFI-1', '10.0.0.1', 5555, ConnectionType.WIFI)
+
+    with caplog.at_level(
+        logging.DEBUG, logger='device_manager.connection.strategies'
+    ):
+        result = WifiConnectionStrategy().validate(connector, svc)
+
+    assert result is False
+    connector.connection.check_wireless_adb_service_for.assert_called_once_with(
+        svc
+    )
+    connector.connection.check_devices_adb_connection.assert_called_once_with(
+        '10.0.0.1:5555'
+    )
+    connector.establish_first_connection.assert_not_called()
+    expected_msg = (
+        'Wi-Fi validation failed (no reconnect): '
+        f'serial=WIFI-1 uri=10.0.0.1:5555 mdns_status={mdns_status.name} '
+        f'adb_connected={adb_connected}'
+    )
+    assert any(r.message == expected_msg for r in caplog.records)
+
+
+def test_wifi_strategy_validate_force_reconnect_logs_exact_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import logging
+    from unittest.mock import MagicMock
+
+    from device_manager.connection.strategies import WifiConnectionStrategy
+    from device_manager.connection.utils.connection_type import ConnectionType
+    from device_manager.connection.utils.service_info import ServiceInfo
+
+    connector = MagicMock()
+    connector.connection.check_wireless_adb_service_for.return_value = (
+        ConnectionInfoStatus.UPDATED
+    )
+    connector.connection.check_devices_adb_connection.return_value = False
+    connector.validate_connection.side_effect = [False, True]
+    svc = ServiceInfo('WIFI-2', '10.0.0.2', 5555, ConnectionType.WIFI)
+
+    with caplog.at_level(
+        logging.WARNING, logger='device_manager.connection.strategies'
+    ):
+        result = WifiConnectionStrategy().validate(
+            connector, svc, force_reconnect=True
+        )
+
+    assert result is True
+    connector.establish_first_connection.assert_called_once_with('WIFI-2')
+    connector.disconnect.assert_called_once_with()
+    connector.connect_all_devices.assert_called_once_with()
+    assert connector.validate_connection.call_count == 2
+    expected_msg = (
+        'Wi-Fi connection invalid; attempting targeted reconnect: '
+        'serial=WIFI-2 uri=10.0.0.2:5555 mdns_status=UPDATED adb_connected=False'
+    )
+    assert any(r.message == expected_msg for r in caplog.records)

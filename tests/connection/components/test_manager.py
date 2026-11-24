@@ -113,3 +113,12 @@ def test_object_manager_keys_returns_keys() -> None:
     manager.add('two', 2)
 
     assert manager.keys() == {'one': 1, 'two': 2}.keys()
+
+
+def test_object_manager_remove_absent_and_get_custom_default() -> None:
+    mgr: ObjectManager[str] = ObjectManager()
+    mgr.add('present', 'value')
+
+    mgr.remove('absent')
+    assert 'present' in mgr
+    assert mgr.get('absent', default='custom-fallback') == 'custom-fallback'

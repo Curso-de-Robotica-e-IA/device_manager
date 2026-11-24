@@ -178,3 +178,53 @@ def test_check_adb_dependency_file_not_found(monkeypatch):
             adb_version=ADB_VERSION,
             sdk_version=SDK_VERSION,
         )
+
+
+def test_check_adb_dependencies_version_exact_subprocess_and_warning_log(
+    mocker,
+    caplog,
+) -> None:
+    import logging
+    import subprocess
+
+    from device_manager.utils.dm_warnings import (
+        check_adb_dependencies_version,
+    )
+
+    mock_run = mocker.patch(
+        'device_manager.utils.dm_warnings.subprocess.run',
+        return_value=subprocess.CompletedProcess(
+            args=['adb', 'version'],
+            returncode=0,
+            stdout=(
+                'Android Debug Bridge VERSION 2.1.41\n'
+                'VERSION 36.1.2-10900879\n'
+            ),
+        ),
+    )
+
+    with caplog.at_level(
+        logging.DEBUG, logger='device_manager.utils.dm_warnings'
+    ):
+        check_adb_dependencies_version()
+
+    mock_run.assert_called_once_with(
+        args=['adb', 'version'],
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+    assert any(
+        r.message
+        == 'Your current major adb version might not work as intended. Recommended: 1.0.41'
+        for r in caplog.records
+    )
+    assert any(
+        r.message
+        == 'Your current minor Android SDK version might not work as intended. Recommended: 35.0.2'
+        for r in caplog.records
+    )
+    assert any(
+        r.message == 'ADB dependencies verified (adb=2.1.41, sdk=36.1.2-10900879)'
+        for r in caplog.records
+    )

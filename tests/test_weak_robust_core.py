@@ -464,3 +464,127 @@ def test_weak_robust_remaining_branches_async() -> None:
 
     asyncio.run(_run())
     assert ctx.get_online_service() == {}
+
+
+def test_device_manager_defaults_forwarding_and_logs(
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import logging
+
+    from device_manager.connection.device_connection import DEFAULT_FIXED_PORT
+
+    mock_check = mocker.patch(
+        'device_manager.manager.check_adb_dependencies_version'
+    )
+    mock_dc_cls = mocker.patch('device_manager.manager.DeviceConnection')
+    mock_dc_inst = mock_dc_cls.return_value
+    usb_svc = ServiceInfo('USB-1', '', 0, ConnectionType.USB)
+    mock_dc_inst.usb_scanner.list_connected_devices.return_value = [usb_svc]
+    mock_dc_inst.connection_info.get.return_value = None
+
+    with caplog.at_level(logging.INFO, logger='device_manager.manager'):
+        dm = DeviceManager()
+
+    mock_check.assert_called_once_with()
+    mock_dc_cls.assert_called_once_with(
+        subprocess_check_flag=False,
+        fixed_port=DEFAULT_FIXED_PORT,
+    )
+    assert dm.adb_pair is None
+    assert dm.subprocess_check is False
+    assert dm._devices_fixed_port == DEFAULT_FIXED_PORT
+    mock_dc_inst.connection_info.add.assert_called_once_with('USB-1', usb_svc)
+    assert any(
+        r.message == "Loaded connected USB devices: serials=['USB-1']"
+        for r in caplog.records
+    )
+
+    mock_ap_cls = mocker.patch('device_manager.manager.AdbPairing')
+    dm.adb_pairing_instance()
+    mock_ap_cls.assert_called_once_with(
+        service_name='robot_celular',
+        service_regex_filter=None,
+        subprocess_check_flag=False,
+    )
+
+    mock_exec = mocker.patch('device_manager.manager.execute_adb_command')
+    mock_dc_inst.connection_info.get.return_value = usb_svc
+    dm.execute_adb_command('ls')
+    mock_exec.assert_called_once_with(
+        command='ls',
+        comm_uris=['USB-1'],
+        shell=True,
+        subprocess_check_flag=False,
+        capture_output=False,
+        gateway=mock_dc_inst._gateway,
+    )
+    with pytest.raises(
+        TypeError,
+        match=r"comm_uris must be a list, tuple or None, got <class 'int'>",
+    ):
+        dm.execute_adb_command('ls', comm_uris=123)  # type: ignore[arg-type]
+
+    mock_dc_inst.stop_connection.return_value = True
+    mock_dc_inst.connection_info.get.return_value = None
+    with caplog.at_level(logging.INFO, logger='device_manager.manager'):
+        assert dm.disconnect_devices('USB-1') is True
+    assert any(
+        r.message == "Disconnected devices: serials=['USB-1']"
+        for r in caplog.records
+    )
+
+    mock_dc_inst.stop_connection.return_value = False
+    with caplog.at_level(logging.WARNING, logger='device_manager.manager'):
+        assert dm.disconnect_devices('USB-1') is False
+    assert any(
+        r.message
+        == "Failed to disconnect all requested devices: serials=['USB-1']"
+        for r in caplog.records
+    )
+
+
+def test_base_device_component_and_require_connection_exact_defaults(
+    mocker,
+) -> None:
+    from unittest.mock import MagicMock
+
+    import pytest
+
+    from device_manager.base_device_component import (
+        BaseDeviceComponent,
+        require_connection,
+    )
+    from device_manager.exceptions.errors import DeviceDisconnectedError
+
+    class _Dummy(BaseDeviceComponent):
+        @require_connection(raise_on_disconnect=True)
+        def op(self) -> str:
+            return 'ok'
+
+    conn = MagicMock()
+    conn.validate_connection.return_value = False
+    conn.build_comm_uri.return_value = '10.0.0.1:5555'
+
+    comp = _Dummy(conn, 'S1')
+    assert comp.subprocess_check_flag is False
+    with pytest.raises(
+        DeviceDisconnectedError, match='^Device connection is not valid\\.$'
+    ):
+        comp.op()
+    conn.validate_connection.assert_called_once_with(
+        'S1', force_reconnect=False
+    )
+
+    mock_exec = mocker.patch(
+        'device_manager.base_device_component.execute_adb_command'
+    )
+    comp._run_adb('echo hi')
+    mock_exec.assert_called_once_with(
+        command='echo hi',
+        comm_uris=['10.0.0.1:5555'],
+        shell=True,
+        subprocess_check_flag=False,
+        capture_output=False,
+        gateway=None,
+    )

@@ -62,3 +62,72 @@ def test_execute_adb_command_prepends_shell_when_requested(
     assert args[0] == ['adb', '-s', 'emulator-5554', 'shell', 'input', 'tap', '10', '20']
     assert kwargs['shell'] is False
     assert kwargs['text'] is None
+
+
+def test_execute_adb_command_defaults_and_fallback_gateway(
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import logging
+
+    with pytest.raises(
+        ValueError,
+        match=r'^No devices specified for command execution\.$',
+    ):
+        execute_adb_command('get-state', [])
+
+    mock_run = mocker.patch(
+        'device_manager.adb_executor.subprocess.run',
+        return_value=subprocess.CompletedProcess(
+            args=['adb', '-s', 'SER1', 'get-state'],
+            returncode=0,
+            stdout='device\n',
+        ),
+    )
+    mocker.patch(
+        'device_manager.adb_executor.perf_counter',
+        side_effect=[10.0, 10.25],
+    )
+    with caplog.at_level(logging.DEBUG, logger='device_manager.adb_executor'):
+        execute_adb_command('get-state', ['SER1'])
+
+    mock_run.assert_called_once_with(
+        ['adb', '-s', 'SER1', 'get-state'],
+        shell=False,
+        check=False,
+        capture_output=False,
+        text=None,
+    )
+    assert any(
+        r.message
+        == 'ADB command succeeded: uri=SER1 command=get-state returncode=0 duration_ms=250.0'
+        for r in caplog.records
+    )
+
+
+def test_execute_adb_command_failure_log_exact_format(
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import logging
+    from unittest.mock import MagicMock
+
+    gw = MagicMock()
+    gw.run.return_value = subprocess.CompletedProcess(
+        args=['adb', '-s', 'SER1', 'bad'],
+        returncode=1,
+        stdout='',
+        stderr='  boom  ',
+    )
+    mocker.patch(
+        'device_manager.adb_executor.perf_counter',
+        side_effect=[2.0, 2.5],
+    )
+    with caplog.at_level(logging.WARNING, logger='device_manager.adb_executor'):
+        execute_adb_command('bad', ['SER1'], capture_output=True, gateway=gw)
+
+    assert any(
+        r.message
+        == 'ADB command failed: uri=SER1 command=bad returncode=1 duration_ms=500.0 stderr=boom'
+        for r in caplog.records
+    )
