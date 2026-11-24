@@ -14,7 +14,9 @@ from device_manager.manager import DeviceManager
 
 def test_root_logger_has_null_handler() -> None:
     root_pkg_logger = logging.getLogger(device_manager.__name__)
-    assert any(isinstance(h, logging.NullHandler) for h in root_pkg_logger.handlers)
+    assert any(
+        isinstance(h, logging.NullHandler) for h in root_pkg_logger.handlers
+    )
 
 
 def test_execute_adb_command_logs_debug_and_warning(
@@ -77,7 +79,9 @@ def test_adb_pairing_logs_outcome_without_leaking_password(
         ServiceInfo('dev1', '192.168.1.50', 40000, ConnectionType.WIFI),
     )
 
-    with caplog.at_level(logging.INFO, logger='device_manager.connection.adb_pairing'):
+    with caplog.at_level(
+        logging.INFO, logger='device_manager.connection.adb_pairing'
+    ):
         assert pairing.pair_devices() is True
 
     assert 'Successfully paired device: uri=192.168.1.50:40000' in caplog.text
@@ -98,5 +102,8 @@ def test_device_manager_connect_devices_logs_missing_and_connected(
     with caplog.at_level(logging.INFO, logger='device_manager.manager'):
         dm.connect_devices('USB1', 'MISSING')
 
-    assert 'Requested device not visible for connection: serial=MISSING' in caplog.text
+    assert (
+        'Requested device not visible for connection: serial=MISSING'
+        in caplog.text
+    )
     assert "Connected devices: requested=2 connected=['USB1']" in caplog.text

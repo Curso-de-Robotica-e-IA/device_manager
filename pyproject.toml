@@ -108,8 +108,23 @@ exclude = [
 [tool.ruff.lint]
 preview = true
 select = ['I', 'F', 'E', 'W', 'PL', 'PT']
+ignore = [
+    'E501',
+    'PLR0904',
+    'PLR0911',
+    'PLR0912',
+    'PLR0913',
+    'PLR0914',
+    'PLR0915',
+    'PLR0917',
+    'PLR2004',
+    'PLR6301',
+]
 fixable = ["ALL"]
 unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ['PLC0415', 'PLC1901']
 
 [tool.ruff.format]
 preview = true

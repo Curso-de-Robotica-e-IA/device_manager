@@ -1,4 +1,4 @@
-from typing import TypedDict # pyright: ignore[reportMissingTypeStubs]
+from typing import TypedDict  # pyright: ignore[reportMissingTypeStubs]
 
 from device_manager.adb_gateway import AdbGateway
 from device_manager.base_device_component import BaseDeviceComponent
@@ -9,8 +9,8 @@ from device_manager.exceptions.errors import (
 )
 from device_manager.infos.app import AppInfo
 from device_manager.utils.adb_parsers import (
-    TouchscreenInfo,
     UNEXPECTED_ADB_OUTPUT,
+    TouchscreenInfo,
     parse_app_path,
     parse_bool_flag,
     parse_current_activity,
@@ -289,7 +289,9 @@ class DeviceInfo(BaseDeviceComponent):
         Returns:
             bool: True if "Stay Awake" is enabled, False otherwise.
         """
-        output = self._query_adb('settings get global stay_on_while_plugged_in')
+        output = self._query_adb(
+            'settings get global stay_on_while_plugged_in'
+        )
         if output is None:
             return False
         return output.strip() != '0'

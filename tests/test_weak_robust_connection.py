@@ -46,7 +46,7 @@ class _StaticGateway:
 # 1. AdbConnectionDiscovery.connection_status_for_device — Weak Robust
 # ============================================================================
 @pytest.mark.parametrize(
-    'online_map, offline_map, query_service, expected_status',
+    ('online_map', 'offline_map', 'query_service', 'expected_status'),
     [
         pytest.param(
             {},
@@ -90,20 +90,26 @@ def test_discovery_connection_status_weak_robust_valid(
     for k, v in offline_map.items():
         discovery._AdbConnectionDiscovery__context.to_offline_service(k, v)  # type: ignore[attr-defined]
 
-    assert discovery.connection_status_for_device(query_service) == expected_status
+    assert (
+        discovery.connection_status_for_device(query_service)
+        == expected_status
+    )
     assert discovery.online_devices() == online_map
     assert discovery.offline_devices() == offline_map
     assert discovery.browser is None
     assert discovery.zeroconf_status is False
     expected_info = online_map.get(query_service.serial_number)
-    assert discovery.get_service_info_for(query_service.serial_number) == expected_info
+    assert (
+        discovery.get_service_info_for(query_service.serial_number)
+        == expected_info
+    )
 
 
 # ============================================================================
 # 2. AdbPairing.pair_device_with_paring_code — Weak Robust
 # ============================================================================
 @pytest.mark.parametrize(
-    'comm_uri, pair_code, stdout, expected',
+    ('comm_uri', 'pair_code', 'stdout', 'expected'),
     [
         pytest.param(
             '192.168.1.50:40000',
@@ -128,7 +134,9 @@ def test_pair_device_with_pairing_code_weak_robust(
     expected: bool,
 ) -> None:
     pairing = AdbPairing(gateway=_StaticGateway(stdout=stdout))
-    assert pairing.pair_device_with_paring_code(comm_uri, pair_code) is expected
+    assert (
+        pairing.pair_device_with_paring_code(comm_uri, pair_code) is expected
+    )
 
 
 # ============================================================================
@@ -142,13 +150,17 @@ def test_connection_manager_methods_weak_robust(mocker: MockerFixture) -> None:
     disc = mock_disc_cls.return_value
     svc = ServiceInfo('DEV1', '10.0.0.5', 5555, ConnectionType.WIFI)
     disc.online_devices.return_value = {'DEV1': svc}
-    disc.connection_status_for_device.return_value = ConnectionInfoStatus.UPDATED
+    disc.connection_status_for_device.return_value = (
+        ConnectionInfoStatus.UPDATED
+    )
 
     gw = _StaticGateway(stdout='failed to connect to 10.0.0.5:5555\n')
     cm = ConnectionManager(gateway=gw)
 
     assert cm.available_devices() == {'DEV1': svc}
-    assert cm.check_wireless_adb_service_for(svc) == ConnectionInfoStatus.UPDATED
+    assert (
+        cm.check_wireless_adb_service_for(svc) == ConnectionInfoStatus.UPDATED
+    )
 
     disc.get_service_info_for.return_value = None
     assert cm.device_connect('MISSING') is None
@@ -193,7 +205,9 @@ def test_device_connection_lifecycle_weak_robust_valid(
     )
     wifi_svc = ServiceInfo('WIFI1', '10.0.0.5', 40000, ConnectionType.WIFI)
     usb_svc = ServiceInfo('USB1', '', 0, ConnectionType.USB)
-    mock_cm_cls.return_value.available_devices.return_value = {'WIFI1': wifi_svc}
+    mock_cm_cls.return_value.available_devices.return_value = {
+        'WIFI1': wifi_svc
+    }
     mock_usb_cls.return_value.list_connected_devices.return_value = [usb_svc]
     mock_cm_cls.return_value.device_connect.return_value = wifi_svc
     mock_cm_cls.return_value.check_wireless_adb_service_for.return_value = (
@@ -228,7 +242,9 @@ def test_device_connection_retry_failure_and_disconnect_static(
     mock_cm_cls = mocker.patch(
         'device_manager.connection.device_connection.ConnectionManager'
     )
-    mocker.patch('device_manager.connection.device_connection.UsbDeviceScanner')
+    mocker.patch(
+        'device_manager.connection.device_connection.UsbDeviceScanner'
+    )
     mock_cm_cls.return_value.device_connect.return_value = None
 
     dc = DeviceConnection(gateway=_StaticGateway())
@@ -244,8 +260,12 @@ def test_device_connection_retry_failure_and_disconnect_static(
 def test_device_connection_private_port_helpers_invalid(
     mocker: MockerFixture,
 ) -> None:
-    mocker.patch('device_manager.connection.device_connection.ConnectionManager')
-    mocker.patch('device_manager.connection.device_connection.UsbDeviceScanner')
+    mocker.patch(
+        'device_manager.connection.device_connection.ConnectionManager'
+    )
+    mocker.patch(
+        'device_manager.connection.device_connection.UsbDeviceScanner'
+    )
     dc = DeviceConnection(gateway=_StaticGateway())
 
     with pytest.raises(ValueError, match='device was not found'):

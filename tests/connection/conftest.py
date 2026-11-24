@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 from pytest_mock import MockerFixture
 
+
 @pytest.fixture
 def mock_zeroconf(mocker: MockerFixture) -> MagicMock:
     zeroconf = mocker.patch(

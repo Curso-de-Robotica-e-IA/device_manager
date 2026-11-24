@@ -1,5 +1,5 @@
-from collections import defaultdict
 import logging
+from collections import defaultdict
 from subprocess import CompletedProcess
 from types import TracebackType
 from typing import Iterable, NamedTuple
@@ -155,7 +155,9 @@ class DeviceManager:
         return f'device_manager.DeviceManager({len(self)} devices: {list(self._devices.keys())})'  # noqa
 
     def __str__(self) -> str:
-        return f'DeviceManager({len(self)} devices: {list(self._devices.keys())})'  # noqa
+        return (
+            f'DeviceManager({len(self)} devices: {list(self._devices.keys())})'  # noqa
+        )
 
     @property
     def connected_devices(self) -> list[str]:
@@ -183,8 +185,7 @@ class DeviceManager:
         visibles_devices = self.connector.visible_devices()
 
         visible_by_serial = {
-            service.serial_number: service
-            for service in visibles_devices
+            service.serial_number: service for service in visibles_devices
         }
 
         serials_by_type: dict[ConnectionType, list[str]] = defaultdict(list)
@@ -313,7 +314,7 @@ class DeviceManager:
                 if service_info.connection == ConnectionType.USB:
                     uris.append(serial)
                 else:
-                    uris.append(f"{service_info.ip}:{service_info.port}")
+                    uris.append(f'{service_info.ip}:{service_info.port}')
 
         if not isinstance(uris, (list, tuple)):
             raise TypeError(
@@ -326,7 +327,7 @@ class DeviceManager:
             subprocess_check_flag=subprocess_check_flag,
             capture_output=capture_output,
             gateway=getattr(self.connector, '_gateway', None),
-            **kwargs, # pyright: ignore[reportArgumentType]
+            **kwargs,  # pyright: ignore[reportArgumentType]
         )
 
     def adb_pairing_instance(

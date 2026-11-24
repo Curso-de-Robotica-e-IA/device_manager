@@ -1,5 +1,5 @@
-from pathlib import Path
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -95,7 +95,9 @@ def test_camera_actions_exact_adb_commands(
     mock_exec = mocker.patch(
         'device_manager.base_device_component.execute_adb_command',
         side_effect=[
-            subprocess.CompletedProcess(args=[], returncode=0, stdout='img1.jpg\n'),
+            subprocess.CompletedProcess(
+                args=[], returncode=0, stdout='img1.jpg\n'
+            ),
             subprocess.CompletedProcess(args=[], returncode=0, stdout=''),
             subprocess.CompletedProcess(
                 args=[], returncode=0, stdout='1 file pulled, 0 skipped.\n'

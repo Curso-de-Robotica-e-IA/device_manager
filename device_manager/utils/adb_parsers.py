@@ -1,8 +1,9 @@
-from dataclasses import dataclass
 import re
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 
 from device_manager.exceptions.errors import UnexpectedAdbOutputError
+from device_manager.utils.util_functions import grep
 
 
 @dataclass(frozen=True)
@@ -13,7 +14,7 @@ class TouchscreenInfo:
     name: str
     x_range: tuple[int, int]
     y_range: tuple[int, int]
-from device_manager.utils.util_functions import grep
+
 
 UNEXPECTED_ADB_OUTPUT = 'Unexpected output from ADB command'
 

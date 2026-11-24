@@ -24,13 +24,19 @@ def test_async_mdns_listener_updates_service_context() -> None:
     zc.async_get_service_info = AsyncMock(return_value=zc_info)
 
     async def _run() -> None:
-        await listener.add_service(zc, '_adb-tls-pairing._tcp.local.', zc_info.name)
+        await listener.add_service(
+            zc, '_adb-tls-pairing._tcp.local.', zc_info.name
+        )
         assert 'adb-emulator-5555' in context.get_online_service()
 
-        await listener.update_service(zc, '_adb-tls-pairing._tcp.local.', zc_info.name)
+        await listener.update_service(
+            zc, '_adb-tls-pairing._tcp.local.', zc_info.name
+        )
         assert 'adb-emulator-5555' in context.get_online_service()
 
-        await listener.remove_service(zc, '_adb-tls-pairing._tcp.local.', zc_info.name)
+        await listener.remove_service(
+            zc, '_adb-tls-pairing._tcp.local.', zc_info.name
+        )
         assert 'adb-emulator-5555' in context.get_offline_service()
 
     asyncio.run(_run())
@@ -240,12 +246,18 @@ def test_async_adb_pairing_defaults_args_and_logs(
         # subprocess_check_flag=True raises CalledProcessError with exact fields
         p._subprocess_check_flag = True
         import subprocess
+
         import pytest
 
         with pytest.raises(subprocess.CalledProcessError) as exc_info:
             await p.pair_devices()
         assert exc_info.value.returncode == 1
-        assert exc_info.value.cmd == ['adb', 'pair', '10.0.0.1:37123', '654321']
+        assert exc_info.value.cmd == [
+            'adb',
+            'pair',
+            '10.0.0.1:37123',
+            '654321',
+        ]
         assert exc_info.value.output == '  bad pin  \n'
         assert exc_info.value.stderr == 'err-detail'
 

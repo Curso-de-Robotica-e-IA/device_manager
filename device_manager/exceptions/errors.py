@@ -6,7 +6,9 @@ class DeviceNotFoundError(DeviceManagerError, ValueError):
     """Raised when a requested device serial number is not registered."""
 
 
-class DeviceDisconnectedError(DeviceManagerError, ConnectionError, RuntimeError):
+class DeviceDisconnectedError(
+    DeviceManagerError, ConnectionError, RuntimeError
+):
     """Raised when an operation requires an active device connection."""
 
 

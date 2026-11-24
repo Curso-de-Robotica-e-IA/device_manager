@@ -16,7 +16,9 @@ def test_execute_adb_command_uses_shell_false_and_preserves_quoted_paths(
 ) -> None:
     mock_run = mocker.patch(
         'device_manager.adb_executor.subprocess.run',
-        return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout='ok'),
+        return_value=subprocess.CompletedProcess(
+            args=[], returncode=0, stdout='ok'
+        ),
     )
 
     result = execute_adb_command(
@@ -49,7 +51,9 @@ def test_execute_adb_command_prepends_shell_when_requested(
 ) -> None:
     mock_run = mocker.patch(
         'device_manager.adb_executor.subprocess.run',
-        return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout=''),
+        return_value=subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=''
+        ),
     )
 
     execute_adb_command(
@@ -59,7 +63,16 @@ def test_execute_adb_command_prepends_shell_when_requested(
     )
 
     args, kwargs = mock_run.call_args
-    assert args[0] == ['adb', '-s', 'emulator-5554', 'shell', 'input', 'tap', '10', '20']
+    assert args[0] == [
+        'adb',
+        '-s',
+        'emulator-5554',
+        'shell',
+        'input',
+        'tap',
+        '10',
+        '20',
+    ]
     assert kwargs['shell'] is False
     assert kwargs['text'] is None
 
@@ -123,7 +136,9 @@ def test_execute_adb_command_failure_log_exact_format(
         'device_manager.adb_executor.perf_counter',
         side_effect=[2.0, 2.5],
     )
-    with caplog.at_level(logging.WARNING, logger='device_manager.adb_executor'):
+    with caplog.at_level(
+        logging.WARNING, logger='device_manager.adb_executor'
+    ):
         execute_adb_command('bad', ['SER1'], capture_output=True, gateway=gw)
 
     assert any(

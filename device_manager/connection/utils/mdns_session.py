@@ -1,6 +1,6 @@
 import logging
-from typing import Any, Callable, Sequence
 import weakref
+from typing import Any, Callable, Sequence
 
 from zeroconf import InterfaceChoice, IPVersion, ServiceBrowser, Zeroconf
 
@@ -98,7 +98,9 @@ class MdnsBrowserSession:
 
         self._finalize = weakref.finalize(self._zeroconf, atexit)
         self._started = True
-        logger.debug('Started mDNS browser for service_type=%s', self._service_type)
+        logger.debug(
+            'Started mDNS browser for service_type=%s', self._service_type
+        )
 
     def stop(self) -> None:
         if self._zeroconf is None:
@@ -106,4 +108,6 @@ class MdnsBrowserSession:
         self._zeroconf.close()
         self._browser = None
         self._started = False
-        logger.debug('Stopped mDNS browser for service_type=%s', self._service_type)
+        logger.debug(
+            'Stopped mDNS browser for service_type=%s', self._service_type
+        )

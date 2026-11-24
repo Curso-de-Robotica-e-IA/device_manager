@@ -165,7 +165,9 @@ def test_connection_manager_exact_adb_args_and_logs(
         logging.WARNING, logger='device_manager.connection.connection_manager'
     ):
         assert cm.device_connect('S1') == svc
-    assert 'Failed to connect device: serial=S1 uri=10.0.0.1:5555' in caplog.text
+    assert (
+        'Failed to connect device: serial=S1 uri=10.0.0.1:5555' in caplog.text
+    )
 
     caplog.clear()
     mock_disc.get_service_info_for.return_value = None
@@ -173,7 +175,9 @@ def test_connection_manager_exact_adb_args_and_logs(
         logging.WARNING, logger='device_manager.connection.connection_manager'
     ):
         assert cm.device_connect('MISSING') is None
-    assert 'Device service not online or located: serial=MISSING' in caplog.text
+    assert (
+        'Device service not online or located: serial=MISSING' in caplog.text
+    )
 
     # device_pairing deprecation warning, log, and exact call sequence
     import pytest

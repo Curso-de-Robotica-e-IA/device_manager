@@ -10,12 +10,11 @@ from zeroconf import (
     Zeroconf,
 )
 
+from device_manager.connection.utils.connection_type import ConnectionType
 from device_manager.connection.utils.mdns_context import (
     MDnsContext,
     ServiceInfo,
 )
-
-from device_manager.connection.utils.connection_type import ConnectionType
 
 logger = logging.getLogger(__name__)
 
@@ -129,8 +128,8 @@ class MDnsListener(ServiceListener):
         self,
         info: ZeroconfServiceInfo | None,
     ) -> ServiceInfo | None:
-        """Extracts the serial number, IP address, port and connection type from 
-        the service information. If the service name does not match the regular 
+        """Extracts the serial number, IP address, port and connection type from
+        the service information. If the service name does not match the regular
         expression filter, then None is returned.
 
         Args:
@@ -146,15 +145,22 @@ class MDnsListener(ServiceListener):
             ip = f'{socket.inet_ntoa(info.addresses[0])}'
             port = info.port
             if port is None:
-                raise ValueError("Port not detected")
+                raise ValueError('Port not detected')
             if self.__re_filter is None:
-                return ServiceInfo(info.name.split('.')[0], ip, port, connection=ConnectionType.WIFI)
+                return ServiceInfo(
+                    info.name.split('.')[0],
+                    ip,
+                    port,
+                    connection=ConnectionType.WIFI,
+                )
             match_result = re.match(
                 rf'{self.__re_filter}.{self.__type_filter}', info.name
             )
             if match_result:
                 serial_num = match_result.group(1)
-                return ServiceInfo(serial_num, ip, port, connection=ConnectionType.WIFI)
+                return ServiceInfo(
+                    serial_num, ip, port, connection=ConnectionType.WIFI
+                )
             else:
                 logger.warning(
                     'AdbMDns service name did not match filter: %s',

@@ -35,9 +35,7 @@ def test_wifi_strategy_targeted_reconnect_avoids_kill_server() -> None:
     svc = ServiceInfo('WIFI-1', '10.0.0.1', 5555, ConnectionType.WIFI)
 
     assert (
-        WifiConnectionStrategy().validate(
-            connector, svc, force_reconnect=True
-        )
+        WifiConnectionStrategy().validate(connector, svc, force_reconnect=True)
         is True
     )
     connector.establish_first_connection.assert_called_once_with('WIFI-1')
@@ -45,7 +43,9 @@ def test_wifi_strategy_targeted_reconnect_avoids_kill_server() -> None:
     connector.connect_all_devices.assert_not_called()
 
 
-def test_wifi_strategy_falls_back_to_full_reconnect_when_targeted_fails() -> None:
+def test_wifi_strategy_falls_back_to_full_reconnect_when_targeted_fails() -> (
+    None
+):
     connector = MagicMock()
     connector.connection.check_wireless_adb_service_for.return_value = (
         ConnectionInfoStatus.CHANGED
@@ -55,9 +55,7 @@ def test_wifi_strategy_falls_back_to_full_reconnect_when_targeted_fails() -> Non
     svc = ServiceInfo('WIFI-2', '10.0.0.2', 5555, ConnectionType.WIFI)
 
     assert (
-        WifiConnectionStrategy().validate(
-            connector, svc, force_reconnect=True
-        )
+        WifiConnectionStrategy().validate(connector, svc, force_reconnect=True)
         is True
     )
     connector.disconnect.assert_called_once_with()
@@ -91,7 +89,9 @@ def test_validate_connection_raise_on_error(mocker: MockerFixture) -> None:
 # ============================================================================
 # Issue #3: subprocess_check_flag returns returncode & stderr in CalledProcessError
 # ============================================================================
-def test_execute_adb_command_check_flag_preserves_returncode_and_stderr() -> None:
+def test_execute_adb_command_check_flag_preserves_returncode_and_stderr() -> (
+    None
+):
     gw = MagicMock()
     gw.run.return_value = subprocess.CompletedProcess(
         args=['adb', '-s', 'SER1', 'shell', 'bad'],

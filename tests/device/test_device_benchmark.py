@@ -37,12 +37,14 @@ def test_benchmark_device_info_all(
     props = benchmark_recorder.measure(
         'DeviceInfo.get_properties', info.get_properties
     )
-    assert isinstance(props, dict) and 'serial_number' in props
+    assert isinstance(props, dict)
+    assert 'serial_number' in props
 
     width, height = benchmark_recorder.measure(
         'DeviceInfo.get_screen_dimensions', info.get_screen_dimensions
     )
-    assert width > 0 and height > 0
+    assert width > 0
+    assert height > 0
 
     orientation = benchmark_recorder.measure(
         'DeviceInfo.get_display_orientation', info.get_display_orientation
@@ -65,7 +67,8 @@ def test_benchmark_device_info_all(
     activity = benchmark_recorder.measure(
         'DeviceInfo.actual_activity', info.actual_activity
     )
-    assert isinstance(activity, str) and len(activity) > 0
+    assert isinstance(activity, str)
+    assert len(activity) > 0
 
     xml = benchmark_recorder.measure(
         'DeviceInfo.get_screen_gui_xml', info.get_screen_gui_xml
@@ -118,7 +121,8 @@ def test_benchmark_device_actions_all(
         'DeviceActions.safe_screencap_bytes',
         actions.safe_screencap_bytes,
     )
-    assert png is not None and png.startswith(b'\x89PNG\r\n\x1a\n')
+    assert png is not None
+    assert png.startswith(b'\x89PNG\r\n\x1a\n')
 
     benchmark_recorder.measure(
         'DeviceActions.click_by_coordinates',
@@ -128,7 +132,9 @@ def test_benchmark_device_actions_all(
         'DeviceActions.swipe', lambda: actions.swipe(100, 100, 100, 100, 50)
     )
     benchmark_recorder.measure('DeviceActions.back', actions.back)
-    benchmark_recorder.measure('DeviceActions.home_button', actions.home_button)
+    benchmark_recorder.measure(
+        'DeviceActions.home_button', actions.home_button
+    )
 
     # Screenshot on device + remove
     benchmark_recorder.measure(
@@ -203,7 +209,8 @@ def test_benchmark_device_manager_all(
         'DeviceManager.get_device_actions',
         lambda: real_device_manager.get_device_actions(serial),
     )
-    assert dev_info is not None and dev_actions is not None
+    assert dev_info is not None
+    assert dev_actions is not None
 
     benchmark_recorder.measure(
         'DeviceManager.load_connected_usb_devices',

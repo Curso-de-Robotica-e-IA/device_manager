@@ -1,7 +1,7 @@
 import asyncio
-from contextlib import asynccontextmanager
 import logging
 import subprocess
+from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Sequence
 from weakref import finalize
 
@@ -193,7 +193,10 @@ class AsyncAdbPairing:
                 )
             paired = f'Successfully paired to {comm_uri}' in stdout
             if paired:
-                logger.info('Successfully paired device asynchronously: uri=%s', comm_uri)
+                logger.info(
+                    'Successfully paired device asynchronously: uri=%s',
+                    comm_uri,
+                )
             else:
                 logger.warning(
                     'Failed to pair device asynchronously: uri=%s output=%s',

@@ -14,8 +14,12 @@ from device_manager.connection.utils.service_info import ServiceInfo
 
 @pytest.fixture
 def device_connection(mocker: MockerFixture) -> DeviceConnection:
-    mocker.patch('device_manager.connection.device_connection.ConnectionManager')
-    mocker.patch('device_manager.connection.device_connection.UsbDeviceScanner')
+    mocker.patch(
+        'device_manager.connection.device_connection.ConnectionManager'
+    )
+    mocker.patch(
+        'device_manager.connection.device_connection.UsbDeviceScanner'
+    )
     return DeviceConnection(subprocess_check_flag=False)
 
 
@@ -30,10 +34,10 @@ def test_validate_connection_does_not_recurse_infinitely(
         connection=ConnectionType.WIFI,
     )
     device_connection.connection_info.add('WIFI01', wifi_dev)
-    device_connection.connection.check_wireless_adb_service_for.return_value = (
-        ConnectionInfoStatus.DOWN
+    device_connection.connection.check_wireless_adb_service_for.return_value = ConnectionInfoStatus.DOWN
+    device_connection.connection.check_devices_adb_connection.return_value = (
+        False
     )
-    device_connection.connection.check_devices_adb_connection.return_value = False
 
     mock_establish = mocker.patch.object(
         device_connection,
@@ -41,9 +45,13 @@ def test_validate_connection_does_not_recurse_infinitely(
         return_value=False,
     )
     mock_disconnect = mocker.patch.object(device_connection, 'disconnect')
-    mock_connect_all = mocker.patch.object(device_connection, 'connect_all_devices')
+    mock_connect_all = mocker.patch.object(
+        device_connection, 'connect_all_devices'
+    )
 
-    result = device_connection.validate_connection('WIFI01', force_reconnect=True)
+    result = device_connection.validate_connection(
+        'WIFI01', force_reconnect=True
+    )
 
     assert result is False
     mock_establish.assert_called_once_with('WIFI01')
@@ -64,10 +72,21 @@ def test_build_comm_uri_and_is_connected(
     with pytest.raises(ValueError, match='device was not found'):
         device_connection.build_comm_uri('UNKNOWN')
 
-    adb_out = 'List of devices attached\nUSB01\tdevice\n192.168.1.20:5555\tdevice\n'
-    assert device_connection.is_connected('USB01', devices_connected=adb_out) is True
-    assert device_connection.is_connected('WIFI01', devices_connected=adb_out) is True
-    assert device_connection.is_connected('UNKNOWN', devices_connected=adb_out) is False
+    adb_out = (
+        'List of devices attached\nUSB01\tdevice\n192.168.1.20:5555\tdevice\n'
+    )
+    assert (
+        device_connection.is_connected('USB01', devices_connected=adb_out)
+        is True
+    )
+    assert (
+        device_connection.is_connected('WIFI01', devices_connected=adb_out)
+        is True
+    )
+    assert (
+        device_connection.is_connected('UNKNOWN', devices_connected=adb_out)
+        is False
+    )
 
 
 def test_stop_connection(
@@ -98,7 +117,6 @@ def test_device_connection_exact_commands_retries_and_logs(
 ) -> None:
     import logging
     import subprocess
-    from unittest.mock import MagicMock
 
     import pytest
 

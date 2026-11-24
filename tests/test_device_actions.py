@@ -1,5 +1,5 @@
-from pathlib import Path
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -111,10 +111,14 @@ def test_device_actions_exact_commands_and_flags(
     gw.run.return_value = subprocess.CompletedProcess(
         args=[], returncode=0, stdout=b'\x89PNG\r\n\x1a\nok'
     )
-    actions = DeviceActions(conn, 'SER1', subprocess_check_flag=True, gateway=gw)
+    actions = DeviceActions(
+        conn, 'SER1', subprocess_check_flag=True, gateway=gw
+    )
 
     assert actions.validate_connection() is True
-    conn.validate_connection.assert_called_once_with('SER1', force_reconnect=False)
+    conn.validate_connection.assert_called_once_with(
+        'SER1', force_reconnect=False
+    )
 
     assert actions.safe_screencap_bytes() == b'\x89PNG\r\n\x1a\nok'
     gw.run.assert_called_once_with(
@@ -127,7 +131,9 @@ def test_device_actions_exact_commands_and_flags(
     apk.write_bytes(b'apk')
     mock_exec = mocker.patch(
         'device_manager.base_device_component.execute_adb_command',
-        return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout=''),
+        return_value=subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=''
+        ),
     )
     actions.install_apk(str(apk), replace=False)
     mock_exec.assert_called_with(
@@ -147,5 +153,7 @@ def test_device_actions_exact_commands_and_flags(
         capture_output=False,
         gateway=gw,
     )
-    with pytest.raises(FileNotFoundError, match=r'^File not found: missing\.apk$'):
+    with pytest.raises(
+        FileNotFoundError, match=r'^File not found: missing\.apk$'
+    ):
         actions.install_apk('missing.apk')

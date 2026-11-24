@@ -67,9 +67,15 @@ class AppInfo(BaseDeviceComponent):
         best_match = ''
         if grep_lines:
             for line in grep_lines:
-                stripped = line.strip().strip(":")
+                stripped = line.strip().strip(':')
                 if stripped.endswith(action):
                     best_match = stripped
             if not best_match:
-                best_match = grep_lines[0].strip().strip(":").strip('"').strip('Action: ')  # noqa: E501
+                best_match = (
+                    grep_lines[0]
+                    .strip()
+                    .strip(':')
+                    .strip('"')
+                    .strip('Action: ')
+                )  # noqa: E501
         return best_match

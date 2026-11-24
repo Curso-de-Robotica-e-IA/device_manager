@@ -5,7 +5,7 @@ from device_manager.connection.utils.mdns_listener import MDnsListener
 class AsyncMDnsListener(MDnsListener):
     """Asynchronous implementation of the MDnsListener."""
 
-    async def update_service( # pyright: ignore[reportIncompatibleMethodOverride]
+    async def update_service(  # pyright: ignore[reportIncompatibleMethodOverride]
         self,
         zc: AsyncZeroconf,
         type_: str,
@@ -26,7 +26,7 @@ class AsyncMDnsListener(MDnsListener):
                 info,
             )
 
-    async def remove_service( # pyright: ignore[reportIncompatibleMethodOverride]
+    async def remove_service(  # pyright: ignore[reportIncompatibleMethodOverride]
         self,
         zc: AsyncZeroconf,
         type_: str,
@@ -47,7 +47,7 @@ class AsyncMDnsListener(MDnsListener):
                 info,
             )
 
-    async def add_service( # pyright: ignore[reportIncompatibleMethodOverride]
+    async def add_service(  # pyright: ignore[reportIncompatibleMethodOverride]
         self,
         zc: AsyncZeroconf,
         type_: str,

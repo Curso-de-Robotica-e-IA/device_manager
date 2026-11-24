@@ -11,7 +11,7 @@ def sample_service_info() -> ServiceInfo:
         serial_number='abc123xyz',
         ip='111.000.101.01',
         port=8000,
-        connection=ConnectionType.WIFI
+        connection=ConnectionType.WIFI,
     )
 
 
@@ -21,18 +21,20 @@ def empty_mdns_context() -> MDnsContext:
 
 
 @pytest.fixture
-def mdns_context_with_services(sample_service_info: ServiceInfo) -> MDnsContext:
+def mdns_context_with_services(
+    sample_service_info: ServiceInfo,
+) -> MDnsContext:
     s2 = ServiceInfo(
         serial_number='def456uvw',
         ip='111.000.101.01',
         port=8002,
-        connection=ConnectionType.WIFI
+        connection=ConnectionType.WIFI,
     )
     s3 = ServiceInfo(
         serial_number='ghi789rst',
         ip='111.000.101.01',
         port=8003,
-        connection=ConnectionType.WIFI
+        connection=ConnectionType.WIFI,
     )
     context = MDnsContext()
     context.add_service(sample_service_info.serial_number, sample_service_info)
@@ -41,7 +43,9 @@ def mdns_context_with_services(sample_service_info: ServiceInfo) -> MDnsContext:
     return context
 
 
-def test_mdns_context_add_service(empty_mdns_context: MDnsContext, sample_service_info: ServiceInfo) -> None:
+def test_mdns_context_add_service(
+    empty_mdns_context: MDnsContext, sample_service_info: ServiceInfo
+) -> None:
     empty_mdns_context.add_service(
         sample_service_info.serial_number,
         sample_service_info,
@@ -58,7 +62,7 @@ def test_mdns_context_add_multiple_services(
         serial_number='def456uvw',
         ip='000.111.010.10',
         port=8001,
-        connection=ConnectionType.WIFI
+        connection=ConnectionType.WIFI,
     )
     empty_mdns_context.add_service(
         sample_service_info.serial_number,
@@ -148,7 +152,9 @@ def test_updating_service_from_offline_list(
     assert sample_service_info.serial_number not in offline_list.keys()
 
 
-def test_online_service_list_property(mdns_context_with_services: MDnsContext) -> None:
+def test_online_service_list_property(
+    mdns_context_with_services: MDnsContext,
+) -> None:
     online_list = mdns_context_with_services.online_service_list
     expected_length = 3
     assert len(online_list) == expected_length

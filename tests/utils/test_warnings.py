@@ -225,6 +225,7 @@ def test_check_adb_dependencies_version_exact_subprocess_and_warning_log(
         for r in caplog.records
     )
     assert any(
-        r.message == 'ADB dependencies verified (adb=2.1.41, sdk=36.1.2-10900879)'
+        r.message
+        == 'ADB dependencies verified (adb=2.1.41, sdk=36.1.2-10900879)'
         for r in caplog.records
     )

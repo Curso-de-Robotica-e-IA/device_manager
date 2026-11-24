@@ -123,7 +123,9 @@ def test_adbutils_gateway_exact_args_outputs_and_edge_fallbacks() -> None:
     r_dev = gw.run(['adb', 'devices'], capture_output=True, text=True)
     assert r_dev.args == ['adb', 'devices']
     assert r_dev.returncode == 0
-    assert r_dev.stdout == 'List of devices attached\nS1\tdevice\nS2\toffline\n'
+    assert (
+        r_dev.stdout == 'List of devices attached\nS1\tdevice\nS2\toffline\n'
+    )
     assert r_dev.stderr == ''
 
     r_sh = gw.run(['adb', '-s', 'S1', 'shell', 'echo', 'hi'])
@@ -141,13 +143,29 @@ def test_adbutils_gateway_exact_args_outputs_and_edge_fallbacks() -> None:
 
     r_push = gw.run(['adb', '-s', 'S1', 'push', 'src.txt', '/sdcard/dst.txt'])
     fake_device.sync.push.assert_called_once_with('src.txt', '/sdcard/dst.txt')
-    assert r_push.args == ['adb', '-s', 'S1', 'push', 'src.txt', '/sdcard/dst.txt']
-    assert r_push.stdout == '' and r_push.stderr == ''
+    assert r_push.args == [
+        'adb',
+        '-s',
+        'S1',
+        'push',
+        'src.txt',
+        '/sdcard/dst.txt',
+    ]
+    assert r_push.stdout == ''
+    assert r_push.stderr == ''
 
     r_pull = gw.run(['adb', '-s', 'S1', 'pull', '/sdcard/dst.txt', 'out.txt'])
     fake_device.sync.pull.assert_called_once_with('/sdcard/dst.txt', 'out.txt')
-    assert r_pull.args == ['adb', '-s', 'S1', 'pull', '/sdcard/dst.txt', 'out.txt']
-    assert r_pull.stdout == '' and r_pull.stderr == ''
+    assert r_pull.args == [
+        'adb',
+        '-s',
+        'S1',
+        'pull',
+        '/sdcard/dst.txt',
+        'out.txt',
+    ]
+    assert r_pull.stdout == ''
+    assert r_pull.stderr == ''
 
     for cmd in (
         ['adb', '-s', 'S1', 'shell'],
@@ -156,7 +174,10 @@ def test_adbutils_gateway_exact_args_outputs_and_edge_fallbacks() -> None:
         ['adb', '-s', 'S1', 'pull', 'only_one'],
     ):
         fallback.run.reset_mock()
-        assert gw.run(cmd, check=True, capture_output=True, text=False).stdout == 'fb'
+        assert (
+            gw.run(cmd, check=True, capture_output=True, text=False).stdout
+            == 'fb'
+        )
         fallback.run.assert_called_once_with(
             cmd, check=True, capture_output=True, text=False
         )

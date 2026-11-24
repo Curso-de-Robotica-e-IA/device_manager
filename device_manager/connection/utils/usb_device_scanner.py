@@ -1,5 +1,3 @@
-
-
 import subprocess
 
 from device_manager.adb_gateway import AdbGateway, resolve_gateway
@@ -64,7 +62,7 @@ class UsbDeviceScanner:
         if substr in devices_connected:
             result = True
         return result
-    
+
     def list_connected_devices(self) -> list[ServiceInfo]:
         """
         This method checks for devices connected and authorized via USB and
@@ -84,13 +82,14 @@ class UsbDeviceScanner:
                 serial = striped_line.split('\t')[0]
 
                 if serial and ':' not in serial:
-                    usb_serial_numbers.append(ServiceInfo(
-                        serial_number=serial,
-                        ip="",
-                        port=0,
-                        connection=ConnectionType.USB,
+                    usb_serial_numbers.append(
+                        ServiceInfo(
+                            serial_number=serial,
+                            ip='',
+                            port=0,
+                            connection=ConnectionType.USB,
+                        )
                     )
-                )
 
         return usb_serial_numbers
 

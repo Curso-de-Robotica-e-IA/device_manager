@@ -40,18 +40,31 @@ class _RecordingGateway:
 
     def run(self, args, *, check=False, capture_output=False, text=None):
         self.calls.append(list(args))
-        return subprocess.CompletedProcess(args=list(args), returncode=0, stdout='ok')
+        return subprocess.CompletedProcess(
+            args=list(args), returncode=0, stdout='ok'
+        )
 
 
 @pytest.mark.parametrize(
-    'command, comm_uris, shell, capture_output, expected_calls',
+    ('command', 'comm_uris', 'shell', 'capture_output', 'expected_calls'),
     [
         pytest.param(
             'input tap 10 20',
             ['emulator-5554'],
             True,
             False,
-            [['adb', '-s', 'emulator-5554', 'shell', 'input', 'tap', '10', '20']],
+            [
+                [
+                    'adb',
+                    '-s',
+                    'emulator-5554',
+                    'shell',
+                    'input',
+                    'tap',
+                    '10',
+                    '20',
+                ]
+            ],
             id='[Vcmd1,Vuri1,Vsh2,Vcap1]-shell_tap_single_device',
         ),
         pytest.param(
@@ -78,7 +91,16 @@ class _RecordingGateway:
             ['emulator-5554'],
             False,
             False,
-            [['adb', '-s', 'emulator-5554', 'pull', '/sdcard/my file.png', '/tmp/out dir']],
+            [
+                [
+                    'adb',
+                    '-s',
+                    'emulator-5554',
+                    'pull',
+                    '/sdcard/my file.png',
+                    '/tmp/out dir',
+                ]
+            ],
             id='[Vcmd4,Vuri1,Vsh1,Vcap1]-quoted_paths_with_spaces',
         ),
     ],
@@ -103,7 +125,7 @@ def test_execute_adb_command_weak_robust_valid(
 
 
 @pytest.mark.parametrize(
-    'command, comm_uris, shell, expected_exc, match_pattern',
+    ('command', 'comm_uris', 'shell', 'expected_exc', 'match_pattern'),
     [
         pytest.param(
             'input tap 10 20',
@@ -144,12 +166,26 @@ def test_execute_adb_command_weak_robust_invalid(
 # 2. DeviceActions.set_location_mode — N = max(4, 1) + (3 + 1) = 8
 # ============================================================================
 @pytest.mark.parametrize(
-    'mode, expected_cmd',
+    ('mode', 'expected_cmd'),
     [
-        pytest.param('0', 'settings put secure location_mode 0', id='[Vm0,Vc1]-mode_off'),
-        pytest.param('1', 'settings put secure location_mode 1', id='[Vm1,Vc1]-mode_sensors_only'),
-        pytest.param('2', 'settings put secure location_mode 2', id='[Vm2,Vc1]-mode_battery_saving'),
-        pytest.param('3', 'settings put secure location_mode 3', id='[Vm3,Vc1]-mode_high_accuracy'),
+        pytest.param(
+            '0', 'settings put secure location_mode 0', id='[Vm0,Vc1]-mode_off'
+        ),
+        pytest.param(
+            '1',
+            'settings put secure location_mode 1',
+            id='[Vm1,Vc1]-mode_sensors_only',
+        ),
+        pytest.param(
+            '2',
+            'settings put secure location_mode 2',
+            id='[Vm2,Vc1]-mode_battery_saving',
+        ),
+        pytest.param(
+            '3',
+            'settings put secure location_mode 3',
+            id='[Vm3,Vc1]-mode_high_accuracy',
+        ),
     ],
 )
 def test_set_location_mode_weak_robust_valid(
@@ -172,7 +208,7 @@ def test_set_location_mode_weak_robust_valid(
 
 
 @pytest.mark.parametrize(
-    'mode, connected, expected_exc, match_pattern',
+    ('mode', 'connected', 'expected_exc', 'match_pattern'),
     [
         pytest.param(
             '-1',
@@ -223,7 +259,7 @@ def test_set_location_mode_weak_robust_invalid(
 # 3. ObjectManager.add — N = max(2, 1) + (2 + 1) = 5
 # ============================================================================
 @pytest.mark.parametrize(
-    'key, value',
+    ('key', 'value'),
     [
         pytest.param('dev1', 10, id='[Vk1,Vo1]-nominal_string_key_int_value'),
         pytest.param('', 20, id='[Vk2,Vo1]-empty_string_key_int_value'),
@@ -237,7 +273,7 @@ def test_object_manager_add_weak_robust_valid(key: str, value: int) -> None:
 
 
 @pytest.mark.parametrize(
-    'key, value, expected_exc, match_pattern',
+    ('key', 'value', 'expected_exc', 'match_pattern'),
     [
         pytest.param(
             123,
@@ -279,10 +315,17 @@ def test_object_manager_add_weak_robust_invalid(
 #    parse_display_orientation (N=6)
 # ============================================================================
 @pytest.mark.parametrize(
-    'output, key, expected',
+    ('output', 'key', 'expected'),
     [
-        pytest.param('  mScreenOn=true\n', 'mScreenOn', True, id='[Vout1,Vk1]-flag_true'),
-        pytest.param('  mScreenOn=false\n', 'mScreenOn', False, id='[Vout2,Vk1]-flag_false'),
+        pytest.param(
+            '  mScreenOn=true\n', 'mScreenOn', True, id='[Vout1,Vk1]-flag_true'
+        ),
+        pytest.param(
+            '  mScreenOn=false\n',
+            'mScreenOn',
+            False,
+            id='[Vout2,Vk1]-flag_false',
+        ),
     ],
 )
 def test_parse_bool_flag_weak_robust_valid(
@@ -294,7 +337,7 @@ def test_parse_bool_flag_weak_robust_valid(
 
 
 @pytest.mark.parametrize(
-    'output, key, expected_exc, match_pattern',
+    ('output', 'key', 'expected_exc', 'match_pattern'),
     [
         pytest.param(
             '  otherFlag=true\n',
@@ -330,9 +373,13 @@ def test_parse_bool_flag_weak_robust_invalid(
 
 
 @pytest.mark.parametrize(
-    'output, expected',
+    ('output', 'expected'),
     [
-        pytest.param('Physical size: 1080x2400\n', (1080, 2400), id='[Vout1]-standard_fhd'),
+        pytest.param(
+            'Physical size: 1080x2400\n',
+            (1080, 2400),
+            id='[Vout1]-standard_fhd',
+        ),
     ],
 )
 def test_parse_screen_dimensions_weak_robust_valid(
@@ -343,7 +390,7 @@ def test_parse_screen_dimensions_weak_robust_valid(
 
 
 @pytest.mark.parametrize(
-    'output, expected_exc, match_pattern',
+    ('output', 'expected_exc', 'match_pattern'),
     [
         pytest.param(
             'Override size: 720x1280\n',
@@ -369,13 +416,27 @@ def test_parse_screen_dimensions_weak_robust_invalid(
 
 
 @pytest.mark.parametrize(
-    'output, expected',
+    ('output', 'expected'),
     [
-        pytest.param('  mCurrentOrientation=0\n', 'Portrait', id='[V0]-portrait'),
-        pytest.param('  mCurrentOrientation=1\n', 'Landscape', id='[V1]-landscape'),
-        pytest.param('  mCurrentOrientation=2\n', 'Reverse Portrait', id='[V2]-reverse_portrait'),
-        pytest.param('  mCurrentOrientation=3\n', 'Reverse Landscape', id='[V3]-reverse_landscape'),
-        pytest.param('  mCurrentOrientation=9\n', 'Unknown', id='[V4]-unmapped_code'),
+        pytest.param(
+            '  mCurrentOrientation=0\n', 'Portrait', id='[V0]-portrait'
+        ),
+        pytest.param(
+            '  mCurrentOrientation=1\n', 'Landscape', id='[V1]-landscape'
+        ),
+        pytest.param(
+            '  mCurrentOrientation=2\n',
+            'Reverse Portrait',
+            id='[V2]-reverse_portrait',
+        ),
+        pytest.param(
+            '  mCurrentOrientation=3\n',
+            'Reverse Landscape',
+            id='[V3]-reverse_landscape',
+        ),
+        pytest.param(
+            '  mCurrentOrientation=9\n', 'Unknown', id='[V4]-unmapped_code'
+        ),
     ],
 )
 def test_parse_display_orientation_weak_robust_valid(
@@ -386,7 +447,7 @@ def test_parse_display_orientation_weak_robust_valid(
 
 
 @pytest.mark.parametrize(
-    'output, expected_exc, match_pattern',
+    ('output', 'expected_exc', 'match_pattern'),
     [
         pytest.param(
             'DisplayDeviceInfo{no orientation}\n',
@@ -409,11 +470,26 @@ def test_parse_display_orientation_weak_robust_invalid(
 # 5. DeviceConnection.stop_connection — N = max(3) + 2 = 5
 # ============================================================================
 @pytest.mark.parametrize(
-    'selected, adb_stdout_prefix, expected_result',
+    ('selected', 'adb_stdout_prefix', 'expected_result'),
     [
-        pytest.param(['WIFI1'], 'disconnected', True, id='[Vd1,Vr1]-single_disconnect_ok'),
-        pytest.param(['WIFI1', 'WIFI2'], 'disconnected', True, id='[Vd2,Vr1]-multi_disconnect_ok'),
-        pytest.param(['WIFI1'], 'error: no such device', False, id='[Vd1,Vr2]-disconnect_failed'),
+        pytest.param(
+            ['WIFI1'],
+            'disconnected',
+            True,
+            id='[Vd1,Vr1]-single_disconnect_ok',
+        ),
+        pytest.param(
+            ['WIFI1', 'WIFI2'],
+            'disconnected',
+            True,
+            id='[Vd2,Vr1]-multi_disconnect_ok',
+        ),
+        pytest.param(
+            ['WIFI1'],
+            'error: no such device',
+            False,
+            id='[Vd1,Vr2]-disconnect_failed',
+        ),
     ],
 )
 def test_stop_connection_weak_robust_valid(
@@ -422,8 +498,12 @@ def test_stop_connection_weak_robust_valid(
     expected_result: bool,
     mocker: MockerFixture,
 ) -> None:
-    mocker.patch('device_manager.connection.device_connection.ConnectionManager')
-    mocker.patch('device_manager.connection.device_connection.UsbDeviceScanner')
+    mocker.patch(
+        'device_manager.connection.device_connection.ConnectionManager'
+    )
+    mocker.patch(
+        'device_manager.connection.device_connection.UsbDeviceScanner'
+    )
 
     class FakeGateway:
         def run(self, args, *, check=False, capture_output=False, text=None):
@@ -433,17 +513,23 @@ def test_stop_connection_weak_robust_valid(
                 if adb_stdout_prefix == 'disconnected'
                 else f'{adb_stdout_prefix} {uri}\n'
             )
-            return subprocess.CompletedProcess(args=list(args), returncode=0, stdout=stdout)
+            return subprocess.CompletedProcess(
+                args=list(args), returncode=0, stdout=stdout
+            )
 
     dc = DeviceConnection(gateway=FakeGateway())
-    dc.connection_info.add('WIFI1', ServiceInfo('WIFI1', '10.0.0.1', 5555, ConnectionType.WIFI))
-    dc.connection_info.add('WIFI2', ServiceInfo('WIFI2', '10.0.0.2', 5555, ConnectionType.WIFI))
+    dc.connection_info.add(
+        'WIFI1', ServiceInfo('WIFI1', '10.0.0.1', 5555, ConnectionType.WIFI)
+    )
+    dc.connection_info.add(
+        'WIFI2', ServiceInfo('WIFI2', '10.0.0.2', 5555, ConnectionType.WIFI)
+    )
 
     assert dc.stop_connection(selected) is expected_result
 
 
 @pytest.mark.parametrize(
-    'selected, expected_exc, match_pattern',
+    ('selected', 'expected_exc', 'match_pattern'),
     [
         pytest.param(
             [],
@@ -465,8 +551,12 @@ def test_stop_connection_weak_robust_invalid(
     match_pattern: str,
     mocker: MockerFixture,
 ) -> None:
-    mocker.patch('device_manager.connection.device_connection.ConnectionManager')
-    mocker.patch('device_manager.connection.device_connection.UsbDeviceScanner')
+    mocker.patch(
+        'device_manager.connection.device_connection.ConnectionManager'
+    )
+    mocker.patch(
+        'device_manager.connection.device_connection.UsbDeviceScanner'
+    )
     dc = DeviceConnection()
     with pytest.raises(expected_exc, match=match_pattern):
         dc.stop_connection(selected)
@@ -476,9 +566,11 @@ def test_stop_connection_weak_robust_invalid(
 # 6. DeviceManager.execute_adb_command — N = max(3) + 3 = 6
 # ============================================================================
 @pytest.mark.parametrize(
-    'comm_uris, expected_uris',
+    ('comm_uris', 'expected_uris'),
     [
-        pytest.param(None, ['USB1'], id='[Vu1]-none_resolves_connected_devices'),
+        pytest.param(
+            None, ['USB1'], id='[Vu1]-none_resolves_connected_devices'
+        ),
         pytest.param(['USB1'], ['USB1'], id='[Vu2]-explicit_list'),
         pytest.param(('USB1',), ('USB1',), id='[Vu3]-explicit_tuple'),
     ],
@@ -502,7 +594,7 @@ def test_device_manager_execute_adb_command_weak_robust_valid(
 
 
 @pytest.mark.parametrize(
-    'comm_uris, expected_exc, match_pattern',
+    ('comm_uris', 'expected_exc', 'match_pattern'),
     [
         pytest.param(
             'USB1',
@@ -565,7 +657,9 @@ def test_qrcode_defaults_and_rebuild_parameters(mocker) -> None:
     qr = QRCode(qrcode_data='HELLO-QR')
     assert qr.qrcode_string == 'HELLO-QR'
     assert qr.qrcode_object.version == 1
-    assert qr.qrcode_object.error_correction == qrcode.constants.ERROR_CORRECT_L
+    assert (
+        qr.qrcode_object.error_correction == qrcode.constants.ERROR_CORRECT_L
+    )
     assert qr.qrcode_object.box_size == 20
     assert qr.qrcode_object.border == 2
     img1 = qr.qr_image

@@ -53,7 +53,11 @@ def check_adb_dependencies_version(
 
         for idx, level in enumerate(('major', 'minor')):
             _check_version_part(
-                'adb', level, int(curr_adb[idx]), int(req_adb[idx]), adb_version,
+                'adb',
+                level,
+                int(curr_adb[idx]),
+                int(req_adb[idx]),
+                adb_version,
             )
             _check_version_part(
                 'Android SDK',
@@ -68,7 +72,11 @@ def check_adb_dependencies_version(
             '.'.join(curr_sdk),
         )
 
-    except (ValueError, FileNotFoundError, subprocess.CalledProcessError) as exc:
+    except (
+        ValueError,
+        FileNotFoundError,
+        subprocess.CalledProcessError,
+    ) as exc:
         raise DependencyNotFoundError(
             'The `android-tools-adb` was not found in your system.',
         ) from exc

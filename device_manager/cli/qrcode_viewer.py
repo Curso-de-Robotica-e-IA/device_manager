@@ -1,8 +1,8 @@
 import io
 from typing import Any
+
 import cv2 as cv
 import numpy as np
-
 from qrcode.image.base import BaseImage
 
 

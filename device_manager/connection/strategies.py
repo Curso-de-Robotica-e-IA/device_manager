@@ -51,9 +51,7 @@ class UsbConnectionStrategy:
         connector: 'DeviceConnection',
         serials: list[str],
     ) -> list[str]:
-        return [
-            serial for serial in serials if connector.is_connected(serial)
-        ]
+        return [serial for serial in serials if connector.is_connected(serial)]
 
     def validate(
         self,

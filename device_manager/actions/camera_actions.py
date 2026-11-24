@@ -1,5 +1,5 @@
-from pathlib import Path, PurePosixPath
 import re
+from pathlib import Path, PurePosixPath
 from typing import Callable
 
 from device_manager.adb_gateway import AdbGateway
@@ -157,7 +157,9 @@ class CameraActions(BaseDeviceComponent):
         source: str | Path = Path('/sdcard/DCIM/Camera'),
     ) -> None:
         """Pulls a specific image from the device."""
-        destination_dir = self._verify_path_exists_and_create_if_not(destination)
+        destination_dir = self._verify_path_exists_and_create_if_not(
+            destination
+        )
         remote_path = (PurePosixPath(source) / image_name).as_posix()
         local_path = str((destination_dir / image_name).resolve())
 

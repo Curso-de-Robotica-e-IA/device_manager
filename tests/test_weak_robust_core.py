@@ -3,8 +3,8 @@ CameraActions, DeviceManager, DeviceInfo, DeviceActions, BaseDeviceComponent,
 DevicePromptCLI, AppInfo, adb_executor, and adb_parsers.
 """
 
-from pathlib import Path
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -70,7 +70,7 @@ def test_camera_actions_pull_pictures_and_clear_path_valid(
 
 
 @pytest.mark.parametrize(
-    'scenario, expected_exc, match_pattern',
+    ('scenario', 'expected_exc', 'match_pattern'),
     [
         pytest.param(
             'dest_is_file',
@@ -139,7 +139,9 @@ def test_camera_actions_weak_robust_invalid(
             cam.pull_picture_by_name('a.jpg', tmp_path)
     elif scenario == 'mkdir_os_error':
         cam = _make_camera(connected=True)
-        mocker.patch.object(Path, 'mkdir', side_effect=PermissionError('denied'))
+        mocker.patch.object(
+            Path, 'mkdir', side_effect=PermissionError('denied')
+        )
         with pytest.raises(expected_exc, match=match_pattern):
             cam.pull_picture_by_name('a.jpg', tmp_path)
     else:
@@ -200,7 +202,9 @@ def test_device_manager_remaining_methods_weak_robust(
 
     dm._register_device('WIFI1')
     conn.connection_info.get.side_effect = None
-    conn.connection_info.get.side_effect = lambda s: wifi_svc if s == 'WIFI1' else None
+    conn.connection_info.get.side_effect = (
+        lambda s: wifi_svc if s == 'WIFI1' else None
+    )
     dm.execute_adb_command('shell ls')
     assert mock_exec.call_args.kwargs['comm_uris'] == ['10.0.0.5:5555']
 
@@ -228,8 +232,12 @@ def test_device_info_disconnected_weak_robust_invalid() -> None:
     conn = MagicMock()
     conn.build_comm_uri.return_value = 'emulator-5554'
     conn.validate_connection.return_value = False
+    gw = MagicMock()
+    gw.run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=1, stdout='', stderr='error: device not found'
+    )
 
-    info = DeviceInfo(conn, 'emulator-5554')
+    info = DeviceInfo(conn, 'emulator-5554', gateway=gw)
     assert info.actual_activity() is None
     assert isinstance(info.app('com.example'), AppInfo)
 
@@ -265,7 +273,9 @@ def test_remaining_edge_branches(mocker: MockerFixture) -> None:
     conn.validate_connection.return_value = True
     mocker.patch(
         'device_manager.device_actions.subprocess.run',
-        return_value=subprocess.CompletedProcess(args=[], returncode=1, stdout=b''),
+        return_value=subprocess.CompletedProcess(
+            args=[], returncode=1, stdout=b''
+        ),
     )
     actions = DeviceActions(conn, 'emulator-5554')
     assert actions.safe_screencap_bytes() is None
@@ -277,10 +287,14 @@ def test_remaining_edge_branches(mocker: MockerFixture) -> None:
 
         def run(self, args, *, check=False, capture_output=False, text=None):
             self.last_args = list(args)
-            return subprocess.CompletedProcess(args=list(args), returncode=0, stdout='')
+            return subprocess.CompletedProcess(
+                args=list(args), returncode=0, stdout=''
+            )
 
     gw = _KwGateway()
-    execute_adb_command('ls', ['emulator-5554'], gateway=gw, **{'-l': '/sdcard'})
+    execute_adb_command(
+        'ls', ['emulator-5554'], gateway=gw, **{'-l': '/sdcard'}
+    )
     assert gw.last_args[-2:] == ['-l', '/sdcard']
 
     # DevicePromptCLI failure branch and refresh ('0') branch
@@ -305,7 +319,10 @@ def test_remaining_edge_branches(mocker: MockerFixture) -> None:
     assert 'MAIN_TEST' in app.get_action('MAIN')
 
     # adb_parsers edge branches
-    assert parse_current_activity('  mCurrentFocus=Window{no_pkg_here}\n') == 'No activity'
+    assert (
+        parse_current_activity('  mCurrentFocus=Window{no_pkg_here}\n')
+        == 'No activity'
+    )
     assert parse_app_path('no package line here\n') is None
 
 
@@ -365,7 +382,10 @@ def test_weak_robust_remaining_branches_sync(
     dc.connection_info['S1'] = ServiceInfo(
         'S1', '10.0.0.1', 5555, ConnectionType.WIFI
     )
-    assert dc.is_connected('S1', devices_connected='List of devices attached\n') is False
+    assert (
+        dc.is_connected('S1', devices_connected='List of devices attached\n')
+        is False
+    )
     mocker.patch.object(dc, 'establish_first_connection')
     mocker.patch.object(dc, 'disconnect')
     mocker.patch.object(dc, 'connect_all_devices')
@@ -408,14 +428,20 @@ def test_weak_robust_remaining_branches_sync(
     actions.install_apk(str(apk_file))
 
     # 8. DeviceInfo.get_screen_gui_xml when validate_connection is False -> None
-    info = DeviceInfo(conn, 'emulator-5554')
+    disconnected_gw = MagicMock()
+    disconnected_gw.run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=1, stdout='', stderr='error: device not found'
+    )
+    info = DeviceInfo(conn, 'emulator-5554', gateway=disconnected_gw)
     assert info.get_screen_gui_xml() is None
 
     # 9. DeviceManager._register_device (already registered) & disconnect_devices (still in connection_info)
     mocker.patch('device_manager.manager.check_adb_dependencies_version')
     dm_conn = MagicMock()
     dm_conn.stop_connection.return_value = True
-    dm_conn.connection_info = {'S1': ServiceInfo('S1', '10.0.0.1', 5555, ConnectionType.WIFI)}
+    dm_conn.connection_info = {
+        'S1': ServiceInfo('S1', '10.0.0.1', 5555, ConnectionType.WIFI)
+    }
     dm = DeviceManager(connector=dm_conn)
     dm._register_device('S1')
     dm._register_device('S1')  # second call hits already-registered branch
@@ -431,7 +457,9 @@ def test_weak_robust_remaining_branches_sync(
         '[ro.build.version.release]: [14]\n'
     )
     assert parse_getprop(raw_props, extra_keys=None)['serial_number'] == 'SER1'
-    assert 'missing.key' not in parse_getprop(raw_props, extra_keys=['missing.key'])
+    assert 'missing.key' not in parse_getprop(
+        raw_props, extra_keys=['missing.key']
+    )
 
 
 def test_weak_robust_remaining_branches_async() -> None:

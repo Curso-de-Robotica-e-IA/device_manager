@@ -1,5 +1,5 @@
-from pathlib import Path
 import subprocess
+from pathlib import Path
 from typing import Optional
 
 from device_manager.actions.camera_actions import CameraActions
@@ -67,7 +67,9 @@ class DeviceActions(BaseDeviceComponent):
     ) -> bool:
         """Finds a UI element by text/content-desc in the screen XML and taps its center."""
         if xml_content is None:
-            res = self._run_adb('uiautomator dump /dev/tty', capture_output=True)
+            res = self._run_adb(
+                'uiautomator dump /dev/tty', capture_output=True
+            )
             out = res.stdout or ''
             xml_start = out.find('<?xml')
             xml_content = out[xml_start:] if xml_start != -1 else ''
@@ -233,8 +235,10 @@ class DeviceActions(BaseDeviceComponent):
     @require_connection(raise_on_disconnect=True)
     def set_location_mode(self, mode: str) -> None:
         """Sets the location mode on the device."""
-        if mode not in ['0', '1', '2', '3']:
-            raise ValueError("Invalid mode. Valid values are '0', '1', '2', '3'.")
+        if mode not in {'0', '1', '2', '3'}:
+            raise ValueError(
+                "Invalid mode. Valid values are '0', '1', '2', '3'."
+            )
         self._run_adb(f'settings put secure location_mode {mode}')
 
     @require_connection(raise_on_disconnect=True)
@@ -304,15 +308,11 @@ class DeviceActions(BaseDeviceComponent):
         """Configures stay-on, screen timeout, and wakes the display."""
         self._run_adb('svc power stayon true')
         self._run_adb('settings put global stay_on_while_plugged_in 7')
-        self._run_adb(
-            f'settings put system screen_off_timeout {timeout_ms}'
-        )
+        self._run_adb(f'settings put system screen_off_timeout {timeout_ms}')
         self._run_adb('input keyevent 224')
         self._run_adb('wm dismiss-keyguard')
 
-    def take_screenshot_to_file(
-        self, local_path: str | Path
-    ) -> Path | None:
+    def take_screenshot_to_file(self, local_path: str | Path) -> Path | None:
         """Captures PNG screenshot bytes in memory and writes them to `local_path`."""
         img_bytes = self.safe_screencap_bytes()
         if not img_bytes:

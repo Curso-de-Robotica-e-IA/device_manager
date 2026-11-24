@@ -200,9 +200,12 @@ class DeviceConnection:
             if self.connection_info.get(device_serial_number) is not None:
                 self.connection_info.remove(device_serial_number)
             self.connection_info.add(connection.serial_number, connection)
-            connection_port = self.connection_info.get(connection.serial_number)
+            connection_port = self.connection_info.get(
+                connection.serial_number
+            )
             if (
-                connection_port is not None and connection_port.port != self.fixed_port
+                connection_port is not None
+                and connection_port.port != self.fixed_port
             ):
                 self.__fix_adb_port(connection.serial_number)
             return True
@@ -222,7 +225,9 @@ class DeviceConnection:
         """
         device = self.connection_info.get(serial_number)
         if device is None:
-            logger.debug('No devices currently connected for %s', serial_number)
+            logger.debug(
+                'No devices currently connected for %s', serial_number
+            )
             if raise_on_error:
                 raise DeviceDisconnectedError(
                     f'No devices currently connected for {serial_number}'
@@ -327,7 +332,7 @@ class DeviceConnection:
             )
             device = self.connection_info.get(serial_number)
             if device is None:
-                raise ValueError("device not found")
+                raise ValueError('device not found')
             device.port = self.fixed_port
 
     def __connect_with_fix_port(self, serial_number: str) -> None:
@@ -338,7 +343,7 @@ class DeviceConnection:
         """
         device = self.connection_info.get(serial_number)
         if device is None:
-            raise ValueError("device was not found")
+            raise ValueError('device was not found')
         self._get_gateway().run(
             ['adb', 'connect', f'{device.ip}:{self.fixed_port}'],
             check=self.__subprocess_check_flag,
@@ -362,17 +367,21 @@ class DeviceConnection:
             ['adb', 'kill-server'],
             check=subprocess_check_flag,
         )
-    
+
     def _adb_devices_output(self) -> str:
         """This method executes the ADB command to list connected devices and
         returns the output as a string.
-        
+
          Returns:
              str: The output of the ADB command listing connected devices.
-         """
-        return self._get_gateway().run(
-            ['adb', 'devices'],
-            capture_output=True,
-            text=True,
-            check=self.__subprocess_check_flag,
-        ).stdout
+        """
+        return (
+            self._get_gateway()
+            .run(
+                ['adb', 'devices'],
+                capture_output=True,
+                text=True,
+                check=self.__subprocess_check_flag,
+            )
+            .stdout
+        )

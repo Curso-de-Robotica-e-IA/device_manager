@@ -61,7 +61,7 @@ class AdbutilsAdbGateway:
 
     def _get_client(self) -> Any:
         if self._client is None:
-            import adbutils
+            import adbutils  # noqa: PLC0415
 
             self._client = adbutils.adb
         return self._client
@@ -154,4 +154,6 @@ def resolve_gateway(
     runner: Callable[..., CompletedProcess[Any]] = subprocess.run,
 ) -> AdbGateway:
     """Return the injected gateway or wrap `runner` in SubprocessAdbGateway."""
-    return gateway if gateway is not None else SubprocessAdbGateway(runner=runner)
+    return (
+        gateway if gateway is not None else SubprocessAdbGateway(runner=runner)
+    )

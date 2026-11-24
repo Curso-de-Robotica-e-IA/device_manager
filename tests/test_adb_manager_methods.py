@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from pytest_mock import MockerFixture
@@ -137,11 +137,18 @@ def test_device_actions_incorporated_methods(
         ),
     )
 
-    actions.set_android_setting('screen_off_timeout', '60000', namespace='system')
+    actions.set_android_setting(
+        'screen_off_timeout', '60000', namespace='system'
+    )
     actions.start_app(
         'com.example',
         '.MainActivity',
-        extras={'flag': True, 'port': 50605, 'ratio': 1.5, 'host': '127.0.0.1'},
+        extras={
+            'flag': True,
+            'port': 50605,
+            'ratio': 1.5,
+            'host': '127.0.0.1',
+        },
         stop_first=True,
     )
     actions.start_app('com.example', '.MainActivity')

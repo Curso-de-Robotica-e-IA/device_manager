@@ -125,7 +125,9 @@ def real_device_manager(
     dm = DeviceManager(check_dependencies=False, connector=connector)
     try:
         if not dm.connected_devices:
-            visible = [svc.serial_number for svc in dm.connector.visible_devices()]
+            visible = [
+                svc.serial_number for svc in dm.connector.visible_devices()
+            ]
             if visible:
                 dm.connect_devices(visible[0])
         if not dm.connected_devices:
@@ -145,7 +147,9 @@ def real_device(
         if requested_serial not in real_device_manager:
             real_device_manager.connect_devices(requested_serial)
         if requested_serial not in real_device_manager:
-            pytest.skip(f'Requested device {requested_serial!r} not connected.')
+            pytest.skip(
+                f'Requested device {requested_serial!r} not connected.'
+            )
         serial = requested_serial
     else:
         serial = real_device_manager.connected_devices[0]

@@ -11,7 +11,9 @@ def test_device_manager_lifecycle_and_iteration(mocker: MockerFixture) -> None:
     conn = mock_conn_cls.return_value
     usb_service = ServiceInfo('emulator-5554', '', 0, ConnectionType.USB)
     conn.usb_scanner.list_connected_devices.return_value = [usb_service]
-    conn.connection_info.get.side_effect = lambda s: usb_service if s == 'emulator-5554' else None
+    conn.connection_info.get.side_effect = (
+        lambda s: usb_service if s == 'emulator-5554' else None
+    )
     conn.build_comm_uri.return_value = 'emulator-5554'
 
     manager = DeviceManager(check_dependencies=False)
@@ -39,4 +41,3 @@ def test_device_manager_lifecycle_and_iteration(mocker: MockerFixture) -> None:
 
     manager.clear()
     assert len(manager) == 0
-

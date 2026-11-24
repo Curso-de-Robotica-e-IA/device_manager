@@ -1,9 +1,10 @@
 import logging
 import subprocess
-from time import sleep
 import warnings
+from time import sleep
 
 from device_manager.adb_gateway import AdbGateway, resolve_gateway
+from device_manager.cli.qrcode_viewer import show_qr_window
 from device_manager.connection.adb_connection_discovery import (
     AdbConnectionDiscovery,
 )
@@ -12,7 +13,6 @@ from device_manager.connection.utils.connection_status import (
     ConnectionInfoStatus,
 )
 from device_manager.connection.utils.service_info import ServiceInfo
-from device_manager.cli.qrcode_viewer import show_qr_window
 
 logger = logging.getLogger(__name__)
 
@@ -66,14 +66,14 @@ class ConnectionManager:
             bool: True if the device is connected, False otherwise.
         """
         result = subprocess.run(
-            ["adb", "devices"],
+            ['adb', 'devices'],
             capture_output=True,
             text=True,
             check=subprocess_check_flag,
         )
-        devices_lines = str(result.stdout).split("\n")
+        devices_lines = str(result.stdout).split('\n')
         for info_line in devices_lines:
-            if comm_uri in info_line and "offline" not in info_line:
+            if comm_uri in info_line and 'offline' not in info_line:
                 return True
         return False
 
@@ -101,7 +101,7 @@ class ConnectionManager:
         adb_pairing = AdbPairing()
         adb_pairing.start()
         show_qr_window(adb_pairing.qrcode_image)
-        adb_pairing._context.wait_for_online_service(timeout=timeout_s) # pyright: ignore[reportPrivateUsage]
+        adb_pairing._context.wait_for_online_service(timeout=timeout_s)  # pyright: ignore[reportPrivateUsage]
         result = adb_pairing.pair_devices()
         adb_pairing.stop_pair_listener()
         return result
@@ -171,7 +171,7 @@ class ConnectionManager:
         Returns:
             Optional[ServiceInfo]: The service information of the device.
         """
-        comm_uri = f"{info.ip}:{info.port}"
+        comm_uri = f'{info.ip}:{info.port}'
         if self.check_devices_adb_connection(comm_uri):
             return info
         return self.device_connect(info.serial_number)

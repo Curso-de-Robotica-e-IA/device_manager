@@ -32,7 +32,10 @@ def test_async_zeroconf_proxy_delegation(mocker: MockerFixture) -> None:
     assert proxy.only_on_zc == 'zc_val'
 
     async def _run() -> None:
-        assert await proxy.async_get_service_info('_t._tcp.local.', 'name') == 'svc_info'
+        assert (
+            await proxy.async_get_service_info('_t._tcp.local.', 'name')
+            == 'svc_info'
+        )
         await proxy.async_close()
 
     asyncio.run(_run())
@@ -42,7 +45,9 @@ def test_async_zeroconf_proxy_delegation(mocker: MockerFixture) -> None:
 # ============================================================================
 # 2. AsyncAdbPairing — Weak Robust (Valid + Single-Fault Invalid)
 # ============================================================================
-def test_async_adb_pairing_properties_and_qrcode(mocker: MockerFixture) -> None:
+def test_async_adb_pairing_properties_and_qrcode(
+    mocker: MockerFixture,
+) -> None:
     pairing = AsyncAdbPairing(password='INITPASS')
     assert pairing.service_browser_started is False
     assert pairing.browser is None
@@ -123,7 +128,7 @@ def test_async_adb_pairing_start_stop_and_zombies(
 
 
 @pytest.mark.parametrize(
-    'scenario, expected_exc, match_pattern',
+    ('scenario', 'expected_exc', 'match_pattern'),
     [
         pytest.param(
             'stop_before_start',
@@ -160,8 +165,12 @@ def test_async_adb_pairing_weak_robust_invalid(
             mocker.patch.object(pairing, '_new_zeroconf_instance')
             await pairing.start()
         else:
-            mocker.patch('device_manager.asyncio_dm.async_adb_pairing.Zeroconf')
-            mocker.patch('device_manager.asyncio_dm.async_adb_pairing.AsyncZeroconf')
+            mocker.patch(
+                'device_manager.asyncio_dm.async_adb_pairing.Zeroconf'
+            )
+            mocker.patch(
+                'device_manager.asyncio_dm.async_adb_pairing.AsyncZeroconf'
+            )
             mocker.patch(
                 'device_manager.asyncio_dm.async_adb_pairing.ServiceBrowser',
                 side_effect=RuntimeError('boom'),

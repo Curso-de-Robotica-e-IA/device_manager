@@ -47,7 +47,9 @@ def test_adb_gateway_dependency_injection() -> None:
         gateway=gateway,
     )
     assert res.stdout == '  mScreenOn=true\n'
-    assert calls == [['adb', '-s', 'emulator-5554', 'shell', 'dumpsys', 'deviceidle']]
+    assert calls == [
+        ['adb', '-s', 'emulator-5554', 'shell', 'dumpsys', 'deviceidle']
+    ]
 
     conn = MagicMock()
     conn.build_comm_uri.return_value = 'emulator-5554'
@@ -84,7 +86,9 @@ def test_device_manager_connect_devices_uses_connection_strategy() -> None:
     conn.visible_devices.return_value = [usb_service, wifi_service]
     conn.is_connected.side_effect = lambda s: s == 'USB1'
     conn.start_connection.return_value = ['WIFI1']
-    conn.build_comm_uri.side_effect = lambda s: 'USB1' if s == 'USB1' else '10.0.0.5:5555'
+    conn.build_comm_uri.side_effect = (
+        lambda s: 'USB1' if s == 'USB1' else '10.0.0.5:5555'
+    )
 
     dm = DeviceManager(check_dependencies=False, connector=conn)
     connected = dm.connect_devices('USB1', 'WIFI1', 'MISSING')

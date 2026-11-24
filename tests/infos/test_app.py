@@ -17,7 +17,9 @@ def test_app_info_when_disconnected_does_not_raise_attribute_error() -> None:
     assert app.get_action('MAIN') == ''
 
 
-def test_app_info_queries_properties_and_actions(mocker: MockerFixture) -> None:
+def test_app_info_queries_properties_and_actions(
+    mocker: MockerFixture,
+) -> None:
     conn = MagicMock()
     conn.build_comm_uri.return_value = 'emulator-5554'
     conn.validate_connection.return_value = True

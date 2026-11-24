@@ -1,6 +1,6 @@
-from contextlib import contextmanager
 import logging
 import subprocess
+from contextlib import contextmanager
 from typing import Any, Generator, Sequence
 
 import qrcode
@@ -181,7 +181,9 @@ class AdbPairing:
         )
         success = f'Successfully paired to {comm_uri}' in result.stdout
         if success:
-            logger.info('Successfully paired device with code: uri=%s', comm_uri)
+            logger.info(
+                'Successfully paired device with code: uri=%s', comm_uri
+            )
         else:
             logger.warning(
                 'Failed to pair device with code: uri=%s output=%s',
