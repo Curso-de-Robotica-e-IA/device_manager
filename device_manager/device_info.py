@@ -8,9 +8,11 @@ from device_manager.exceptions.errors import (
     UnexpectedAdbOutputError,
 )
 from device_manager.infos.app import AppInfo
+from device_manager.ui_hierarchy import UiHierarchyBackend
 from device_manager.utils.adb_parsers import (
     UNEXPECTED_ADB_OUTPUT,
     TouchscreenInfo,
+    extract_ui_hierarchy_xml,
     parse_app_path,
     parse_bool_flag,
     parse_current_activity,
@@ -69,6 +71,7 @@ class DeviceInfo(BaseDeviceComponent):
         serial_number: str,
         subprocess_check_flag: bool = False,
         gateway: AdbGateway | None = None,
+        ui_backend: UiHierarchyBackend | None = None,
     ):
         super().__init__(
             device_connection=device_connection,
@@ -76,6 +79,7 @@ class DeviceInfo(BaseDeviceComponent):
             subprocess_check_flag=subprocess_check_flag,
             gateway=gateway,
         )
+        self._ui_backend = ui_backend
         self._cached_properties: dict[str, str] | None = None
         self._cached_screen_dimensions: tuple[int, int] | None = None
         self._cached_touchscreens: dict[str, TouchscreenInfo] | None = None
@@ -141,13 +145,20 @@ class DeviceInfo(BaseDeviceComponent):
         )
 
     def get_screen_gui_xml(self) -> str | None:
-        """Retrieves the UI hierarchy XML for the current screen via native ADB."""
+        """Retrieves the UI hierarchy XML via optional `ui_backend` or native ADB."""
+        if self._ui_backend is not None:
+            xml = self._ui_backend.dump_xml(self.current_comm_uri)
+            if xml is not None:
+                return xml
+
         output = self._query_adb('uiautomator dump /dev/tty')
         if output is None:
             return None
-        xml_start = output.find('<?xml')
-        if xml_start != -1:
-            return output[xml_start:]
+        extracted = extract_ui_hierarchy_xml(output)
+        if extracted is not None:
+            return extracted
+        if 'could not get idle state' in output.lower():
+            return None
 
         fallback = self._query_adb(
             'uiautomator dump /sdcard/window_dump.xml && '
@@ -155,8 +166,7 @@ class DeviceInfo(BaseDeviceComponent):
         )
         if fallback is None:
             return None
-        xml_start = fallback.find('<?xml')
-        return fallback[xml_start:] if xml_start != -1 else None
+        return extract_ui_hierarchy_xml(fallback)
 
     def get_properties(
         self,

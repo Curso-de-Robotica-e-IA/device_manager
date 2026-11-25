@@ -18,6 +18,7 @@ from device_manager.enumerations.adb_keyevents import ADBKeyEvent
 from device_manager.enumerations.adb_stream import AdbStreamSpec
 from device_manager.exceptions.errors import DeviceDisconnectedError
 from device_manager.utils.adb_parsers import (
+    extract_ui_hierarchy_xml,
     find_text_bounds_center,
     parse_bool_flag,
 )
@@ -76,9 +77,7 @@ class DeviceActions(BaseDeviceComponent):
             res = self._run_adb(
                 'uiautomator dump /dev/tty', capture_output=True
             )
-            out = res.stdout or ''
-            xml_start = out.find('<?xml')
-            xml_content = out[xml_start:] if xml_start != -1 else ''
+            xml_content = extract_ui_hierarchy_xml(res.stdout or '') or ''
 
         center = find_text_bounds_center(xml_content, text, exact=exact)
         if center is None:

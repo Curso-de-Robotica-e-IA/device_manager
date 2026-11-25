@@ -241,3 +241,19 @@ def parse_touchscreen_devices(
             indirect_nodes.append(node)
 
     return touch_map, direct_nodes + indirect_nodes
+
+
+def extract_ui_hierarchy_xml(output: str) -> str | None:
+    """Extract clean `<hierarchy>` XML from `uiautomator dump` output.
+
+    Strips any leading text before `<?xml` and trailing status messages such as
+    `UI hierchary dumped to: /dev/tty` appended after `</hierarchy>`.
+    """
+    xml_start = output.find('<?xml')
+    if xml_start == -1:
+        return None
+    end_tag = '</hierarchy>'
+    xml_end = output.rfind(end_tag)
+    if xml_end != -1 and xml_end > xml_start:
+        return output[xml_start : xml_end + len(end_tag)]
+    return output[xml_start:]

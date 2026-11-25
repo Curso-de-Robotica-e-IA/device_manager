@@ -241,3 +241,46 @@ def test_device_info_native_get_screen_gui_xml(
         subprocess.CompletedProcess(args=[], returncode=1, stdout=''),
     ]
     assert info.get_screen_gui_xml() is None
+
+
+def test_get_screen_gui_xml_strips_trailing_tty_message_and_skips_idle_fallback() -> (
+    None
+):
+    import subprocess
+    import xml.etree.ElementTree as ET
+    from unittest.mock import MagicMock
+
+    from device_manager.device_info import DeviceInfo
+
+    conn = MagicMock()
+    conn.build_comm_uri.return_value = 'SER1'
+    conn.validate_connection.return_value = True
+
+    gw = MagicMock()
+    gw.run.return_value = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout=(
+            "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>"
+            '<hierarchy rotation="0"><node text="OK" /></hierarchy>'
+            'UI hierchary dumped to: /dev/tty\n'
+        ),
+        stderr='',
+    )
+    info = DeviceInfo(conn, 'SER1', gateway=gw)
+    xml_out = info.get_screen_gui_xml()
+    assert xml_out is not None
+    assert xml_out.endswith('</hierarchy>')
+    root = ET.fromstring(xml_out)
+    assert root.tag == 'hierarchy'
+
+    # Idle-state error should NOT trigger a second slow /sdcard dump
+    gw.run.reset_mock()
+    gw.run.return_value = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout='ERROR: could not get idle state.\n',
+        stderr='',
+    )
+    assert info.get_screen_gui_xml() is None
+    assert gw.run.call_count == 1
