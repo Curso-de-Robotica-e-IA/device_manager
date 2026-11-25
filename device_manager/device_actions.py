@@ -1,15 +1,22 @@
 import subprocess
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Optional
 
 from device_manager.actions.camera_actions import CameraActions
-from device_manager.adb_gateway import AdbGateway, resolve_gateway
+from device_manager.adb_gateway import (
+    AdbGateway,
+    AdbutilsAdbGateway,
+    resolve_gateway,
+)
+from device_manager.adb_stream import AdbStreamProcess
 from device_manager.base_device_component import (
     BaseDeviceComponent,
     require_connection,
 )
 from device_manager.connection.device_connection import DeviceConnection
 from device_manager.enumerations.adb_keyevents import ADBKeyEvent
+from device_manager.enumerations.adb_stream import AdbStreamCommand
 from device_manager.exceptions.errors import DeviceDisconnectedError
 from device_manager.utils.adb_parsers import (
     find_text_bounds_center,
@@ -330,4 +337,52 @@ class DeviceActions(BaseDeviceComponent):
             stderr=subprocess.DEVNULL,
             text=True,
             bufsize=1,
+        )
+
+    @require_connection(
+        raise_on_disconnect=True,
+        error_message='Device connection is not valid. Cannot start ADB stream.',
+    )
+    def start_stream(
+        self,
+        stream_type: AdbStreamCommand,
+        args: str | Sequence[str] | None = None,
+        *,
+        timeout: float | None = None,
+        encoding: str | None = 'utf-8',
+    ) -> AdbStreamProcess:
+        """Start a generic ADB shell streaming session via `adbutils`."""
+        if not isinstance(stream_type, AdbStreamCommand):
+            raise TypeError(
+                'stream_type must be an instance of AdbStreamCommand.'
+            )
+        if isinstance(args, str):
+            extra = args.strip()
+        elif args is not None:
+            extra = ' '.join(str(a) for a in args).strip()
+        else:
+            extra = ''
+
+        base = stream_type.value
+        command = (
+            f'{base} {extra}'.strip() if base and extra else (base or extra)
+        )
+        if not command:
+            raise ValueError(
+                'AdbStreamCommand.CUSTOM requires non-empty args.'
+            )
+
+        gateway = (
+            self._gateway
+            if isinstance(self._gateway, AdbutilsAdbGateway)
+            else AdbutilsAdbGateway()
+        )
+        resolved_encoding = (
+            None if stream_type is AdbStreamCommand.SCREENRECORD else encoding
+        )
+        return gateway.open_stream(
+            serial=self.current_comm_uri,
+            command=command,
+            timeout=timeout,
+            encoding=resolved_encoding,
         )

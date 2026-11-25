@@ -2,6 +2,8 @@ import subprocess
 from subprocess import CompletedProcess
 from typing import Any, Callable, Protocol, Sequence
 
+from device_manager.adb_stream import AdbStreamProcess
+
 
 class AdbGateway(Protocol):
     """Adapter interface for executing ADB commands."""
@@ -65,6 +67,19 @@ class AdbutilsAdbGateway:
 
             self._client = adbutils.adb
         return self._client
+
+    def open_stream(
+        self,
+        serial: str,
+        command: str,
+        *,
+        timeout: float | None = None,
+        encoding: str | None = 'utf-8',
+    ) -> AdbStreamProcess:
+        """Open a persistent streaming ADB shell session via `adbutils`."""
+        device = self._get_client().device(serial=serial)
+        conn = device.shell(command, stream=True, timeout=timeout)
+        return AdbStreamProcess(conn, command=command, encoding=encoding)
 
     def run(
         self,
