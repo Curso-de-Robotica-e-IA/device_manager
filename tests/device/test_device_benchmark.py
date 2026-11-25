@@ -18,6 +18,7 @@ import pytest
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
 from device_manager.manager import DeviceManager
+from device_manager.ui_hierarchy import Uiautomator2Backend
 from tests.conftest import BenchmarkRecorder
 
 pytestmark = pytest.mark.device
@@ -70,11 +71,6 @@ def test_benchmark_device_info_all(
     assert isinstance(activity, str)
     assert len(activity) > 0
 
-    xml = benchmark_recorder.measure(
-        'DeviceInfo.get_screen_gui_xml', info.get_screen_gui_xml
-    )
-    assert xml is None or isinstance(xml, str)
-
     apps = benchmark_recorder.measure(
         'DeviceInfo.list_installed_all_apps', info.list_installed_all_apps
     )
@@ -105,6 +101,36 @@ def test_benchmark_device_info_all(
     )
     assert isinstance(stay_awake, bool)
     assert isinstance(airplane, bool)
+
+
+@pytest.mark.parametrize('ui_backend_name', ['native', 'u2'])
+def test_benchmark_device_info_gui_xml(
+    ui_backend_name: str,
+    real_device: tuple[str, DeviceInfo, DeviceActions],
+    benchmark_recorder: BenchmarkRecorder,
+) -> None:
+    serial, info, _ = real_device
+    if ui_backend_name == 'u2':
+        pytest.importorskip(
+            'uiautomator2',
+            reason='Install uiautomator2 (device_manager[u2]) to benchmark u2 backend.',
+        )
+        target_info = DeviceInfo(
+            info.device_connection,
+            serial,
+            subprocess_check_flag=info.subprocess_check_flag,
+            gateway=info._gateway,
+            ui_backend=Uiautomator2Backend(),
+        )
+        target_info.get_screen_gui_xml()  # warm up persistent u2 server
+    else:
+        target_info = info
+
+    xml = benchmark_recorder.measure(
+        f'DeviceInfo.get_screen_gui_xml[{ui_backend_name}]',
+        target_info.get_screen_gui_xml,
+    )
+    assert xml is None or isinstance(xml, str)
 
 
 # ============================================================================

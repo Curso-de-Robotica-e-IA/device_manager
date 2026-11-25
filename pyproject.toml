@@ -1,6 +1,6 @@
 [project]
 name = "device_manager"
-version = "2.1.1b1"
+version = "2.1.0b2"
 description = "Python library for pairing, connecting, and interacting with Android devices via ADB."
 authors = [
     { name = "Bruno Pinheiro", email = "bruno.opinheiro@outlook.com" },

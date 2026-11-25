@@ -10,7 +10,7 @@ description: >-
 
 # Using `device_manager` (v2.0.0+)
 
-`device_manager` is a Python 3.10–3.12 library for discovering, pairing, connecting, inspecting, and automating Android devices over ADB. It supports both `subprocess` and persistent `adbutils` TCP sockets via the `AdbGateway` abstraction and requires **no `uiautomator2` agent** on the device.
+`device_manager` is a Python 3.10–3.12 library for discovering, pairing, connecting, inspecting, and automating Android devices over ADB. It supports both `subprocess` and persistent `adbutils` TCP sockets via the `AdbGateway` abstraction, uses native ADB for UI XML by default, and offers an optional high-speed `Uiautomator2Backend` (`pip install "device_manager[u2]"`) for ~160 ms UI hierarchy dumps.
 
 For exact signatures of every public class and method, read [references/api-reference.md](references/api-reference.md).
 
@@ -82,8 +82,13 @@ width, height = info.get_screen_dimensions()
 props = info.get_properties()  # {'serial_number', 'brand', 'model', 'android_version'}
 model = info.get_device_model()
 
-# Native UI XML dump (uses `uiautomator dump /dev/tty` with /sdcard fallback)
+# Native UI XML dump (uses `uiautomator dump /dev/tty`, strips trailing `/dev/tty` status text)
 xml = info.get_screen_gui_xml()
+
+# Optional fast UI XML (~160 ms vs ~2.4–3.5 s native) with `pip install "device_manager[u2]"`
+from device_manager.ui_hierarchy import Uiautomator2Backend
+fast_dm = DeviceManager(ui_backend=Uiautomator2Backend())
+# Falls back automatically to native ADB if `ui_backend.dump_xml(...)` returns None
 
 # Touchscreen hardware discovery (for raw input / robotic touch calibration)
 touchscreens = info.get_all_touchscreens()       # dict[node_name, TouchscreenInfo]

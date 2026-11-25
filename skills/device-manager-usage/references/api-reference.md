@@ -19,6 +19,7 @@ DeviceManager(
     fixed_port: int = 5555,
     check_dependencies: bool = True,
     connector: DeviceConnection | None = None,
+    ui_backend: UiHierarchyBackend | None = None,
 )
 ```
 
@@ -50,6 +51,7 @@ DeviceInfo(
     serial_number: str,
     subprocess_check_flag: bool = False,
     gateway: AdbGateway | None = None,
+    ui_backend: UiHierarchyBackend | None = None,
 )
 ```
 
@@ -137,3 +139,9 @@ DeviceActions(
 - `AdbGateway` (`Protocol`): `.run(args, *, check=False, capture_output=False, text=None) -> CompletedProcess[Any]`
 - `SubprocessAdbGateway(runner=None)`: default `subprocess.run(..., shell=False)` adapter.
 - `AdbutilsAdbGateway(client=None, fallback=None)`: persistent TCP socket adapter for `devices`, `shell`, `exec-out`, `push`, `pull`, and `open_stream(...)`, automatically delegating unsupported commands (`pair`, `connect`, `start-server`, `kill-server`, etc.) to `fallback`.
+
+---
+
+## UI Hierarchy Backends (`device_manager.ui_hierarchy`)
+- `UiHierarchyBackend` (`Protocol`): `.dump_xml(comm_uri: str) -> str | None`
+- `Uiautomator2Backend(connector=None)`: optional fast backend (`pip install "device_manager[u2]"`), caches `u2.connect(comm_uri)` per device and extracts clean `<hierarchy>` XML via `extract_ui_hierarchy_xml()`. Falls back to native ADB in `DeviceInfo.get_screen_gui_xml()` when `None` is returned.
