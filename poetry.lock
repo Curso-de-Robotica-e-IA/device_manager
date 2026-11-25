@@ -299,7 +299,6 @@ files = [
     {file = "click-8.5.1-py3-none-any.whl", hash = "sha256:8bb5376d2006950386f8c6427613334a2acadc5f559cb80e638d00b4df957e37"},
     {file = "click-8.5.1.tar.gz", hash = "sha256:9bbfada76703fd1d784b83eea012e3e8c6a001a876543ef104fa56aaaeb072b4"},
 ]
-markers = {main = "extra == \"u2\""}
 
 [[package]]
 name = "colorama"
@@ -983,10 +982,9 @@ test = ["coverage", "pytest", "pytest-cov", "pytest-timeout"]
 name = "lxml"
 version = "6.1.3"
 description = "Powerful and Pythonic XML processing library combining libxml2/libxslt with the ElementTree API."
-optional = true
+optional = false
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"u2\""
 files = [
     {file = "lxml-6.1.3-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:40bcbd9f94166ffe925811e730607385cec959f42fb1bb7dad83748680465221"},
     {file = "lxml-6.1.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:05f5bce9af14fd1506997594bd81cee6d9c6b58ea80a39c058327aa6371ed9e9"},
@@ -2818,10 +2816,9 @@ files = [
 name = "uiautomator2"
 version = "3.7.1"
 description = "uiautomator for android device"
-optional = true
+optional = false
 python-versions = "<4.0,>=3.8"
 groups = ["main"]
-markers = "extra == \"u2\""
 files = [
     {file = "uiautomator2-3.7.1-py3-none-any.whl", hash = "sha256:55ccc16f7c52d3035dbc14e1400524e76510dc353f9fc4a0bfa85bf58c51cc67"},
     {file = "uiautomator2-3.7.1.tar.gz", hash = "sha256:e7a21bf0840184c319c79804f7b4f40b8b6b46bc98222da2adff24522bf368fe"},
@@ -3170,10 +3167,7 @@ files = [
 [package.dependencies]
 ifaddr = ">=0.1.7"
 
-[extras]
-u2 = ["uiautomator2"]
-
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <3.13"
-content-hash = "026e7033c8f8a95ae4badc75c3ef2a6a0348217789f99edca6569346b176b6c8"
+content-hash = "b5aa8532e52d2e1ff1f2787e1115f2cdbde3f09c6a2605ad352b7e0c0225ebd1"

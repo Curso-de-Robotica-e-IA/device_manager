@@ -1,6 +1,6 @@
 [project]
 name = "device_manager"
-version = "2.1.1b1"
+version = "2.1.0b3"
 description = "Python library for pairing, connecting, and interacting with Android devices via ADB."
 authors = [
     { name = "Bruno Pinheiro", email = "bruno.opinheiro@outlook.com" },
@@ -17,11 +17,9 @@ dependencies = [
     "opencv-python>=4.11.0.86",
     "qrcode>=8.0",
     "adbutils>=2.0.0",
+    "uiautomator2>=3.2.9",
     "rich>=13.9.4",
 ]
-
-[project.optional-dependencies]
-u2 = ["uiautomator2>=3.2.9"]
 
 [tool.poetry.group.doc]
 optional = true
