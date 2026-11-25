@@ -6,7 +6,11 @@ import pytest
 from device_manager.adb_gateway import AdbutilsAdbGateway
 from device_manager.adb_stream import AdbStreamProcess
 from device_manager.device_actions import DeviceActions
-from device_manager.enumerations.adb_stream import AdbStreamCommand
+from device_manager.enumerations.adb_stream import (
+    AdbStreamCommand,
+    AdbStreamSpec,
+    CustomAdbStream,
+)
 from device_manager.exceptions.errors import DeviceDisconnectedError
 
 
@@ -63,40 +67,35 @@ def test_adb_stream_process_read_chunks_and_stop_on_close() -> None:
 
 
 @pytest.mark.parametrize(
-    ('stream_type', 'args', 'expected_cmd', 'expected_encoding'),
+    ('spec', 'expected_cmd', 'expected_encoding'),
     [
-        (AdbStreamCommand.GETEVENT, None, 'getevent -lt', 'utf-8'),
+        (AdbStreamCommand.GETEVENT, 'getevent -lt', 'utf-8'),
         (
-            AdbStreamCommand.GETEVENT,
-            '/dev/input/event1',
+            AdbStreamCommand.GETEVENT.with_args('/dev/input/event1'),
             'getevent -lt /dev/input/event1',
             'utf-8',
         ),
         (
-            AdbStreamCommand.LOGCAT,
-            ['*:E', '-v', 'time'],
+            AdbStreamCommand.LOGCAT.with_args('*:E', '-v', 'time'),
             'logcat *:E -v time',
             'utf-8',
         ),
-        (AdbStreamCommand.DMESG, None, 'dmesg -w', 'utf-8'),
-        (AdbStreamCommand.TOP, '-d 1', 'top -b -d 1', 'utf-8'),
+        (AdbStreamCommand.DMESG, 'dmesg -w', 'utf-8'),
+        (AdbStreamCommand.TOP.with_args('-d 1'), 'top -b -d 1', 'utf-8'),
         (
             AdbStreamCommand.SCREENRECORD,
-            None,
             'screenrecord --output-format=h264 -',
             None,
         ),
         (
-            AdbStreamCommand.CUSTOM,
-            'dumpsys battery',
+            CustomAdbStream('  dumpsys battery  '),
             'dumpsys battery',
             'utf-8',
         ),
     ],
 )
-def test_device_actions_start_stream_builds_expected_command(
-    stream_type: AdbStreamCommand,
-    args: str | list[str] | None,
+def test_device_actions_start_stream_polymorphic_specs(
+    spec: AdbStreamSpec,
     expected_cmd: str,
     expected_encoding: str | None,
 ) -> None:
@@ -112,7 +111,7 @@ def test_device_actions_start_stream_builds_expected_command(
     conn.build_comm_uri.return_value = 'SER-STREAM'
 
     actions = DeviceActions(conn, 'SER-STREAM', gateway=gw)
-    proc = actions.start_stream(stream_type, args=args, timeout=30.0)
+    proc = actions.start_stream(spec, timeout=30.0)
 
     assert isinstance(proc, AdbStreamProcess)
     assert proc.command == expected_cmd
@@ -125,29 +124,37 @@ def test_device_actions_start_stream_builds_expected_command(
     )
 
 
-def test_device_actions_start_stream_fallback_gateway_and_errors(
+def test_device_actions_start_stream_custom_class_fallback_and_errors(
     mocker,
 ) -> None:
+    class _BatteryStream:
+        def build_command(self) -> str:
+            return 'dumpsys battery'
+
+        @property
+        def default_encoding(self) -> str | None:
+            return 'utf-8'
+
     conn = MagicMock()
     conn.validate_connection.return_value = True
     conn.build_comm_uri.return_value = 'SER-1'
     actions = DeviceActions(conn, 'SER-1')
 
-    with pytest.raises(TypeError, match='AdbStreamCommand'):
+    with pytest.raises(TypeError, match='AdbStreamSpec'):
         actions.start_stream('logcat')  # type: ignore[arg-type]
 
-    with pytest.raises(ValueError, match='CUSTOM requires non-empty args'):
-        actions.start_stream(AdbStreamCommand.CUSTOM)
+    with pytest.raises(ValueError, match='non-empty command'):
+        CustomAdbStream('   ')
 
     mock_open = mocker.patch.object(
         AdbutilsAdbGateway,
         'open_stream',
         return_value=MagicMock(spec=AdbStreamProcess),
     )
-    actions.start_stream(AdbStreamCommand.LOGCAT)
+    actions.start_stream(_BatteryStream())
     mock_open.assert_called_once_with(
         serial='SER-1',
-        command='logcat',
+        command='dumpsys battery',
         timeout=None,
         encoding='utf-8',
     )
