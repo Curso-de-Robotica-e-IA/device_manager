@@ -31,9 +31,9 @@ DeviceManager
 
 ---
 
-## 2. USB Discovery & Connection
+## 2. Device Discovery Properties & USB Priority
 
-`DeviceManager.__init__()` automatically calls `load_connected_usb_devices()`. Call it again whenever cables are plugged in later:
+`DeviceManager` starts with `connected_devices == []` and exposes 4 nested properties (`connected_devices ⊆ available_devices ⊆ visible_devices`, and `unauthorized_devices ⊆ visible_devices`):
 
 ```python
 from device_manager import DeviceManager
@@ -41,14 +41,17 @@ from device_manager.adb_gateway import AdbutilsAdbGateway
 from device_manager.connection.device_connection import DeviceConnection
 
 dm = DeviceManager(connector=DeviceConnection(gateway=AdbutilsAdbGateway()))
-dm.load_connected_usb_devices()  # returns None; populates dm.connected_devices
 
-for serial in dm.connected_devices:
-    authorized = dm.connector.usb_scanner.check_authorization(serial)
-    connected = dm.is_connected(serial)
+print(dm.available_devices)     # authorized USB + Wi-Fi (resolved to serials via cached ro.serialno)
+print(dm.unauthorized_devices)  # awaiting RSA authorization
+print(dm.visible_devices)       # available ∪ unauthorized ∪ mDNS Wi-Fi
+
+# Connect by serial — automatically prioritizes: 1. USB > 2. active TCP (ip:5555) > 3. mDNS Wi-Fi
+dm.connect_devices(*dm.available_devices)
 ```
 
-- `UsbDeviceScanner.list_all_devices() -> dict[str, str]` returns `{serial: state}` (e.g. `'device'`, `'unauthorized'`, `'offline'`), skipping TCP (`ip:port`) entries.
+- `dm.load_connected_usb_devices()` can also be called explicitly to load all authorized USB devices (upgrading any existing Wi-Fi entry for the same serial to USB).
+- `DeviceConnection.list_adb_device_states() -> dict[str, str]` returns `{identifier: state}` for all USB and Wi-Fi (`ip:port`) entries in `adb devices`.
 - `UsbDeviceScanner.list_connected_devices() -> list[ServiceInfo]` returns only authorized (`device`) USB devices.
 
 ---

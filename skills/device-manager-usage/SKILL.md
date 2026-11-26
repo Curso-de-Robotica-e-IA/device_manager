@@ -10,7 +10,7 @@ description: >-
 
 # Using `device_manager` (v2.0.0+)
 
-`device_manager` is a Python 3.10–3.12 library for discovering, pairing, connecting, inspecting, and automating Android devices over ADB. It supports both `subprocess` and persistent `adbutils` TCP sockets via the `AdbGateway` abstraction, uses native ADB for UI XML by default, and includes `Uiautomator2Backend` (`uiautomator2` bundled as a dependency) for ~160 ms UI hierarchy dumps.
+`device_manager` is a Python 3.10–3.12 library for discovering, pairing, connecting, inspecting, and automating Android devices over ADB. It uses persistent `adbutils` TCP sockets (`AdbutilsAdbGateway`) and a bundled 5.2 KB resident Android `.dex` (`dm_ui_dump.dex`, Android 5.0+ / API 21+) for ~12 ms UI hierarchy XML dumps and ~150 ms JPEG screenshots — with **zero `uiautomator2` runtime dependency**.
 
 For exact signatures of every public class and method, read [references/api-reference.md](references/api-reference.md).
 
@@ -44,15 +44,21 @@ from device_manager.connection.device_connection import DeviceConnection
 # Option A: Context manager with high-performance adbutils socket gateway
 connector = DeviceConnection(gateway=AdbutilsAdbGateway())
 with DeviceManager(connector=connector) as dm:
-    # USB devices are auto-loaded in DeviceManager.__init__()
-    serials: list[str] = dm.connected_devices
+    # Starts with connected_devices == []; inspect available/visible devices first
+    print(dm.available_devices)     # authorized USB + Wi-Fi (resolved to serials)
+    print(dm.unauthorized_devices)  # awaiting RSA authorization
+    print(dm.visible_devices)       # available ∪ unauthorized ∪ mDNS Wi-Fi
+
+    # Connect by serial (auto-prioritizes USB > active TCP > mDNS Wi-Fi)
+    dm.connect_devices(*dm.available_devices)
+    serial = dm.connected_devices[0]
 
     # Lookup returns (DeviceInfo, DeviceActions) or raises DeviceNotFoundError
-    info, actions = dm[serials[0]]
+    info, actions = dm[serial]
 
     # Safe lookups return None when serial is absent
-    maybe_info = dm.get_device_info(serials[0])
-    maybe_actions = dm.get_device_actions(serials[0])
+    maybe_info = dm.get_device_info(serial)
+    maybe_actions = dm.get_device_actions(serial)
 
 # Option B: Shared singleton (cached via lru_cache(maxsize=1))
 dm = get_device_manager()
@@ -62,7 +68,8 @@ reset_device_manager()
 
 ### Important Iteration & Initialization Details
 - **`for dev in dm:` yields `DeviceObjects` NamedTuples**, NOT serial strings! Unpack as `for serial, info, actions in dm:` or access `dev.serial_number`, `dev.device_info`, `dev.device_actions`.
-- **`DeviceManager.__init__`** automatically runs `check_adb_dependencies_version()` (unless `check_dependencies=False`) and calls `self.load_connected_usb_devices()` (which returns `None` and populates `dm.connected_devices`).
+- **`DeviceManager.__init__`** runs `check_adb_dependencies_version()` (unless `check_dependencies=False`) and starts with `connected_devices == []`. Call `dm.connect_devices(*serials)` (or `dm.load_connected_usb_devices()`) to register devices.
+- **4 nested device properties:** `connected_devices ⊆ available_devices ⊆ visible_devices`, and `unauthorized_devices ⊆ visible_devices` (`unauthorized_devices ∩ available_devices = ∅`).
 - **Enabling `adbutils` sockets globally:** by default `DeviceConnection(gateway=None)` uses `SubprocessAdbGateway`. Pass `DeviceConnection(gateway=AdbutilsAdbGateway())` into `DeviceManager(connector=...)` so `DeviceInfo`, `DeviceActions`, and `execute_adb_command` all reuse persistent TCP sockets instead of spawning `adb` processes.
 
 ---
@@ -82,13 +89,8 @@ width, height = info.get_screen_dimensions()
 props = info.get_properties()  # {'serial_number', 'brand', 'model', 'android_version'}
 model = info.get_device_model()
 
-# Native UI XML dump (uses `uiautomator dump /dev/tty`, strips trailing `/dev/tty` status text)
+# Resident UI XML dump (~12 ms via bundled `dm_ui_dump.dex`, Android API 21+)
 xml = info.get_screen_gui_xml()
-
-# Fast UI XML (~160 ms vs ~2.4–3.5 s native) via `Uiautomator2Backend`
-from device_manager.ui_hierarchy import Uiautomator2Backend
-fast_dm = DeviceManager(ui_backend=Uiautomator2Backend())
-# Falls back automatically to native ADB if `ui_backend.dump_xml(...)` returns None
 
 # Touchscreen hardware discovery (for raw input / robotic touch calibration)
 touchscreens = info.get_all_touchscreens()       # dict[node_name, TouchscreenInfo]
@@ -117,9 +119,12 @@ xml = info.get_screen_gui_xml() or ''
 if not actions.click_by_text('Accept', xml_content=xml):
     actions.click_by_text('OK', xml_content=xml)
 
-# In-memory PNG screenshot (try-first `exec-out screencap -p`) or save directly to disk
-png_bytes = actions.safe_screencap_bytes()
-saved_path = actions.take_screenshot_to_file('artifacts/screen.png')
+# In-memory screenshot: fast JPEG by default (~150 ms) or lossless PNG with raw=True
+jpeg_bytes = actions.safe_screencap_bytes()           # raw=False -> JPEG
+png_bytes = actions.safe_screencap_bytes(raw=True)    # raw=True  -> PNG
+saved_path = actions.take_screenshot_to_file('artifacts/screen.jpg')
+actions.screen_shot('screen', '/sdcard')              # saves /sdcard/screen.jpg (~150 ms)
+actions.screen_shot('screen', '/sdcard', raw=True)    # saves /sdcard/screen.png (lossless)
 
 # Launch an activity with typed Intent extras and optional force-stop (-S)
 actions.start_app(

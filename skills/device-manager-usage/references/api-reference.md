@@ -24,7 +24,10 @@ DeviceManager(
 ```
 
 - **Properties & container protocol:**
-  - `connected_devices -> list[str]`
+  - `connected_devices -> list[str]` (registered devices in `DeviceManager`)
+  - `available_devices -> list[str]` (`connected_devices` ∪ authorized `adb devices`, resolved to serials)
+  - `unauthorized_devices -> list[str]` (`unauthorized` devices in `adb devices`)
+  - `visible_devices -> list[str]` (`available_devices` ∪ `unauthorized_devices` ∪ mDNS Wi-Fi devices)
   - `dm[serial] -> tuple[DeviceInfo, DeviceActions]` (raises `DeviceNotFoundError`)
   - `serial in dm -> bool`, `len(dm) -> int`, `del dm[serial]`
   - `iter(dm) -> Iterator[DeviceObjects(serial_number, device_info, device_actions)]`
@@ -108,8 +111,8 @@ DeviceActions(
 | `turn_on_and_unlock_screen` | `() -> None` | Calls `turn_on_screen()` + `unlock_screen()` |
 | `keep_screen_on_and_awake` | `(timeout_ms: int = 1800000) -> None` | `svc power stayon true`, `stay_on_while_plugged_in 7`, timeout, wakeup |
 | `home_button` / `back` | `() -> None` | `KEYCODE_HOME` / `KEYCODE_BACK` |
-| `screen_shot` | `(image_name: str = 'screen', destination: str = '/sdcard') -> None` | Saves PNG on device |
-| `safe_screencap_bytes` | `() -> bytes \| None` | Try-first `exec-out screencap -p` in memory; raises `DeviceDisconnectedError` if invalid |
+| `screen_shot` | `(image_name: str = 'screen', destination: str = '/sdcard', *, raw: bool = False) -> None` | Saves `.jpg` via resident backend (`raw=False`) or `.png` via `screencap -p` (`raw=True`) |
+| `safe_screencap_bytes` | `(*, raw: bool = False) -> bytes \| None` | Fast JPEG (`raw=False`, ~150 ms) or lossless PNG (`raw=True`), with `exec-out` fallback |
 | `take_screenshot_to_file` | `(local_path: str \| Path) -> Path \| None` | Calls `safe_screencap_bytes()` and writes file |
 | `push_file` / `pull_file` | `push_file(local_path: str, remote_path: str)` / `pull_file(remote_path: Path, local_path: Path)` | Uses `shell=False` |
 | `remove_file` | `(remote_path: Path) -> None` | `rm <remote_path>` |
@@ -142,6 +145,6 @@ DeviceActions(
 
 ---
 
-## UI Hierarchy Backends (`device_manager.ui_hierarchy`)
+## UI Hierarchy & Resident Backend (`device_manager.ui_hierarchy`)
 - `UiHierarchyBackend` (`Protocol`): `.dump_xml(comm_uri: str) -> str | None`
-- `Uiautomator2Backend(connector=None)`: fast `uiautomator2` backend, caches `u2.connect(comm_uri)` per device and extracts clean `<hierarchy>` XML via `extract_ui_hierarchy_xml()`. Falls back to native ADB in `DeviceInfo.get_screen_gui_xml()` when `None` is returned.
+- `NativeResidentUiBackend(dex_path=DEFAULT_DEX_PATH, client=None, timeout=5.0, min_sdk=21)`: default backend bundled with `dm_ui_dump.dex` (5.2 KB). Provides `dump_xml()` (~12 ms), `take_screenshot(comm_uri, fmt='png'|'jpeg')` (~150 ms JPEG), `save_screenshot(comm_uri, remote_path)` (~150 ms JPEG), and `close()`. Raises `UnsupportedAndroidVersionError` when device Android API < `min_sdk`.
