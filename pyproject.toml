@@ -1,6 +1,6 @@
 [project]
 name = "device_manager"
-version = "2.1.0b3"
+version = "2.0.0b4"
 description = "Python library for pairing, connecting, and interacting with Android devices via ADB."
 authors = [
     { name = "Bruno Pinheiro", email = "bruno.opinheiro@outlook.com" },
@@ -32,6 +32,7 @@ mutmut = ">=3.8.1,<4.0.0"
 ruff = "^0.9.6"
 pytest-socket = "^0.7.0"
 ipython = "^8.37.0"
+uiautomator2 = ">=3.2.9"
 
 [tool.poetry.group.doc.dependencies]
 mkdocs = "^1.6.1"
