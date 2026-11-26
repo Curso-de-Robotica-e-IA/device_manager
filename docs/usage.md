@@ -1,156 +1,136 @@
 # Usage
-The library is composed of three main classes: `DeviceManager`, `DeviceInfo` and `DeviceActions`, and two connection classes: `AdbPairing` and `AdbConnectionDiscovery` were made available to ease the process of pairing and connecting to devices.
 
-You can either use the individual classes, or only the `DeviceManager` class, which is a composition of the other classes.
+The library is centered around `DeviceManager`, which manages per-device `DeviceInfo` and `DeviceActions` instances, backed by `DeviceConnection`, `AdbPairing`, `AdbConnectionDiscovery`, and `NativeResidentUiBackend`.
 
-## Using the DeviceManager Class
-The `DeviceManager` class is the main class of the library. With this object alone, you can connect to devices and iterate over them as if you were using an iterable object. The particularity is that you can access the `DeviceInfo` and `DeviceActions` objects for each device as if you were accessing a dictionary, but you can iterate over them as if you were iterating over a list.
+## Using `DeviceManager`
+
+`DeviceManager` starts with `connected_devices == []` and exposes 4 nested device properties:
+
+- **`connected_devices`**: devices registered and ready to use via `dm[serial]`.
+- **`available_devices`**: `connected_devices` union all authorized (`device`) USB and Wi-Fi devices in `adb devices`, automatically resolved to serial numbers.
+- **`unauthorized_devices`**: devices reported as `unauthorized` in `adb devices` (never included in `connected_devices` or `available_devices`).
+- **`visible_devices`**: `available_devices` union `unauthorized_devices` union Wi-Fi devices discovered via mDNS.
 
 ```python title='Basic Usage' linenums='1'
 from device_manager import DeviceManager
+from device_manager.adb_gateway import AdbutilsAdbGateway
+from device_manager.connection.device_connection import DeviceConnection
 
-manager = DeviceManager()  # (1)!
+connector = DeviceConnection(gateway=AdbutilsAdbGateway())
 
-# Provided you have the serial numbers of the devices you want to connect,
-# and they are already paired, you can just call:
-manager.connect_devices(
-    'serial_number_1',
-    'serial_number_2',
-    'serial_number_3',
-)  # (2)!
+with DeviceManager(connector=connector) as manager:
+    print('Available:', manager.available_devices)
+    print('Unauthorized:', manager.unauthorized_devices)
+    print('Visible:', manager.visible_devices)
 
+    # Connect by serial — prioritizes USB > active Wi-Fi (ip:5555) > mDNS Wi-Fi
+    manager.connect_devices(*manager.available_devices)
 
-# Now you can iterate over the connected devices
-for device in manager:
-    print(device)  # (2)!
-    device_info = device.info  # (3)!
-    device_actions = device.actions  # (4)!
-    print(device.serial_number)  # (5)!
-    # Here you can do whatever you want with the device_info 
-    # and device_actions objects
+    # Iterate over connected devices (yields DeviceObjects NamedTuple)
+    for device in manager:
+        serial = device.serial_number
+        info = device.device_info
+        actions = device.device_actions
+        print(serial, info.get_device_model())
 
-
-# Additionally, you can get direct access of the `DeviceInfo`
-# and `DeviceActions` tuple using the serial number.
-
-device_info, device_action = manager['serial_number_1']  # (6)!
-
+    # Direct lookup by serial returns (DeviceInfo, DeviceActions)
+    info, actions = manager[manager.connected_devices[0]]
 ```
 
-1.  Create a DeviceManager object
-2.  The `device` is a `named tuple` called `DeviceObjects` that contains the device serial_number, and the associated `DeviceInfo` and `DeviceActions` objects.
-3.  Access the `DeviceInfo` object for the device
-4.  Access the `DeviceActions` object for the device
-5.  Access the serial number of the device
-6.  Get the `DeviceInfo` and `DeviceActions` objects for the device with the serial number `'serial_number_1'`
+For a shared singleton instance across modules, use `get_device_manager()` and `reset_device_manager()`:
 
-## Showing the Visible Devices in the Network
-To show the devices that are visible in the network, you can either use the
-`DeviceManager` object, or the `DeviceConnection` class.
+```python
+from device_manager import get_device_manager, reset_device_manager
 
-=== "Device Manager"
+dm = get_device_manager()
+```
 
-    ```python title='Device Manager' linenums='1'
-    from device_manager import DeviceManager
+## Fast UI XML & Screenshots (`dm_ui_dump.dex`)
 
-    manager = DeviceManager()
+`DeviceInfo.get_screen_gui_xml()`, `DeviceActions.safe_screencap_bytes()`, and `DeviceActions.screen_shot()` use the bundled resident `dm_ui_dump.dex` server (Android 5.0+ / API 21+) by default:
 
-    network_devices = manager.connector.visible_devices()  # (1)!
-    ```
+```python
+# ~12 ms UI hierarchy XML dump (raises UnsupportedAndroidVersionError on API < 21)
+xml = info.get_screen_gui_xml()
 
-    1.  This will return a list of `ServiceInfo` objects that contain the information of the devices visible in the network. A `ServiceInfo` object is a `dataclass` containing the `serial_number`, `ip` and `port` of the device.
+# Tap UI element by text or content-desc
+actions.click_by_text('Allow', exact=True)
 
-=== "Device Connection"
+# In-memory screenshots: fast JPEG (~150 ms) by default, lossless PNG with raw=True
+jpeg_bytes = actions.safe_screencap_bytes()
+png_bytes = actions.safe_screencap_bytes(raw=True)
 
-    ```python title='Device Connection' linenums='1'
-    from device_manager.connection import DeviceConnection
+# On-device screenshots: /sdcard/screen.jpg (~150 ms) or /sdcard/screen.png (raw=True)
+actions.screen_shot('screen', '/sdcard')
+actions.screen_shot('screen', '/sdcard', raw=True)
+```
 
-    connection = DeviceConnection()
+## Polymorphic ADB Streaming (`adbutils`)
 
-    network_devices = connection.visible_devices()  # (1)!
-    ```
+Use `DeviceActions.start_stream()` to stream live output without spawning `subprocess.Popen`:
 
-    1.  This is exactly the same as the previous example, but using the `DeviceConnection` class directly, instead of the `DeviceManager` object.
+```python
+from device_manager.enumerations.adb_stream import (
+    AdbStreamCommand,
+    CustomAdbStream,
+)
 
+# Preset with extra CLI arguments
+with actions.start_stream(AdbStreamCommand.LOGCAT.with_args('*:E', '-v', 'time')) as stream:
+    for line in stream.iter_lines():
+        print(line)
+        if 'FATAL' in line:
+            stream.terminate()
 
-## Pairing to a Device
-To pair to a device, you can either use directly the `AdbPairing` class, or create an instance of it using the `DeviceManager` object. You can either start and stop the `BrowserServer` manually, or use a context manager function to make it automatically.
+# Custom shell command
+with actions.start_stream(CustomAdbStream('dumpsys battery')) as stream:
+    for line in stream.iter_lines():
+        print(line)
+```
 
-The process uses a `ServiceBrowser` and `Zeroconf` to find the devices in the network, and a `QRCode` to show the pairing code.
+## Pairing a Device (Wireless Debugging)
 
-=== "AdbPairing Manually"
+=== "AdbPairing Context Manager (Sync)"
 
-    ```python title='Directly using the AdbPairing class' linenums='1'
+    ```python title='QR Code Pairing' linenums='1'
     from device_manager import AdbPairing
-
-
-    pairing_server = AdbPairing()
-
-    pairing_server.start()  # (1)!
-
-    qrcode = pairing_server.qrcode_string  # (2)!
-    # Show it in a window, or print it in the terminal
-
-    success = pairing_server.pair_devices()  # (3)!
-
-    pairing_server.stop_pair_listener()  # (4)!
-    ```
-
-    1.  Start the pairing server
-    2.  Get the QRCode string content to build the QRCode image. This will be in the format `WIFI:T:ADB;S:{service_name};P:{password};;`.
-    3.  This will pair the devices that are visible in the network. It will return `True` if the pairing was successful, and `False` otherwise.
-    4.  Stop the pairing server
-
-=== "AdbPairing Context Manager"
-
-    ```python title='Using the AdbPairing class with a context manager' linenums='1'
-    from device_manager import AdbPairing
-
+    from device_manager.cli.qrcode_viewer import show_qr_window
 
     pair_server = AdbPairing()
-
     with pair_server.pair() as qrcode_string:
-        # Show the QRCode in a window, or print it in the terminal
+        show_qr_window(pair_server.qrcode_image)
+    ```
+
+=== "Manual 6-Digit Pairing Code"
+
+    ```python title='Pairing Code' linenums='1'
+    from device_manager import AdbPairing
+
+    pair_server = AdbPairing()
+    success = pair_server.pair_device_with_paring_code('192.168.1.42:37123', '482910')
+    ```
+
+=== "AsyncAdbPairing (Asyncio)"
+
+    ```python title='Async Pairing' linenums='1'
+    from device_manager.asyncio_dm.async_adb_pairing import AsyncAdbPairing
+
+    pair_server = AsyncAdbPairing()
+    async with pair_server.pair() as qrcode_string:
         print(qrcode_string)
-
-    # (1)
     ```
 
-    1.  The pairing process will be automatically started and stopped when the context manager is used. The `qrcode_string` will be available inside the context manager.
+## Sending Raw ADB Commands
 
-=== "Device Manager"
+```python title='execute_adb_command' linenums='1'
+# Runs on all connected_devices (shell=True by default)
+manager.execute_adb_command('input keyevent 3')
 
-    ```python title='Using the DeviceManager object' linenums='1'
-    from device_manager import DeviceManager
-
-
-    manager = DeviceManager()
-    manager.adb_pairing_instance()  # (1)!
-
-    qrcode = manager.adb_pair.qrcode_string  # (2)!
-
-    # The rest of the process is the same as the previous examples.
-    ```
-
-    1.  This will create an instance of the `AdbPairing` class and store it in the `DeviceManager` object, within the `adb_pair` attribute.
-    2.  Get the QRCode string content to build the QRCode image. This will be in the format `WIFI:T:ADB;S:{service_name};P:{password};;`.
-
-
-## Sending ADB Commands to the Devices
-To send ADB commands to the devices, you can use the associated `DeviceActions` object, or the `DeviceManager` object to send the commands to a set of devices.
-Continuing the example from the [Basic Usage Section](#using-the-devicemanager-class) you can send commands to the devices like this:
-
-```python title='Using the DeviceManager object' linenums='29'
-
+# Runs on specific serials (pass shell=False for host-level commands like pull/push/install)
 manager.execute_adb_command(
-    'input keyevent 3',
-)  # (1)!
-
-manager.execute_adb_command(
-    'input keyevent 26',
-    comm_uris=['serial_number_1', 'serial_number_2'],
-)  # (2)!
+    'pm list packages',
+    comm_uris=['serial_number_1'],
+    shell=True,
+    capture_output=True,
+)
 ```
-
-1.  This will send the command `input keyevent 3` to all connected devices.
-2.  This will send the command `input keyevent 26` to the devices with the serial numbers `'serial_number_1'` and `'serial_number_2'`.
