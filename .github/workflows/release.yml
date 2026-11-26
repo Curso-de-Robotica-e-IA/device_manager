@@ -1,10 +1,12 @@
 name: Release
 
 on:
-  push:
+  pull_request:
+    types:
+      - closed
     branches:
       - main
-      - dev
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,14 +14,17 @@ permissions:
 jobs:
   verify-and-build:
     name: Verify and build release wheels
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: windows-latest
     permissions:
       contents: read
     outputs:
       version: ${{ steps.version.outputs.value }}
     steps:
-      - name: Check out repository
+      - name: Check out target commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -55,16 +60,20 @@ jobs:
       - name: Validate release version
         id: version
         shell: pwsh
+        env:
+          TARGET_BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
         run: |
           $version = (poetry version --short).Trim()
-          if ($env:GITHUB_REF_NAME -eq "main") {
+          if ($env:TARGET_BRANCH -eq "main") {
             if ($version -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$') {
               throw "Stable releases from main require an X.Y.Z version; got '$version'."
             }
-          } elseif ($env:GITHUB_REF_NAME -eq "dev") {
+          } elseif ($env:TARGET_BRANCH -eq "dev") {
             if ($version -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)b[1-9]\d*$') {
               throw "Beta releases from dev require an X.Y.ZbN version; got '$version'."
             }
+          } else {
+            throw "Releases can only be triggered from 'main' or 'dev'; got '$($env:TARGET_BRANCH)'."
           }
           "value=$version" >> $env:GITHUB_OUTPUT
 
@@ -104,6 +113,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ needs.verify-and-build.outputs.version }}
+          TARGET_BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
+          TARGET_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
         run: |
           $tag = "v$env:RELEASE_VERSION"
           gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$tag" 2>$null
@@ -122,10 +133,10 @@ jobs:
             throw "Expected the device_manager wheel; found $($assets.Count)."
           }
 
-          if ($env:GITHUB_REF_NAME -eq "dev") {
-            gh release create $tag @assets --title $tag --generate-notes --prerelease --target $env:GITHUB_SHA --repo $env:GITHUB_REPOSITORY
+          if ($env:TARGET_BRANCH -eq "dev") {
+            gh release create $tag @assets --title $tag --generate-notes --prerelease --target $env:TARGET_SHA --repo $env:GITHUB_REPOSITORY
           } else {
-            gh release create $tag @assets --title $tag --generate-notes --target $env:GITHUB_SHA --repo $env:GITHUB_REPOSITORY
+            gh release create $tag @assets --title $tag --generate-notes --target $env:TARGET_SHA --repo $env:GITHUB_REPOSITORY
           }
           if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
