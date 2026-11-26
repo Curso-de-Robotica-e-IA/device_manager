@@ -1,7 +1,6 @@
 import logging
 import re
 import socket
-from typing import Optional
 
 from zeroconf import (
     ServiceInfo as ZeroconfServiceInfo,
@@ -11,12 +10,11 @@ from zeroconf import (
     Zeroconf,
 )
 
+from device_manager.connection.utils.connection_type import ConnectionType
 from device_manager.connection.utils.mdns_context import (
     MDnsContext,
     ServiceInfo,
 )
-
-from device_manager.connection.utils.connection_type import ConnectionType
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +60,11 @@ class MDnsListener(ServiceListener):
     def __init__(
         self,
         service_context: MDnsContext,
-        re_filter: Optional[str] = None,
+        re_filter: str | None = None,
         service_type: str = CONNECT_SERVICE_TYPE,
     ) -> None:
         super().__init__()
-        self.__service_context = service_context
+        self._service_context = service_context
         self.__re_filter = re_filter
         self.__type_filter = service_type
 
@@ -80,7 +78,13 @@ class MDnsListener(ServiceListener):
         """
         info = self._extract_info(zc.get_service_info(type_, name))
         if info:
-            self.__service_context.update_service(info.serial_number, info)
+            logger.debug(
+                'mDNS service updated: serial=%s endpoint=%s:%d',
+                info.serial_number,
+                info.ip,
+                info.port,
+            )
+            self._service_context.add_service(info.serial_number, info)
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Removes the service information from the service context.
@@ -92,7 +96,13 @@ class MDnsListener(ServiceListener):
         """
         info = self._extract_info(zc.get_service_info(type_, name))
         if info:
-            self.__service_context.to_offline_service(info.serial_number, info)
+            logger.debug(
+                'mDNS service offline: serial=%s endpoint=%s:%d',
+                info.serial_number,
+                info.ip,
+                info.port,
+            )
+            self._service_context.to_offline_service(info.serial_number, info)
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Adds the service information to the service context.
@@ -106,14 +116,20 @@ class MDnsListener(ServiceListener):
             zc.get_service_info(type_, name),
         )
         if info:
-            self.__service_context.add_service(info.serial_number, info)
+            logger.debug(
+                'mDNS service discovered: serial=%s endpoint=%s:%d',
+                info.serial_number,
+                info.ip,
+                info.port,
+            )
+            self._service_context.add_service(info.serial_number, info)
 
     def _extract_info(
         self,
-        info: ZeroconfServiceInfo,
-    ) -> Optional[ServiceInfo]:
-        """Extracts the serial number, IP address, port and connection type from 
-        the service information. If the service name does not match the regular 
+        info: ZeroconfServiceInfo | None,
+    ) -> ServiceInfo | None:
+        """Extracts the serial number, IP address, port and connection type from
+        the service information. If the service name does not match the regular
         expression filter, then None is returned.
 
         Args:
@@ -128,19 +144,35 @@ class MDnsListener(ServiceListener):
         try:
             ip = f'{socket.inet_ntoa(info.addresses[0])}'
             port = info.port
+            if port is None:
+                raise ValueError('Port not detected')
             if self.__re_filter is None:
-                return ServiceInfo(info.name.split('.')[0], ip, port, connection=ConnectionType.WIFI)
+                return ServiceInfo(
+                    info.name.split('.')[0],
+                    ip,
+                    port,
+                    connection=ConnectionType.WIFI,
+                )
             match_result = re.match(
                 rf'{self.__re_filter}.{self.__type_filter}', info.name
             )
             if match_result:
                 serial_num = match_result.group(1)
-                return ServiceInfo(serial_num, ip, port, connection=ConnectionType.WIFI)
+                return ServiceInfo(
+                    serial_num, ip, port, connection=ConnectionType.WIFI
+                )
             else:
                 logger.warning(
-                    f'AdbMDns not match: {info.name}',
-                    extra={'info': info},
+                    'AdbMDns service name did not match filter: %s',
+                    info.name,
+                    extra={
+                        'service_name': info.name,
+                        'service_type': self.__type_filter,
+                    },
                 )
-        except Exception as e:  # pragma: no cover
-            logger.error(e)
-            raise e
+        except Exception:  # pragma: no cover
+            logger.exception(
+                'Failed to extract mDNS service info for %s',
+                info.name,
+            )
+            raise

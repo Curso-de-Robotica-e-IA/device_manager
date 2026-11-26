@@ -1,19 +1,40 @@
+from typing import Any
+
 from zeroconf.asyncio import AsyncZeroconf as AZc
 
 
-class AsyncZeroconf(AZc):
-    """AsyncZeroconf class to inherit from the Asynchronous implementation of
-    the Zeroconf class provided by the zeroconf library. Since the
-    AsyncServiceBrowser class requires attributes not directly available in
-    the AsyncZeroconf class, this class inherits from the AsyncZeroconf class
-    and provides the necessary attributes.
+class AsyncZeroconf:
+    """Explicit Proxy/Adapter around `zeroconf.asyncio.AsyncZeroconf` that
+    exposes underlying `Zeroconf` attributes cleanly via `__getattr__` without
+    fragile multiple inheritance.
     """
 
-    def __getattribute__(self, name: str):
-        """__getattribute__ method to get the attribute from the Zeroconf
-        instance if it does not exist in the AsyncZeroconf instance.
-        """
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self._azc = AZc(*args, **kwargs)
+
+    @property
+    def zeroconf(self) -> Any:
+        return self._azc.zeroconf
+
+    async def async_get_service_info(
+        self,
+        type_: str,
+        name: str,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        return await self._azc.async_get_service_info(
+            type_,
+            name,
+            *args,
+            **kwargs,
+        )
+
+    async def async_close(self) -> None:
+        await self._azc.async_close()
+
+    def __getattr__(self, name: str) -> Any:
         try:
-            return super().__getattribute__(name)
+            return getattr(self._azc, name)
         except AttributeError:
-            return self.zeroconf.__getattribute__(name)
+            return getattr(self._azc.zeroconf, name)

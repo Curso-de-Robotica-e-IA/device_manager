@@ -1,12 +1,15 @@
+from functools import lru_cache
+from typing import Any
+
 from device_manager.manager import DeviceManager
 
 
-class DeviceManagerSingleton(DeviceManager):
-    """Singleton class to manage the DeviceManager instance."""
+@lru_cache(maxsize=1)
+def get_device_manager(*args: Any, **kwargs: Any) -> DeviceManager:
+    """Return a cached shared DeviceManager instance."""
+    return DeviceManager(*args, **kwargs)
 
-    _instance = None
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(DeviceManagerSingleton, cls).__new__(cls)
-        return cls._instance
+def reset_device_manager() -> None:
+    """Clear the cached shared DeviceManager instance."""
+    get_device_manager.cache_clear()

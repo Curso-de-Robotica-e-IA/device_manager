@@ -1,48 +1,143 @@
-name: Publish wheel on release
+name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  upload-release-asset:
-    name: Release
-    runs-on: ubuntu-latest
+  verify-and-build:
+    name: Verify and build release wheels
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.value }}
     steps:
-      - name: Checkout Repository
+      - name: Check out target commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
 
-      - name: Install Python
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.12"
 
-      - name: Install zip
-        run: sudo apt-get install zip -y
+      - name: Install Poetry
+        run: python -m pip install "poetry==2.4.1"
 
-      - name: Install poetry
-        run: pipx install poetry
+      - name: Check lockfile
+        run: poetry check --lock
 
-      - name: Install dependencies
-        run: poetry install --with doc
+      - name: Install project and development dependencies
+        run: poetry install --with dev --no-interaction --no-ansi
+
+      - name: Test release policy
+        run: node --test .github/scripts/release-policy.test.mjs
+
+      - name: Lint
+        run: poetry run ruff check .
+
+      - name: Check formatting
+        run: poetry run ruff format --check .
+
+      - name: Run tests with coverage
+        run: poetry run pytest -m "not device" --cov=device_manager --cov-branch --cov-report=xml --cov-report=term-missing
+
+      - name: Validate release version
+        id: version
+        shell: pwsh
+        env:
+          TARGET_BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
+        run: |
+          $version = (poetry version --short).Trim()
+          if ($env:TARGET_BRANCH -eq "main") {
+            if ($version -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$') {
+              throw "Stable releases from main require an X.Y.Z version; got '$version'."
+            }
+          } elseif ($env:TARGET_BRANCH -eq "dev") {
+            if ($version -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)b[1-9]\d*$') {
+              throw "Beta releases from dev require an X.Y.ZbN version; got '$version'."
+            }
+          } else {
+            throw "Releases can only be triggered from 'main' or 'dev'; got '$($env:TARGET_BRANCH)'."
+          }
+          "value=$version" >> $env:GITHUB_OUTPUT
 
       - name: Build wheel
-        run: poetry build
+        run: poetry build --format wheel
 
-      - name: Build zip and docs
-        shell: bash
+      - name: Collect wheels for release
+        shell: pwsh
         run: |
-          poetry run mkdocs build
-          zip -r docs.zip site/
-        working-directory: ./
+          New-Item -ItemType Directory -Force release-assets | Out-Null
+          Copy-Item -Path dist\*.whl -Destination release-assets\
 
-      - name: Create Release with GitHub CLI
-        shell: bash
-        run: |
-          FILES_WHEEL=$(ls ./dist/*.whl)
-          FILES_TARGZ=$(ls ./dist/*.tar.gz)
-          FILES_DOCS=$(ls ./*.zip)
-          gh release create ${{ github.ref}} $FILES_WHEEL $FILES_TARGZ $FILES_DOCS --generate-notes
+      - name: Upload release wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-wheels
+          path: release-assets
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub release
+    needs: verify-and-build
+    runs-on: windows-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Download release wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: release-wheels
+          path: release-assets
+
+      - name: Create GitHub release
+        shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.verify-and-build.outputs.version }}
+          TARGET_BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
+          TARGET_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+        run: |
+          $tag = "v$env:RELEASE_VERSION"
+          gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$tag" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Git tag '$tag' already exists."
+          }
+
+          gh release view $tag --repo $env:GITHUB_REPOSITORY 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Release '$tag' already exists."
+          }
+
+          $assets = @(Get-ChildItem -Path release-assets -Filter "*.whl" -File |
+            ForEach-Object { $_.FullName })
+          if ($assets.Count -lt 1) {
+            throw "Expected the device_manager wheel; found $($assets.Count)."
+          }
+
+          if ($env:TARGET_BRANCH -eq "dev") {
+            gh release create $tag @assets --title $tag --generate-notes --prerelease --target $env:TARGET_SHA --repo $env:GITHUB_REPOSITORY
+          } else {
+            gh release create $tag @assets --title $tag --generate-notes --target $env:TARGET_SHA --repo $env:GITHUB_REPOSITORY
+          }
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }

@@ -1,80 +1,55 @@
+import subprocess
 from pathlib import Path
 from typing import Optional
 
 from device_manager.actions.camera_actions import CameraActions
-from device_manager.adb_executor import execute_adb_command
+from device_manager.adb_gateway import (
+    AdbGateway,
+    AdbutilsAdbGateway,
+    resolve_gateway,
+)
+from device_manager.adb_stream import AdbStreamProcess
+from device_manager.base_device_component import (
+    BaseDeviceComponent,
+    require_connection,
+)
 from device_manager.connection.device_connection import DeviceConnection
 from device_manager.enumerations.adb_keyevents import ADBKeyEvent
+from device_manager.enumerations.adb_stream import AdbStreamSpec
+from device_manager.exceptions.errors import DeviceDisconnectedError
+from device_manager.ui_hierarchy import UiHierarchyBackend
+from device_manager.utils.adb_parsers import (
+    extract_ui_hierarchy_xml,
+    find_text_bounds_center,
+    parse_bool_flag,
+)
 
 
-class DeviceActions:
-    """Class responsible for interacting with a single device. It is able
-    to execute predefined actions at the device.
-
-    Args:
-        device_connection (DeviceConnection): the `DeviceConnection` object.
-        serial_number (str): the serial number associated with the device.
-        subprocess_check_flag (bool): the flag to check the subprocess
-            execution status. Defaults to False.
-            Check the subprocess documentation for more information
-
-    Attributes:
-        current_comm_uri (str): the current communication URI for the device.
-
-    Properties:
-        - `serial_number` (str): The serial number associated with
-            the device.
-
-    Methods:
-        click_by_coordinates(x: int, y: int) -> None:
-            Simulates a click at the provided (x, y) coordinates.
-        swipe(x1: int, y1: int, x2: int, y2: int, time: int) -> None:
-            Inputs a swipe gesture on the device screen using the provided
-            coordinates and time duration.
-        open_app(package_name: str, activity_name: str) -> None:
-            Opens an application on the device using the provided package
-            name and activity name.
-        close_app(package_name: str) -> None:
-            Closes an application on the device using the provided package
-            name.
-        install_apk(apk_path: str, replace: bool = False) -> None:
-            Installs an APK file on the device.
-        turn_on_screen() -> None:
-            Turns on the device screen.
-        unlock_screen() -> None:
-            Unlocks the device screen.
-        home_button() -> None:
-            Simulates the Home button press on the device
-    """
+class DeviceActions(BaseDeviceComponent):
+    """Executes predefined ADB interaction commands on a single device."""
 
     def __init__(
         self,
         device_connection: DeviceConnection,
         serial_number: str,
         subprocess_check_flag: bool = False,
+        gateway: AdbGateway | None = None,
+        ui_backend: UiHierarchyBackend | None = None,
     ):
-        self.subprocess_check_flag = subprocess_check_flag
-        self.device_connection = device_connection
-        self.__serial_number = serial_number
-        self.current_comm_uri = self.device_connection.build_comm_uri(
-            self.__serial_number,
+        super().__init__(
+            device_connection=device_connection,
+            serial_number=serial_number,
+            subprocess_check_flag=subprocess_check_flag,
+            gateway=gateway,
         )
+        self._ui_backend = ui_backend
         self.camera = CameraActions(
             device_connection=self.device_connection,
-            serial_number=self.__serial_number,
+            serial_number=self._serial_number,
             subprocess_check_flag=self.subprocess_check_flag,
             comm_uri=self.current_comm_uri,
             validate_connection_callback=self.validate_connection,
         )
-
-    @property
-    def serial_number(self) -> str:
-        """The serial number associated with the device.
-
-        Returns:
-            str: The device serial number.
-        """
-        return self.__serial_number
 
     def validate_connection(self) -> bool:
         """Validates the connection to the device.
@@ -83,389 +58,348 @@ class DeviceActions:
             bool: True if the connection is valid, False otherwise.
         """
         return self.device_connection.validate_connection(
-            self.__serial_number,
+            self._serial_number,
             force_reconnect=False,
         )
 
+    @require_connection(raise_on_disconnect=True)
     def click_by_coordinates(self, x: int, y: int) -> None:
-        """
-        This method validates the device connection and then uses an ADB
-        command to simulate a swipe gesture that acts as a click at the
-        provided (x, y)coordinates.
-        The swipe coordinates are the same for the start and end
-        points to ensure it functions as a click.
+        """Simulates a tap at the provided (x, y) coordinates."""
+        self._run_adb(f'input tap {x} {y}')
 
-        Args:
-            x (int): The x-coordinate on the screen where the click should
-                occur.
-            y (int): The y-coordinate on the screen where the click should
-                occur.
-        """
-
-        if self.validate_connection():
-            execute_adb_command(
-                command=f'input tap {x} {y}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
+    @require_connection(raise_on_disconnect=True)
+    def click_by_text(
+        self,
+        text: str,
+        *,
+        exact: bool = False,
+        xml_content: str | None = None,
+    ) -> bool:
+        """Finds a UI element by text/content-desc in the screen XML and taps its center."""
+        if xml_content is None:
+            res = self._run_adb(
+                'uiautomator dump /dev/tty', capture_output=True
             )
+            xml_content = extract_ui_hierarchy_xml(res.stdout or '') or ''
 
+        center = find_text_bounds_center(xml_content, text, exact=exact)
+        if center is None:
+            return False
+        self._run_adb(f'input tap {center[0]} {center[1]}')
+        return True
+
+    @require_connection(raise_on_disconnect=True)
     def swipe(self, x1: int, y1: int, x2: int, y2: int, time: int) -> None:
-        """Inputs a swipe gesture on the device screen using the provided
-        coordinates and time duration.
-
-        Args:
-            x1 (int): The x-coordinate of the starting point.
-            y1 (int): The y-coordinate of the starting point.
-            x2 (int): The x-coordinate of the ending point.
-            y2 (int): The y-coordinate of the ending point.
-            time (int): The duration of the swipe gesture.
-        """
-
-        if self.validate_connection():
-            execute_adb_command(
-                command=f'input swipe {x1} {y1} {x2} {y2} {time}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
+        """Inputs a swipe gesture on the device screen."""
+        self._run_adb(f'input swipe {x1} {y1} {x2} {y2} {time}')
 
     def _open_app_one_arg(self, package_activity: str) -> None:
-        """Opens an application on the device using the provided package
-        name and activity name. This method is used when the package name
-        and activity name are combined into a single string argument.
-
-        Args:
-            package_activity (str): The package name and activity name
-                of the application.
-                Ex.: 'com.android.deskclock/.DeskClockTabActivity'
-        """
-        execute_adb_command(
-            command=f'am start -n {package_activity}',
-            comm_uris=[self.current_comm_uri],
-            shell=True,
-            subprocess_check_flag=self.subprocess_check_flag,
-        )
+        self._run_adb(f'am start -n {package_activity}')
 
     def _open_app_two_args(
         self,
         package_name: str,
         activity_name: str,
     ) -> None:
-        """Opens an application on the device using the provided package
-        name and activity name. This method is used when the package name
-        and activity name are provided as separate string arguments.
+        self._run_adb(f'am start -n {package_name}/{activity_name}')
 
-        Usage Example:
-        ```
-        open_app('com.android.deskclock', '.DeskClockTabActivity')
-        ```
-
-        Args:
-            package_name (str): The package name of the application.
-            activity_name (str): The activity name of the application.
-        """
-        execute_adb_command(
-            command=f'am start -n {package_name}/{activity_name}',
-            comm_uris=[self.current_comm_uri],
-            shell=True,
-            subprocess_check_flag=self.subprocess_check_flag,
-        )
-
+    @require_connection(raise_on_disconnect=True)
     def open_app(
         self,
         package_name: str,
         activity_name: Optional[str] = None,
     ) -> None:
-        """Opens an application on the device using the provided package
-        name and activity name.
+        """Opens an application on the device."""
+        if activity_name is None:
+            self._open_app_one_arg(package_name)
+        else:
+            self._open_app_two_args(package_name, activity_name)
 
-        Args:
-            package_name (str): The package name of the application.
-            activity_name (str): The activity name of the application.
-        """
-
-        if self.validate_connection():
-            if activity_name is None:
-                self._open_app_one_arg(package_name)
-            else:
-                self._open_app_two_args(package_name, activity_name)
-
+    @require_connection(raise_on_disconnect=True)
     def close_app(self, package_name: str) -> None:
-        """Closes an application on the device using the provided package
-        name.
-
-        Args:
-            package_name (str): The package name of the application.
-        """
-
-        if self.validate_connection():
-            execute_adb_command(
-                command=f'am force-stop {package_name}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
+        """Closes an application on the device using the provided package name."""
+        self._run_adb(f'am force-stop {package_name}')
 
     def install_apk(
         self,
         apk_path: str,
         replace: bool = False,
     ) -> None:
-        """Installs an APK file on the device.
-
-        Args:
-            apk_path (str): The path to the APK file.
-            replace (bool): Whether to replace the existing APK file.
-                Defaults to False.
-        """
+        """Installs an APK file on the device."""
         path = Path(apk_path)
         if not path.exists():
             raise FileNotFoundError(f'File not found: {apk_path}')
 
         if self.validate_connection():
             apk_file_path = (path.resolve()).as_posix()
-            command = f'install {apk_file_path}'
-            if replace:
-                command = f'install -r -g {apk_file_path}'
-            execute_adb_command(
-                command=command,
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
+            command = (
+                f'install -r -g {apk_file_path}'
+                if replace
+                else f'install {apk_file_path}'
             )
-      
+            self._run_adb(command, shell=False)
 
-    def uninstall_apk(self, package_name: str) -> None: #TODO test with this methos works
-        """Uninstalls an APK from the device.
-        Args:
-            package_name (str): The package name of the application to uninstall.
-        """
-        if self.validate_connection():
-            execute_adb_command(
-                command=f'pm uninstall --user 0 {package_name}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
+    @require_connection(raise_on_disconnect=True)
+    def uninstall_apk(self, package_name: str) -> None:
+        """Uninstalls an APK from the device."""
+        self._run_adb(f'pm uninstall --user 0 {package_name}')
 
-    def turn_on_screen(self):
-        """
-        This method executes the adb `keyevent KEYCODE_POWER`, which represents
-        the `wakeup screen` action.
-        """
-        if self.validate_connection():
-            execute_adb_command(
-                command=f'input keyevent {ADBKeyEvent.KEYCODE_POWER.value}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
+    @require_connection(raise_on_disconnect=True)
+    def turn_on_screen(self) -> None:
+        """Executes `keyevent KEYCODE_POWER`."""
+        self._run_adb(f'input keyevent {ADBKeyEvent.KEYCODE_POWER.value}')
 
-    def unlock_screen(self):
-        """
-        This method executes the adb `keyevent KEYCODE_MENU`, which represents
-        the `unlock screen` action.
-        """
-        if self.validate_connection():
-            execute_adb_command(
-                command=f'input keyevent {ADBKeyEvent.KEYCODE_MENU.value}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
+    @require_connection(raise_on_disconnect=True)
+    def unlock_screen(self, fallback_swipe: bool = True) -> None:
+        """Unlocks the screen using `KEYCODE_MENU`, with swipe fallback if still locked."""
+        self._run_adb(f'input keyevent {ADBKeyEvent.KEYCODE_MENU.value}')
+        if not fallback_swipe:
+            return
+        res = self._run_adb('dumpsys deviceidle', capture_output=True)
+        try:
+            still_locked = parse_bool_flag(res.stdout or '', 'mScreenLocked')
+        except ValueError:
+            still_locked = False
+        if still_locked:
+            self._run_adb('wm dismiss-keyguard')
+            self._run_adb('input swipe 500 1800 500 400 300')
 
-    def turn_on_and_unlock_screen(self):
-        """
-        This method turns on and unlocks the device screen by executing
-        the appropriate adb keyevents.
-        """
+    def turn_on_and_unlock_screen(self) -> None:
+        """Turns on and unlocks the device screen."""
         self.turn_on_screen()
         self.unlock_screen()
 
-    def home_button(self):
-        """
-        This method executes the adb `keyevent KEYCODE_HOME`, which represents
-        the `Home` phone button.
-        """
-        if self.validate_connection():
-            execute_adb_command(
-                command=f'input keyevent {ADBKeyEvent.KEYCODE_HOME.value}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
+    @require_connection(raise_on_disconnect=True)
+    def home_button(self) -> None:
+        """Executes `keyevent KEYCODE_HOME`."""
+        self._run_adb(f'input keyevent {ADBKeyEvent.KEYCODE_HOME.value}')
 
-    
-    def screen_shot(self, image_name: str = "screen", destination: str = '/sdcard') -> None:
-        """Takes a screenshot of the device screen.
+    @require_connection(raise_on_disconnect=True)
+    def screen_shot(
+        self,
+        image_name: str = 'screen',
+        destination: str = '/sdcard',
+        *,
+        raw: bool = False,
+    ) -> None:
+        """Takes a screenshot of the device screen and saves it on the device.
+
+        When ``raw=False`` (default), saves a fast JPEG via the resident
+        backend (~150 ms) when available, falling back to ``screencap -p``.
+        When ``raw=True``, saves a lossless PNG via ``screencap -p``.
         """
-        if self.validate_connection():
-            execute_adb_command(
-                command=f'screencap -p {destination}/{image_name}.png',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
-    
-    def remove_file(self, remote_path: str) -> None:
-        """Removes a file from the device.
+        if (
+            not raw
+            and self._ui_backend is not None
+            and hasattr(self._ui_backend, 'save_screenshot')
+        ):
+            if self._ui_backend.save_screenshot(
+                self.current_comm_uri,
+                f'{destination}/{image_name}.jpg',
+            ):
+                return
+        self._run_adb(f'screencap -p {destination}/{image_name}.png')
+
+    @require_connection(raise_on_disconnect=True)
+    def remove_file(self, remote_path: Path) -> None:
+        """Removes a file from the device."""
+        self._run_adb(f'rm {remote_path}')
+
+    def safe_screencap_bytes(self, *, raw: bool = False) -> bytes | None:
+        """Takes a screenshot and returns image bytes in memory.
 
         Args:
-            remote_path (str): The path to the file on the device.
+            raw: When ``False`` (default), returns fast JPEG bytes via the
+                resident backend (~150 ms). When ``True``, returns lossless PNG
+                bytes.
         """
-        if self.validate_connection():
-            execute_adb_command(
-                command=f'rm {remote_path}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
+        if self._ui_backend is not None and hasattr(
+            self._ui_backend, 'take_screenshot'
+        ):
+            fmt = 'png' if raw else 'jpeg'
+            img_bytes: bytes | None = self._ui_backend.take_screenshot(
+                self.current_comm_uri, fmt=fmt
             )
+            if img_bytes:
+                return img_bytes
 
-    def safe_screencap_bytes(self) -> bytes | None:
-        """
-        Takes a screenshot of the device screen and returns the image
-        content as bytes. The method ensures that temporary files are
+        gateway = resolve_gateway(self._gateway, subprocess.run)
+        cmd = [
+            'adb',
+            '-s',
+            self.current_comm_uri,
+            'exec-out',
+            'screencap',
+            '-p',
+        ]
+        result = gateway.run(
+            cmd,
+            capture_output=True,
+            check=self.subprocess_check_flag,
+        )
+        if result.returncode != 0 or not result.stdout:
+            if not self.validate_connection():
+                raise DeviceDisconnectedError('Device not connected')
+            result = gateway.run(
+                cmd,
+                capture_output=True,
+                check=self.subprocess_check_flag,
+            )
+            if result.returncode != 0 or not result.stdout:
+                return None
 
-        Returns:
-            bytes | None: The screenshot image content as bytes, or None
-            if the operation fails.
-        """
-        remote_path = "/sdcard/screen.png"
-        tmp_path = Path("._tmp_screen.png")
+        return result.stdout
 
-        if self.validate_connection():
-            try:
-                self.screen_shot()
-                self.pull_file(remote_path=remote_path, local_path=tmp_path)
-                if not tmp_path.exists() or tmp_path.stat().st_size == 0:
-                    
-                    return None
-
-                with tmp_path.open("rb") as f:
-                    image_bytes = f.read()
-
-                return image_bytes
-
-            finally:
-                self.remove_file(remote_path=remote_path)
-                if tmp_path.exists():
-                    tmp_path.unlink()
-
+    @require_connection(raise_on_disconnect=True)
     def push_file(
         self,
         local_path: str,
         remote_path: str,
     ) -> None:
-        """Pushes a file from the local machine to the device.
+        """Pushes a file from the local machine to the device."""
+        self._run_adb(f'push {local_path} {remote_path}', shell=False)
 
-        Args:
-            local_path (str): The path to the file on the local machine.
-            remote_path (str): The destination path on the device.
-        """
-        if self.validate_connection():
-            execute_adb_command(
-                command=f'push {local_path} {remote_path}',
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
-
+    @require_connection(raise_on_disconnect=True)
     def pull_file(
         self,
-        remote_path: str,
-        local_path: str,
+        remote_path: Path,
+        local_path: Path,
     ) -> None:
-        """Pulls a file from the device to the local machine.
+        """Pulls a file from the device to the local machine."""
+        self._run_adb(f'pull {remote_path} {local_path}', shell=False)
 
-        Args:
-            remote_path (str): The path to the file on the device.
-            local_path (str): The destination path on the local machine.
-        """
-        if self.validate_connection():
-            execute_adb_command(
-                command=f'pull {remote_path} {local_path}',
-                comm_uris=[self.current_comm_uri],
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
-
+    @require_connection(raise_on_disconnect=True)
     def back(self) -> None:
-        """
-        This method executes the adb `keyevent KEYCODE_BACK`, which represents
-        the `Back` phone button.
-        """
-        if self.validate_connection():
-            execute_adb_command(
-                command=f'input keyevent {ADBKeyEvent.KEYCODE_BACK.value}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
-    
+        """Executes `keyevent KEYCODE_BACK`."""
+        self._run_adb(f'input keyevent {ADBKeyEvent.KEYCODE_BACK.value}')
+
+    @require_connection(raise_on_disconnect=True)
     def set_location_mode(self, mode: str) -> None:
-        """Sets the location mode on the device.
-
-        Args:
-            mode (str): The location mode to set. Valid values are 
-            0: off,
-            1: Sensors only,
-            2: Battery saving(Wi-Fi and mobile networks only),
-            3: High accuracy(GPS, Wi-Fi and mobile networks).
-        """
-        if self.validate_connection():
-            if mode not in ['0', '1', '2', '3']:
-                raise ValueError("Invalid mode. Valid values are '0', '1', '2', '3'.")
-            execute_adb_command(
-                command=f'settings put secure location_mode {mode}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
+        """Sets the location mode on the device."""
+        if mode not in {'0', '1', '2', '3'}:
+            raise ValueError(
+                "Invalid mode. Valid values are '0', '1', '2', '3'."
             )
+        self._run_adb(f'settings put secure location_mode {mode}')
 
+    @require_connection(raise_on_disconnect=True)
     def set_stay_awake(self, enabled: bool) -> None:
-        """
-        This method sets the "Stay Awake" developer option on the device,
-        which prevents the screen from turning off while charging.
+        """Sets the Stay Awake developer option on the device."""
+        value = '3' if enabled else '0'
+        self._run_adb(f'settings put global stay_on_while_plugged_in {value}')
 
-        Args:
-            enabled (bool): True to enable "Stay Awake", False to disable it.
-        """
-        if self.validate_connection():
-            value = '3' if enabled else '0'
-            execute_adb_command(
-                command=f'settings put global stay_on_while_plugged_in {value}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
-
+    @require_connection(raise_on_disconnect=True)
     def set_air_plane_mode(self, enabled: bool) -> None:
-        """Enables or disables airplane mode on the device (Android 10 or higher).
+        """Enables or disables airplane mode on the device."""
+        action = 'enable' if enabled else 'disable'
+        self._run_adb(f'cmd connectivity airplane-mode {action}')
 
-        Args:
-            enabled (bool): True to enable airplane mode, False to disable.
-        """
-        if self.validate_connection():
-            action = "enable" if enabled else "disable"
-            
-            execute_adb_command(
-                command=f'cmd connectivity airplane-mode {action}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
-
+    @require_connection(raise_on_disconnect=True)
     def set_accelerometer_rotation(self, enable: bool) -> None:
-        """
-        This method enables or disables the accelerometer-based screen rotation
-        on the device.
+        """Enables or disables accelerometer-based screen rotation."""
+        rotation_value = 1 if enable else 0
+        self._run_adb(
+            f'settings put system accelerometer_rotation {rotation_value}'
+        )
 
-        Args:
-            enable (bool): True to enable auto-rotation, False to disable it.
+    @require_connection(raise_on_disconnect=True)
+    def set_android_setting(
+        self,
+        setting_name: str,
+        value: str,
+        namespace: str = 'system',
+    ) -> None:
+        """Sets an arbitrary Android setting via `settings put <namespace> <name> <value>`."""
+        self._run_adb(f'settings put {namespace} {setting_name} {value}')
+
+    @require_connection(raise_on_disconnect=True)
+    def start_app(
+        self,
+        package_name: str,
+        activity: str,
+        *,
+        extras: dict[str, object] | None = None,
+        stop_first: bool = False,
+    ) -> None:
+        """Starts an Android activity with optional `-S` flag and typed Intent extras."""
+        parts = ['am', 'start']
+        if stop_first:
+            parts.append('-S')
+        parts.extend(['-n', f'{package_name}/{activity}'])
+        if extras:
+            for key, val in extras.items():
+                if isinstance(val, bool):
+                    parts.extend(['--ez', key, str(val).lower()])
+                elif isinstance(val, int):
+                    parts.extend(['--ei', key, str(val)])
+                elif isinstance(val, float):
+                    parts.extend(['--ef', key, str(val)])
+                else:
+                    parts.extend(['--es', key, str(val)])
+        self._run_adb(' '.join(parts))
+
+    @require_connection(raise_on_disconnect=True)
+    def wake_up_screen(self) -> None:
+        """Idempotently wakes up the screen using KEYCODE_WAKEUP (224) + dismiss-keyguard."""
+        self._run_adb('input keyevent 224')
+        self._run_adb('wm dismiss-keyguard')
+
+    @require_connection(raise_on_disconnect=True)
+    def keep_screen_on_and_awake(self, timeout_ms: int = 1800000) -> None:
+        """Configures stay-on, screen timeout, and wakes the display."""
+        self._run_adb('svc power stayon true')
+        self._run_adb('settings put global stay_on_while_plugged_in 7')
+        self._run_adb(f'settings put system screen_off_timeout {timeout_ms}')
+        self._run_adb('input keyevent 224')
+        self._run_adb('wm dismiss-keyguard')
+
+    def take_screenshot_to_file(self, local_path: str | Path) -> Path | None:
+        """Captures PNG screenshot bytes in memory and writes them to `local_path`."""
+        img_bytes = self.safe_screencap_bytes()
+        if not img_bytes:
+            return None
+        dest = Path(local_path).resolve()
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(img_bytes)
+        return dest
+
+    def start_getevent_process(self) -> subprocess.Popen[str]:
+        """Starts a streaming `adb -s <uri> shell -tt getevent` subprocess."""
+        return subprocess.Popen(
+            ['adb', '-s', self.current_comm_uri, 'shell', '-tt', 'getevent'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            bufsize=1,
+        )
+
+    @require_connection(
+        raise_on_disconnect=True,
+        error_message='Device connection is not valid. Cannot start ADB stream.',
+    )
+    def start_stream(
+        self,
+        stream: AdbStreamSpec,
+        *,
+        timeout: float | None = None,
+    ) -> AdbStreamProcess:
+        """Start a generic ADB shell streaming session via `adbutils`.
+
+        Accepts any object implementing `AdbStreamSpec` (e.g., an
+        `AdbStreamCommand` preset, `AdbStreamCommand.LOGCAT.with_args(...)`,
+        `CustomAdbStream(...)`, or a user-defined spec).
         """
-        if self.validate_connection():
-            rotation_value = 1 if enable else 0
-            execute_adb_command(
-                command=f'settings put system accelerometer_rotation {rotation_value}',
-                comm_uris=[self.current_comm_uri],
-                shell=True,
-                subprocess_check_flag=self.subprocess_check_flag,
-            )
+        if not isinstance(stream, AdbStreamSpec):
+            raise TypeError('stream must implement AdbStreamSpec.')
+
+        gateway = (
+            self._gateway
+            if isinstance(self._gateway, AdbutilsAdbGateway)
+            else AdbutilsAdbGateway()
+        )
+        return gateway.open_stream(
+            serial=self.current_comm_uri,
+            command=stream.build_command(),
+            timeout=timeout,
+            encoding=stream.default_encoding,
+        )

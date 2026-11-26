@@ -1,8 +1,10 @@
 import logging
 import subprocess
-from time import sleep, time
-from typing import Dict, Optional
+import warnings
+from time import sleep
 
+from device_manager.adb_gateway import AdbGateway, resolve_gateway
+from device_manager.cli.qrcode_viewer import show_qr_window
 from device_manager.connection.adb_connection_discovery import (
     AdbConnectionDiscovery,
 )
@@ -19,26 +21,30 @@ class ConnectionManager:
     # Connection Manager has been developed based in to code available on
     # https://github.com/openatx/adbutils/issues/111#issuecomment-2094694894
 
-    __start_discovery = True
-
     def __init__(
         self,
         subprocess_check_flag: bool = False,
+        restart_adb_server: bool = False,
+        gateway: AdbGateway | None = None,
     ) -> None:
         self.__subprocess_check_flag = subprocess_check_flag
-        if self.__start_discovery:
-            subprocess.run(
-                ["adb", "kill-server"],
+        self._gateway = gateway
+        active_gateway = self._get_gateway()
+        if restart_adb_server:
+            active_gateway.run(
+                ['adb', 'kill-server'],
                 check=self.__subprocess_check_flag,
             )
-            self.__discovery = AdbConnectionDiscovery()
-            subprocess.run(
-                ["adb", "start-server"],
-                check=self.__subprocess_check_flag,
-            )
-            self.__discovery.start()
-            sleep(2)
-        self.__start_discovery = False
+        self.__discovery = AdbConnectionDiscovery()
+        active_gateway.run(
+            ['adb', 'start-server'],
+            check=self.__subprocess_check_flag,
+        )
+        self.__discovery.start()
+        sleep(2)
+
+    def _get_gateway(self) -> AdbGateway:
+        return resolve_gateway(self._gateway, subprocess.run)
 
     @staticmethod
     def check_devices_adb_connection(
@@ -60,18 +66,18 @@ class ConnectionManager:
             bool: True if the device is connected, False otherwise.
         """
         result = subprocess.run(
-            ["adb", "devices"],
+            ['adb', 'devices'],
             capture_output=True,
             text=True,
             check=subprocess_check_flag,
         )
-        devices_lines = str(result.stdout).split("\n")
+        devices_lines = str(result.stdout).split('\n')
         for info_line in devices_lines:
-            if comm_uri in info_line and "offline" not in info_line:
+            if comm_uri in info_line and 'offline' not in info_line:
                 return True
         return False
 
-    def available_devices(self) -> Dict[str, ServiceInfo]:
+    def available_devices(self) -> dict[str, ServiceInfo]:
         """Get the list of devices that are currently online.
         The dict is indexed by the serial number of the devices.
 
@@ -82,35 +88,25 @@ class ConnectionManager:
 
     @staticmethod
     def device_pairing(timeout_s: float) -> bool:
-        """Pairs a device via ADB using the QRCode method.
-        :warning: The user must close the QRCode window shown by the
-        method `qrcode_cv_window_show` to continue the execution of the
-        script.
-
-        Args:
-            timeout_s (float): The maximum time to wait for the device to
-            be paired.
-
-        Returns:
-            bool: True if the device was paired, False otherwise.
-        """
-        logger.warning(
-            msg="This method is being deprecated. Check the documentation on how to pair devices.",  # noqa
+        """Pairs a device via ADB using the QRCode window (`show_qr_window`)."""
+        warnings.warn(
+            'ConnectionManager.device_pairing is deprecated; use AdbPairing directly.',
+            DeprecationWarning,
+            stacklevel=2,
         )
+        logger.warning(
+            'ConnectionManager.device_pairing is deprecated; use AdbPairing directly.',
+        )
+
         adb_pairing = AdbPairing()
         adb_pairing.start()
-        adb_pairing._qrcode.qrcode_cv_window_show()
-        start_time = time()
-        while (
-            not adb_pairing.has_device_to_pairing()
-            and (time() - start_time) <= timeout_s
-        ):
-            sleep(0.1)
+        show_qr_window(adb_pairing.qrcode_image)
+        adb_pairing._context.wait_for_online_service(timeout=timeout_s)  # pyright: ignore[reportPrivateUsage]
         result = adb_pairing.pair_devices()
         adb_pairing.stop_pair_listener()
         return result
 
-    def device_connect(self, serial_num: str) -> Optional[ServiceInfo]:
+    def device_connect(self, serial_num: str) -> ServiceInfo | None:
         """Connects to a device using the serial number.
 
         Args:
@@ -121,17 +117,31 @@ class ConnectionManager:
         """
         info = self.__discovery.get_service_info_for(serial_num)
         if info is None:
-            logger.warning("Device service not online or located")
+            logger.warning(
+                'Device service not online or located: serial=%s',
+                serial_num,
+            )
         else:
-            comm_uri = f"{info.ip}:{info.port}"
-            result = subprocess.run(
-                ["adb", "connect", comm_uri],
+            comm_uri = f'{info.ip}:{info.port}'
+            result = self._get_gateway().run(
+                ['adb', 'connect', comm_uri],
                 capture_output=True,
                 text=True,
                 check=self.__subprocess_check_flag,
             )
-            if f"failed to connect to {comm_uri}" in result.stdout:
-                logger.warning("Failed to connect device")
+            if f'failed to connect to {comm_uri}' in result.stdout:
+                logger.warning(
+                    'Failed to connect device: serial=%s uri=%s output=%s',
+                    serial_num,
+                    comm_uri,
+                    result.stdout.strip(),
+                )
+            else:
+                logger.info(
+                    'Connected to device: serial=%s uri=%s',
+                    serial_num,
+                    comm_uri,
+                )
         return info
 
     def check_wireless_adb_service_for(
@@ -151,7 +161,7 @@ class ConnectionManager:
     def validate_and_reconnect_device(
         self,
         info: ServiceInfo,
-    ) -> Optional[ServiceInfo]:
+    ) -> ServiceInfo | None:
         """Validate the connection status of a device and reconnect if
         necessary.
 
@@ -161,7 +171,7 @@ class ConnectionManager:
         Returns:
             Optional[ServiceInfo]: The service information of the device.
         """
-        comm_uri = f"{info.ip}:{info.port}"
+        comm_uri = f'{info.ip}:{info.port}'
         if self.check_devices_adb_connection(comm_uri):
             return info
         return self.device_connect(info.serial_number)
@@ -169,14 +179,3 @@ class ConnectionManager:
     def close_discovery(self) -> None:
         """Close the discovery listener."""
         self.__discovery.stop_discovery_listener()
-
-
-class ConnectionManagerSingleton(ConnectionManager):
-    """Singleton class to manage the ConnectionManager instance."""
-
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(ConnectionManagerSingleton, cls).__new__(cls)
-        return cls._instance

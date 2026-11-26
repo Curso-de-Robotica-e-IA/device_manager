@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 from device_manager.connection.utils.connection_type import ConnectionType
 
 

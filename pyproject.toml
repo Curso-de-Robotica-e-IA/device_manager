@@ -1,38 +1,38 @@
 [project]
 name = "device_manager"
-version = "1.7.3"
-description = "without reconnection and with paring with code" 
+version = "2.0.0"
+description = "Python library for pairing, connecting, and interacting with Android devices via ADB."
 authors = [
     { name = "Bruno Pinheiro", email = "bruno.opinheiro@outlook.com" },
     { name = "Mateus Machado", email = "mateus.gm@gmail.com" },
-    { name = "Jairton Falcão", email = "jairtonsff@gmail.com" }
+    { name = "Jairton Falcão", email = "jairtonsff@gmail.com" },
+    { name = "Lucas Correia", email = "lfpgc@softex.cin.ufpe.br" },
 ]
 license = { text = "GNU AFFERO GENERAL PUBLIC LICENSE v3.0" }
 readme = "README.md"
-requires-python = ">=3.10, <3.14"
+requires-python = ">=3.10, <3.13"
 dependencies = [
     "zeroconf>=0.140.1",
     "numpy (>=1.24.4,<2.0.0)",
     "opencv-python>=4.11.0.86",
     "qrcode>=8.0",
-    "uiautomator2>=3.2.9",
-    "rich>=13.9.4"
+    "adbutils>=2.0.0",
+    "rich>=13.9.4",
 ]
 
 [tool.poetry.group.doc]
 optional = true
 
-[tool.poetry.group.dev]
-optional = true
-
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.3.4"
 taskipy = "^1.14.1"
-pytest-cov = "^6.0.0"
-pytest-mock = "^3.14.0"
+pytest = ">=9.2.0,<10.0.0"
+pytest-cov = ">=7.1.0,<8.0.0"
+pytest-mock = ">=3.17.0,<4.0.0"
+mutmut = ">=3.8.1,<4.0.0"
 ruff = "^0.9.6"
 pytest-socket = "^0.7.0"
 ipython = "^8.37.0"
+uiautomator2 = ">=3.2.9"
 
 [tool.poetry.group.doc.dependencies]
 mkdocs = "^1.6.1"
@@ -48,12 +48,30 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-addopts = "-vv --cov=device_manager --cov-report=term-missing -p no:warnings --disable-socket"
+addopts = "-vv --cov=device_manager --cov-branch --cov-report=term-missing -p no:warnings"
 testpaths = [
     "tests",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "device: marks tests that require a physical Android device and measure latency benchmarks (run with --device)",
+]
+
+[tool.coverage.run]
+source = ["device_manager"]
+branch = true
+
+[tool.mutmut]
+source_paths = ["device_manager"]
+pytest_add_cli_args = ["-o", "addopts=", "-m", "not device", "-q", "--no-header", "-p", "no:warnings"]
+pytest_add_cli_args_test_selection = ["tests/"]
+do_not_mutate = [
+    "device_manager/enumerations/*",
+    "device_manager/exceptions/*",
+]
+omit = [
+    "**/tests/*",
+    "__init__.py"
 ]
 
 [tool.ruff]
@@ -91,8 +109,23 @@ exclude = [
 [tool.ruff.lint]
 preview = true
 select = ['I', 'F', 'E', 'W', 'PL', 'PT']
+ignore = [
+    'E501',
+    'PLR0904',
+    'PLR0911',
+    'PLR0912',
+    'PLR0913',
+    'PLR0914',
+    'PLR0915',
+    'PLR0917',
+    'PLR2004',
+    'PLR6301',
+]
 fixable = ["ALL"]
 unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ['PLC0415', 'PLC1901']
 
 [tool.ruff.format]
 preview = true
@@ -104,7 +137,9 @@ docstring-code-format = false
 lint = 'ruff check . && ruff check . --diff'
 format = 'ruff check . --fix && ruff format .'
 pre_test = 'task format'
-test = 'pytest -vv --cov=device_manager --cov-report=term-missing -p no:warnings --disable-socket'
+test = 'pytest -vv --cov=device_manager --cov-branch --cov-report=term-missing -p no:warnings --disable-socket'
+test_mock = 'pytest -vv -m "not device" --cov=device_manager --cov-branch --cov-report=term-missing -p no:warnings'
+test_device = 'pytest -vv -m device --device -o addopts= -s'
 post_test = 'coverage html'
 docs = "mkdocs serve"
 bdocs = "mkdocs build"

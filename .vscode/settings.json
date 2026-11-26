@@ -1,7 +1,13 @@
 {
-    "terminal.integrated.env.windows": {
-        "PYTHONPATH": "${workspaceFolder};${env:PYTHONPATH}"
-    },
     "python-envs.defaultEnvManager": "ms-python.python:poetry",
-    "python-envs.defaultPackageManager": "ms-python.python:poetry"
+    "python-envs.defaultPackageManager": "ms-python.python:poetry",
+    "python.testing.pytestArgs": [
+        "tests",
+        // "-m",                                                                                                                                                                                                    
+        // "not device"     
+        "--device",                                                                                                                                                                                              
+        "--benchmark-iterations=30"  
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }

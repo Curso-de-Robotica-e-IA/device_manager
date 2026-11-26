@@ -1,6 +1,6 @@
 # Connection Classes
-Those classes are used to start a Service Browser to pair and connect to devices.
-This documentation is automatically generated from the code base.
+
+Classes responsible for USB scanning, mDNS/Zeroconf discovery, pairing, and ADB connection lifecycle.
 
 ## AdbPairing Class
 ::: device_manager.connection.adb_pairing.AdbPairing
@@ -14,10 +14,27 @@ This documentation is automatically generated from the code base.
             - qrcode
             - qrcode_image
             - update_qrcode
+            - set_password
             - start
-            - qrcode_prompt_show
-            - qrcode_cv_window_show
             - has_device_to_pairing
+            - pair_devices
+            - pair_device_with_paring_code
+            - stop_pair_listener
+            - pair
+    show_root_heading: true
+
+## AsyncAdbPairing Class
+::: device_manager.asyncio_dm.async_adb_pairing.AsyncAdbPairing
+    handler: python
+    options:
+        members:
+            - service_browser_started
+            - browser
+            - zeroconf_status
+            - qrcode_string
+            - qrcode
+            - qrcode_image
+            - start
             - pair_devices
             - stop_pair_listener
             - pair
@@ -45,10 +62,8 @@ This documentation is automatically generated from the code base.
     handler: python
     options:
         members:
-            - check_pairing
-            - select_devices_to_connect
-            - prompt_device_connection
             - visible_devices
+            - list_adb_device_states
             - close
             - is_connected
             - check_connections

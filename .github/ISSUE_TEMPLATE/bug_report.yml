@@ -1,0 +1,59 @@
+name: Bug report
+description: Report a reproducible problem with device_manager.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share enough detail to reproduce the problem. Do not include credentials, tokens, or other secrets.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem and its impact.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the command or workflow steps that led to the issue.
+      placeholder: |
+        1. Configure...
+        2. Run...
+        3. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Python version, OS version, ADB version, device_manager version, and Android device model/version.
+      placeholder: Python 3.12, Windows 11, ADB 1.0.41, device_manager 2.0.0, Android 14
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Redact any sensitive information before sharing.
+    validations:
+      required: false
