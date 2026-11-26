@@ -588,6 +588,7 @@ def test_device_manager_execute_adb_command_weak_robust_valid(
 
     mock_exec = mocker.patch('device_manager.manager.execute_adb_command')
     dm = DeviceManager(check_dependencies=False, connector=conn)
+    dm.load_connected_usb_devices()
     dm.execute_adb_command('input keyevent 3', comm_uris=comm_uris)  # type: ignore[arg-type]
 
     assert mock_exec.call_args.kwargs['comm_uris'] == expected_uris

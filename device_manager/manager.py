@@ -12,6 +12,7 @@ from device_manager.connection.device_connection import (
 )
 from device_manager.connection.strategies import get_connection_strategy
 from device_manager.connection.utils.connection_type import ConnectionType
+from device_manager.connection.utils.service_info import ServiceInfo
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
 from device_manager.exceptions.errors import DeviceNotFoundError
@@ -63,7 +64,7 @@ class DeviceManager:
         )
         self.adb_pair: AdbPairing | None = None
         self._devices: dict[str, DeviceObjects] = {}
-        self.load_connected_usb_devices()
+        self._endpoint_serial_cache: dict[str, str] = {}
 
     def __enter__(self) -> 'DeviceManager':
         return self
@@ -172,12 +173,93 @@ class DeviceManager:
     @property
     def connected_devices(self) -> list[str]:
         """Returns the list of serial numbers of the devices that are
-        currently connected.
-
-        Returns:
-            List[str]: The list of serial numbers of the connected devices.
+        currently connected and managed by this instance.
         """
         return list(self._devices.keys())
+
+    def _resolve_endpoint_serial(self, endpoint: str) -> str:
+        cached = self._endpoint_serial_cache.get(endpoint)
+        if cached is not None:
+            return cached
+        try:
+            res = execute_adb_command(
+                command='getprop ro.serialno',
+                comm_uris=[endpoint],
+                shell=True,
+                capture_output=True,
+                gateway=getattr(self.connector, '_gateway', None),
+            )
+            serial = (res.stdout or '').strip() if res.returncode == 0 else ''
+            if serial:
+                self._endpoint_serial_cache[endpoint] = serial
+                return serial
+        except Exception:  # noqa: S110
+            pass
+        return endpoint
+
+    def _endpoint_to_serial_map(
+        self,
+        adb_states: dict[str, str] | None = None,
+    ) -> dict[str, str]:
+        mapping: dict[str, str] = dict(self._endpoint_serial_cache)
+        for serial in self.connector.connection_info.keys():
+            svc = self.connector.connection_info.get(serial)
+            if svc is not None and svc.connection == ConnectionType.WIFI:
+                mapping[f'{svc.ip}:{svc.port}'] = serial
+                mapping[f'{svc.ip}:{self._devices_fixed_port}'] = serial
+        for (
+            serial,
+            svc,
+        ) in self.connector.connection.available_devices().items():
+            mapping[f'{svc.ip}:{svc.port}'] = serial
+            mapping[f'{svc.ip}:{self._devices_fixed_port}'] = serial
+        if adb_states:
+            for dev_id, state in adb_states.items():
+                if (
+                    state == 'device'
+                    and ':' in dev_id
+                    and dev_id not in mapping
+                ):
+                    mapping[dev_id] = self._resolve_endpoint_serial(dev_id)
+        return mapping
+
+    @property
+    def available_devices(self) -> list[str]:
+        """Returns `connected_devices` plus all authorized devices in `adb devices`
+        (both USB and Wi-Fi), resolved to serial numbers and deduplicated.
+        """
+        states = self.connector.list_adb_device_states()
+        endpoint_map = self._endpoint_to_serial_map(states)
+        result: dict[str, None] = dict.fromkeys(self._devices.keys())
+        for dev_id, state in states.items():
+            if state == 'device':
+                canonical = endpoint_map.get(dev_id, dev_id)
+                result[canonical] = None
+        return list(result.keys())
+
+    @property
+    def unauthorized_devices(self) -> list[str]:
+        """Returns devices reported as `unauthorized` by `adb devices`."""
+        states = self.connector.list_adb_device_states()
+        endpoint_map = self._endpoint_to_serial_map()
+        return [
+            endpoint_map.get(dev_id, dev_id)
+            for dev_id, state in states.items()
+            if state == 'unauthorized'
+        ]
+
+    @property
+    def visible_devices(self) -> list[str]:
+        """Returns `available_devices` union `unauthorized_devices` union
+        Wi-Fi devices discovered via mDNS, deduplicated.
+        """
+        result: dict[str, None] = dict.fromkeys(self.available_devices)
+        for dev_id in self.unauthorized_devices:
+            result[dev_id] = None
+        mdns_devices = self.connector.connection.available_devices()
+        for serial in mdns_devices:
+            result[serial] = None
+        return list(result.keys())
 
     def connect_devices(self, *serial_numbers: str) -> list[str]:
         """
@@ -194,23 +276,67 @@ class DeviceManager:
 
         visibles_devices = self.connector.visible_devices()
 
-        visible_by_serial = {
-            service.serial_number: service for service in visibles_devices
-        }
+        visible_by_serial: dict[str, ServiceInfo] = {}
+        for service in visibles_devices:
+            existing = visible_by_serial.get(service.serial_number)
+            # Prioritize USB over Wi-Fi when the same device is visible on both
+            if existing is None or service.connection == ConnectionType.USB:
+                visible_by_serial[service.serial_number] = service
+
+        adb_states = self.connector.list_adb_device_states()
+        endpoint_map = self._endpoint_to_serial_map(adb_states)
+        serial_to_active_tcp: dict[str, str] = {}
+        for dev_id, state in adb_states.items():
+            if state == 'device' and ':' in dev_id:
+                mapped_serial = endpoint_map.get(dev_id, dev_id)
+                serial_to_active_tcp[mapped_serial] = dev_id
 
         serials_by_type: dict[ConnectionType, list[str]] = defaultdict(list)
-
-        for serial in serial_numbers:
-            service = visible_by_serial.get(serial)
-            if service is None:
-                logger.warning(
-                    'Requested device not visible for connection: serial=%s',
-                    serial,
-                )
-                continue
-            serials_by_type[service.connection].append(serial)
-
         connected_serials: list[str] = []
+
+        for raw_serial in serial_numbers:
+            serial = endpoint_map.get(raw_serial, raw_serial)
+            service = visible_by_serial.get(serial)
+
+            # Priority 1: USB
+            if (
+                service is not None
+                and service.connection == ConnectionType.USB
+            ):
+                existing_info = self.connector.connection_info.get(serial)
+                if existing_info is None:
+                    self.connector.connection_info.add(serial, service)
+                elif existing_info.connection == ConnectionType.WIFI:
+                    self.connector.connection_info.edit(serial, service)
+                serials_by_type[ConnectionType.USB].append(serial)
+                continue
+
+            # Priority 2: Already-connected Wi-Fi (ip:port in `adb devices`)
+            active_endpoint = serial_to_active_tcp.get(serial)
+            if active_endpoint is not None:
+                host, port_str = active_endpoint.rsplit(':', 1)
+                if port_str.isdigit():
+                    tcp_svc = ServiceInfo(
+                        serial_number=serial,
+                        ip=host,
+                        port=int(port_str),
+                        connection=ConnectionType.WIFI,
+                    )
+                    if self.connector.connection_info.get(serial) is None:
+                        self.connector.connection_info.add(serial, tcp_svc)
+                    connected_serials.append(serial)
+                    continue
+
+            # Priority 3: mDNS Wi-Fi discovery
+            if service is not None:
+                serials_by_type[service.connection].append(serial)
+                continue
+
+            logger.warning(
+                'Requested device not visible for connection: serial=%s',
+                serial,
+            )
+
         for connection_type, serials in serials_by_type.items():
             strategy = get_connection_strategy(connection_type)
             connected_serials.extend(strategy.connect(self.connector, serials))
@@ -383,14 +509,20 @@ class DeviceManager:
         self._devices.clear()
 
     def load_connected_usb_devices(self) -> None:
-        """Detects already connected USB devices and registers them."""
+        """Detects already connected USB devices and registers them.
+
+        Prioritizes USB over Wi-Fi: if a serial was previously registered over
+        Wi-Fi, its `ServiceInfo` is upgraded to USB.
+        """
         usb_devices = self.connector.usb_scanner.list_connected_devices()
 
         for service in usb_devices:
             serial = service.serial_number
-
-            if self.connector.connection_info.get(serial) is None:
+            existing = self.connector.connection_info.get(serial)
+            if existing is None:
                 self.connector.connection_info.add(serial, service)
+            elif existing.connection == ConnectionType.WIFI:
+                self.connector.connection_info.edit(serial, service)
 
             self._register_device(serial)
 

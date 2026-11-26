@@ -385,3 +385,16 @@ class DeviceConnection:
             )
             .stdout
         )
+
+    def list_adb_device_states(self) -> dict[str, str]:
+        """Parse `adb devices` into `{identifier: state}` for both USB and Wi-Fi."""
+        devices: dict[str, str] = {}
+        for line in self._adb_devices_output().splitlines()[1:]:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            parts = stripped.split('\t')
+            if len(parts) < 2:
+                continue
+            devices[parts[0].strip()] = parts[1].strip()
+        return devices

@@ -181,6 +181,7 @@ def test_device_manager_remaining_methods_weak_robust(
     conn.is_connected.return_value = True
 
     dm = DeviceManager(check_dependencies=True, connector=conn)
+    dm.load_connected_usb_devices()
     mock_check.assert_called_once()
     conn.connection_info.add.assert_called_once_with('USB1', usb_svc)
 
@@ -511,6 +512,7 @@ def test_device_manager_defaults_forwarding_and_logs(
 
     with caplog.at_level(logging.INFO, logger='device_manager.manager'):
         dm = DeviceManager()
+        dm.load_connected_usb_devices()
 
     mock_check.assert_called_once_with()
     mock_dc_cls.assert_called_once_with(
