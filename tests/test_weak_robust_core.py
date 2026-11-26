@@ -427,12 +427,10 @@ def test_weak_robust_remaining_branches_sync(
     actions = DeviceActions(conn, 'emulator-5554')
     actions.install_apk(str(apk_file))
 
-    # 8. DeviceInfo.get_screen_gui_xml when validate_connection is False -> None
-    disconnected_gw = MagicMock()
-    disconnected_gw.run.return_value = subprocess.CompletedProcess(
-        args=[], returncode=1, stdout='', stderr='error: device not found'
-    )
-    info = DeviceInfo(conn, 'emulator-5554', gateway=disconnected_gw)
+    # 8. DeviceInfo.get_screen_gui_xml when ui_backend returns None -> None
+    empty_ui = MagicMock()
+    empty_ui.dump_xml.return_value = None
+    info = DeviceInfo(conn, 'emulator-5554', ui_backend=empty_ui)
     assert info.get_screen_gui_xml() is None
 
     # 9. DeviceManager._register_device (already registered) & disconnect_devices (still in connection_info)

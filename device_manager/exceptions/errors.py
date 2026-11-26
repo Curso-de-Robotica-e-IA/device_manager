@@ -14,3 +14,7 @@ class DeviceDisconnectedError(
 
 class UnexpectedAdbOutputError(DeviceManagerError, ValueError):
     """Raised when an ADB command returns output that cannot be parsed."""
+
+
+class UnsupportedAndroidVersionError(DeviceManagerError, RuntimeError):
+    """Raised when the connected Android SDK version does not support a feature."""

@@ -253,18 +253,19 @@ def real_device(
     return serial, info, actions
 
 
-def pytest_terminal_summary(
-    terminalreporter: pytest.TerminalReporter,
-    exitstatus: int,
-    config: pytest.Config,
-) -> None:
+def _write_benchmark_report(config: pytest.Config) -> Path | None:
     recorder: BenchmarkRecorder | None = getattr(
         config, '_benchmark_recorder', None
     )
     if not recorder or not recorder.entries:
-        return
+        return None
 
-    output_path = Path(str(config.getoption('--benchmark-output'))).resolve()
+    raw_output = Path(str(config.getoption('--benchmark-output')))
+    output_path = (
+        raw_output
+        if raw_output.is_absolute()
+        else (Path(str(config.rootpath)) / raw_output).resolve()
+    )
     serial = getattr(config, '_benchmark_serial', 'unknown')
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -296,11 +297,37 @@ def pytest_terminal_summary(
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text('\n'.join(lines), encoding='utf-8')
-    terminalreporter.write_line(f'Benchmark report saved to: {output_path}')
+    config._benchmark_report_path = output_path  # type: ignore[attr-defined]
 
     save_baseline_opt = config.getoption('--benchmark-save-baseline')
     if save_baseline_opt:
-        baseline_path = recorder.save_baseline(save_baseline_opt)
+        raw_baseline = Path(str(save_baseline_opt))
+        baseline_dest = (
+            raw_baseline
+            if raw_baseline.is_absolute()
+            else (Path(str(config.rootpath)) / raw_baseline).resolve()
+        )
+        config._benchmark_baseline_path = recorder.save_baseline(baseline_dest)  # type: ignore[attr-defined]
+
+    return output_path
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    _write_benchmark_report(session.config)
+
+
+def pytest_terminal_summary(
+    terminalreporter: pytest.TerminalReporter,
+    exitstatus: int,
+    config: pytest.Config,
+) -> None:
+    report_path: Path | None = getattr(config, '_benchmark_report_path', None)
+    if report_path is not None:
+        terminalreporter.write_line(f'Benchmark report saved to: {report_path}')
+    baseline_path: Path | None = getattr(
+        config, '_benchmark_baseline_path', None
+    )
+    if baseline_path is not None:
         terminalreporter.write_line(
             f'Benchmark baseline saved to: {baseline_path}'
         )

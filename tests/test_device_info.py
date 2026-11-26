@@ -207,7 +207,11 @@ def test_device_info_exact_commands_and_fallbacks(
     conn = MagicMock()
     conn.build_comm_uri.return_value = 'SER1'
     conn.validate_connection.return_value = True
-    info = DeviceInfo(conn, 'SER1', subprocess_check_flag=True)
+    ui_backend = MagicMock()
+    ui_backend.dump_xml.return_value = '<?xml version="1.0"?><hierarchy/>'
+    info = DeviceInfo(
+        conn, 'SER1', subprocess_check_flag=True, ui_backend=ui_backend
+    )
     mock_exec = mocker.patch(
         'device_manager.base_device_component.execute_adb_command',
         return_value=subprocess.CompletedProcess(
@@ -215,15 +219,8 @@ def test_device_info_exact_commands_and_fallbacks(
         ),
     )
 
-    info.get_screen_gui_xml()
-    assert (
-        mock_exec.call_args_list[0].kwargs['command']
-        == 'uiautomator dump /dev/tty'
-    )
-    assert (
-        mock_exec.call_args_list[1].kwargs['command']
-        == 'uiautomator dump /sdcard/window_dump.xml && cat /sdcard/window_dump.xml && rm -f /sdcard/window_dump.xml'
-    )
+    assert info.get_screen_gui_xml() == '<?xml version="1.0"?><hierarchy/>'
+    ui_backend.dump_xml.assert_called_once_with('SER1')
 
     assert info.get_touchscreen_info() == TouchscreenInfo(
         node='event8', name='', x_range=(0, 0), y_range=(0, 0)

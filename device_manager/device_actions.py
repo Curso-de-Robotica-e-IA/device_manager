@@ -17,6 +17,7 @@ from device_manager.connection.device_connection import DeviceConnection
 from device_manager.enumerations.adb_keyevents import ADBKeyEvent
 from device_manager.enumerations.adb_stream import AdbStreamSpec
 from device_manager.exceptions.errors import DeviceDisconnectedError
+from device_manager.ui_hierarchy import UiHierarchyBackend
 from device_manager.utils.adb_parsers import (
     extract_ui_hierarchy_xml,
     find_text_bounds_center,
@@ -33,6 +34,7 @@ class DeviceActions(BaseDeviceComponent):
         serial_number: str,
         subprocess_check_flag: bool = False,
         gateway: AdbGateway | None = None,
+        ui_backend: UiHierarchyBackend | None = None,
     ):
         super().__init__(
             device_connection=device_connection,
@@ -40,6 +42,7 @@ class DeviceActions(BaseDeviceComponent):
             subprocess_check_flag=subprocess_check_flag,
             gateway=gateway,
         )
+        self._ui_backend = ui_backend
         self.camera = CameraActions(
             device_connection=self.device_connection,
             serial_number=self._serial_number,
@@ -176,8 +179,25 @@ class DeviceActions(BaseDeviceComponent):
         self,
         image_name: str = 'screen',
         destination: str = '/sdcard',
+        *,
+        raw: bool = False,
     ) -> None:
-        """Takes a screenshot of the device screen."""
+        """Takes a screenshot of the device screen and saves it on the device.
+
+        When ``raw=False`` (default), saves a fast JPEG via the resident
+        backend (~150 ms) when available, falling back to ``screencap -p``.
+        When ``raw=True``, saves a lossless PNG via ``screencap -p``.
+        """
+        if (
+            not raw
+            and self._ui_backend is not None
+            and hasattr(self._ui_backend, 'save_screenshot')
+        ):
+            if self._ui_backend.save_screenshot(
+                self.current_comm_uri,
+                f'{destination}/{image_name}.jpg',
+            ):
+                return
         self._run_adb(f'screencap -p {destination}/{image_name}.png')
 
     @require_connection(raise_on_disconnect=True)
@@ -185,8 +205,24 @@ class DeviceActions(BaseDeviceComponent):
         """Removes a file from the device."""
         self._run_adb(f'rm {remote_path}')
 
-    def safe_screencap_bytes(self) -> bytes | None:
-        """Takes a screenshot and returns PNG bytes via try-first `adb exec-out`."""
+    def safe_screencap_bytes(self, *, raw: bool = False) -> bytes | None:
+        """Takes a screenshot and returns image bytes in memory.
+
+        Args:
+            raw: When ``False`` (default), returns fast JPEG bytes via the
+                resident backend (~150 ms). When ``True``, returns lossless PNG
+                bytes.
+        """
+        if self._ui_backend is not None and hasattr(
+            self._ui_backend, 'take_screenshot'
+        ):
+            fmt = 'png' if raw else 'jpeg'
+            img_bytes: bytes | None = self._ui_backend.take_screenshot(
+                self.current_comm_uri, fmt=fmt
+            )
+            if img_bytes:
+                return img_bytes
+
         gateway = resolve_gateway(self._gateway, subprocess.run)
         cmd = [
             'adb',

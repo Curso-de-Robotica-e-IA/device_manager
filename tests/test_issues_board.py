@@ -199,88 +199,37 @@ def test_find_text_bounds_center_and_click_by_text(
 
 
 # ============================================================================
-# Issue #6: Native ADB uiautomator dump XML (without uiautomator2)
+# Issue #6: Resident DEX UI hierarchy XML (without uiautomator2)
 # ============================================================================
-def test_device_info_native_get_screen_gui_xml(
-    mocker: MockerFixture,
-) -> None:
-    conn = MagicMock()
-    conn.build_comm_uri.return_value = 'SER1'
-    conn.validate_connection.return_value = False
-    info = DeviceInfo(conn, 'SER1')
-    mock_exec = mocker.patch(
-        'device_manager.base_device_component.execute_adb_command'
-    )
-
-    # 1. Direct /dev/tty XML
-    mock_exec.return_value = subprocess.CompletedProcess(
-        args=[],
-        returncode=0,
-        stdout='UI dumped\n<?xml version="1.0"?><hierarchy/>',
-    )
-    assert info.get_screen_gui_xml() == '<?xml version="1.0"?><hierarchy/>'
-
-    # 2. Fallback to /sdcard/window_dump.xml when /dev/tty has no <?xml
-    mock_exec.side_effect = [
-        subprocess.CompletedProcess(args=[], returncode=0, stdout='no xml'),
-        subprocess.CompletedProcess(
-            args=[], returncode=0, stdout='<?xml version="1.0"?><fb/>'
-        ),
-    ]
-    assert info.get_screen_gui_xml() == '<?xml version="1.0"?><fb/>'
-
-    # 3. Disconnected on first or fallback query -> None
-    mock_exec.side_effect = None
-    mock_exec.return_value = subprocess.CompletedProcess(
-        args=[], returncode=1, stdout=''
-    )
-    assert info.get_screen_gui_xml() is None
-
-    mock_exec.side_effect = [
-        subprocess.CompletedProcess(args=[], returncode=0, stdout='no xml'),
-        subprocess.CompletedProcess(args=[], returncode=1, stdout=''),
-    ]
-    assert info.get_screen_gui_xml() is None
-
-
-def test_get_screen_gui_xml_strips_trailing_tty_message_and_skips_idle_fallback() -> (
-    None
-):
-    import subprocess
+def test_device_info_native_get_screen_gui_xml() -> None:
     import xml.etree.ElementTree as ET
-    from unittest.mock import MagicMock
 
-    from device_manager.device_info import DeviceInfo
+    from device_manager.utils.adb_parsers import extract_ui_hierarchy_xml
 
     conn = MagicMock()
     conn.build_comm_uri.return_value = 'SER1'
     conn.validate_connection.return_value = True
 
-    gw = MagicMock()
-    gw.run.return_value = subprocess.CompletedProcess(
-        args=[],
-        returncode=0,
-        stdout=(
-            "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>"
-            '<hierarchy rotation="0"><node text="OK" /></hierarchy>'
-            'UI hierchary dumped to: /dev/tty\n'
-        ),
-        stderr='',
-    )
-    info = DeviceInfo(conn, 'SER1', gateway=gw)
-    xml_out = info.get_screen_gui_xml()
-    assert xml_out is not None
-    assert xml_out.endswith('</hierarchy>')
-    root = ET.fromstring(xml_out)
-    assert root.tag == 'hierarchy'
+    ui_backend = MagicMock()
+    ui_backend.dump_xml.return_value = '<?xml version="1.0"?><hierarchy/>'
+    info = DeviceInfo(conn, 'SER1', ui_backend=ui_backend)
+    assert info.get_screen_gui_xml() == '<?xml version="1.0"?><hierarchy/>'
 
-    # Idle-state error should NOT trigger a second slow /sdcard dump
-    gw.run.reset_mock()
-    gw.run.return_value = subprocess.CompletedProcess(
-        args=[],
-        returncode=0,
-        stdout='ERROR: could not get idle state.\n',
-        stderr='',
-    )
+    ui_backend.dump_xml.return_value = None
     assert info.get_screen_gui_xml() is None
-    assert gw.run.call_count == 1
+
+    # extract_ui_hierarchy_xml strips trailing status text cleanly
+    raw = (
+        "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>"
+        '<hierarchy rotation="0"><node text="OK" /></hierarchy>'
+        'UI hierchary dumped to: /dev/tty\n'
+    )
+    clean = extract_ui_hierarchy_xml(raw)
+    assert clean is not None
+    assert clean.endswith('</hierarchy>')
+    assert ET.fromstring(clean).tag == 'hierarchy'
+    assert extract_ui_hierarchy_xml('no xml here') is None
+    assert (
+        extract_ui_hierarchy_xml('<?xml version="1.0"?><partial/>')
+        == '<?xml version="1.0"?><partial/>'
+    )

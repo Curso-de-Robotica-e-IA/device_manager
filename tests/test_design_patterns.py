@@ -219,13 +219,9 @@ def test_device_info_native_xml_via_injected_gateway() -> None:
     conn.build_comm_uri.return_value = 'emulator-5554'
     conn.validate_connection.return_value = True
 
-    gw = MagicMock()
-    gw.run.return_value = subprocess.CompletedProcess(
-        args=[],
-        returncode=0,
-        stdout='UI dumped\n<?xml version="1.0"?><hierarchy />',
-    )
-    info = DeviceInfo(conn, 'emulator-5554', gateway=gw)
+    ui_backend = MagicMock()
+    ui_backend.dump_xml.return_value = '<?xml version="1.0"?><hierarchy />'
+    info = DeviceInfo(conn, 'emulator-5554', ui_backend=ui_backend)
 
     assert info.get_screen_gui_xml() == '<?xml version="1.0"?><hierarchy />'
 

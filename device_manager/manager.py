@@ -15,7 +15,10 @@ from device_manager.connection.utils.connection_type import ConnectionType
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
 from device_manager.exceptions.errors import DeviceNotFoundError
-from device_manager.ui_hierarchy import UiHierarchyBackend
+from device_manager.ui_hierarchy import (
+    NativeResidentUiBackend,
+    UiHierarchyBackend,
+)
 from device_manager.utils.dm_warnings import check_adb_dependencies_version
 
 logger = logging.getLogger(__name__)
@@ -47,7 +50,9 @@ class DeviceManager:
             check_adb_dependencies_version()
         self.subprocess_check = subprocess_check_flag
         self._devices_fixed_port = fixed_port
-        self._ui_backend = ui_backend
+        self._ui_backend: UiHierarchyBackend = (
+            ui_backend if ui_backend is not None else NativeResidentUiBackend()
+        )
         self.connector = (
             connector
             if connector is not None
@@ -91,6 +96,7 @@ class DeviceManager:
                 serial,
                 subprocess_check_flag=self.subprocess_check,
                 gateway=gateway,
+                ui_backend=self._ui_backend,
             )
             self._devices[serial] = DeviceObjects(
                 serial_number=serial,

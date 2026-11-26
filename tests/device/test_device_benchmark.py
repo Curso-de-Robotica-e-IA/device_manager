@@ -18,7 +18,6 @@ import pytest
 from device_manager.device_actions import DeviceActions
 from device_manager.device_info import DeviceInfo
 from device_manager.manager import DeviceManager
-from device_manager.ui_hierarchy import Uiautomator2Backend
 from tests.conftest import BenchmarkRecorder
 
 pytestmark = pytest.mark.device
@@ -71,6 +70,12 @@ def test_benchmark_device_info_all(
     assert isinstance(activity, str)
     assert len(activity) > 0
 
+    info.get_screen_gui_xml()  # warm up resident app_process
+    xml = benchmark_recorder.measure(
+        'DeviceInfo.get_screen_gui_xml', info.get_screen_gui_xml
+    )
+    assert xml is None or isinstance(xml, str)
+
     apps = benchmark_recorder.measure(
         'DeviceInfo.list_installed_all_apps', info.list_installed_all_apps
     )
@@ -103,36 +108,6 @@ def test_benchmark_device_info_all(
     assert isinstance(airplane, bool)
 
 
-@pytest.mark.parametrize('ui_backend_name', ['native', 'u2'])
-def test_benchmark_device_info_gui_xml(
-    ui_backend_name: str,
-    real_device: tuple[str, DeviceInfo, DeviceActions],
-    benchmark_recorder: BenchmarkRecorder,
-) -> None:
-    serial, info, _ = real_device
-    if ui_backend_name == 'u2':
-        pytest.importorskip(
-            'uiautomator2',
-            reason='Install uiautomator2 (device_manager[u2]) to benchmark u2 backend.',
-        )
-        target_info = DeviceInfo(
-            info.device_connection,
-            serial,
-            subprocess_check_flag=info.subprocess_check_flag,
-            gateway=info._gateway,
-            ui_backend=Uiautomator2Backend(),
-        )
-        target_info.get_screen_gui_xml()  # warm up persistent u2 server
-    else:
-        target_info = info
-
-    xml = benchmark_recorder.measure(
-        f'DeviceInfo.get_screen_gui_xml[{ui_backend_name}]',
-        target_info.get_screen_gui_xml,
-    )
-    assert xml is None or isinstance(xml, str)
-
-
 # ============================================================================
 # 2. DeviceActions Benchmarks
 # ============================================================================
@@ -143,9 +118,16 @@ def test_benchmark_device_actions_all(
 ) -> None:
     _, info, actions = real_device
 
+    jpeg = benchmark_recorder.measure(
+        'DeviceActions.safe_screencap_bytes[jpeg]',
+        lambda: actions.safe_screencap_bytes(raw=False),
+    )
+    assert jpeg is not None
+    assert jpeg.startswith(b'\xff\xd8\xff')
+
     png = benchmark_recorder.measure(
-        'DeviceActions.safe_screencap_bytes',
-        actions.safe_screencap_bytes,
+        'DeviceActions.safe_screencap_bytes[png]',
+        lambda: actions.safe_screencap_bytes(raw=True),
     )
     assert png is not None
     assert png.startswith(b'\x89PNG\r\n\x1a\n')
@@ -162,13 +144,20 @@ def test_benchmark_device_actions_all(
         'DeviceActions.home_button', actions.home_button
     )
 
-    # Screenshot on device + remove
+    # Screenshot on device (JPEG default vs PNG raw) + remove
     benchmark_recorder.measure(
-        'DeviceActions.screen_shot',
+        'DeviceActions.screen_shot[jpeg]',
         lambda: actions.screen_shot(
-            image_name='dm_bench', destination='/sdcard'
+            image_name='dm_bench', destination='/sdcard', raw=False
         ),
     )
+    benchmark_recorder.measure(
+        'DeviceActions.screen_shot[png]',
+        lambda: actions.screen_shot(
+            image_name='dm_bench', destination='/sdcard', raw=True
+        ),
+    )
+    actions.remove_file(PurePosixPath('/sdcard/dm_bench.jpg'))  # type: ignore[arg-type]
     benchmark_recorder.measure(
         'DeviceActions.remove_file',
         lambda: actions.remove_file(PurePosixPath('/sdcard/dm_bench.png')),  # type: ignore[arg-type]
