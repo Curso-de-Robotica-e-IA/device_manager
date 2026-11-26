@@ -33,6 +33,7 @@ class BenchmarkEntry:
     budget_ms: float | None = None
     baseline_ms: float | None = None
     exceeded: bool = False
+    backend: str = 'device_manager'
 
 
 class BenchmarkRecorder:
@@ -75,6 +76,7 @@ class BenchmarkRecorder:
         func: Callable[[], Any],
         iterations: int | None = None,
         max_avg_ms: float | None = None,
+        backend: str = 'device_manager',
     ) -> Any:
         runs = max(1, iterations or self.default_iterations)
         timings_ms: list[float] = []
@@ -98,6 +100,7 @@ class BenchmarkRecorder:
                 budget_ms=budget_ms,
                 baseline_ms=baseline_ms,
                 exceeded=exceeded,
+                backend=backend,
             )
         )
         if self.strict and exceeded:
@@ -276,23 +279,59 @@ def _write_benchmark_report(config: pytest.Config) -> Path | None:
         f'- **Device Serial:** `{serial}`',
         f'- **Iterations per operation:** {recorder.default_iterations}',
         '',
-        '| Operation | Runs | Min (ms) | Avg (ms) | Max (ms) | Budget (ms) | Status |',
-        '|---|---:|---:|---:|---:|---:|:---:|',
     ]
-    for entry in recorder.entries:
-        budget_str = (
-            f'{entry.budget_ms:.2f}' if entry.budget_ms is not None else '-'
-        )
-        status_str = (
-            'SLOW'
-            if entry.exceeded
-            else ('PASS' if entry.budget_ms is not None else '-')
-        )
-        lines.append(
-            f'| `{entry.name}` | {entry.iterations} | '
-            f'{entry.min_ms:.2f} | {entry.avg_ms:.2f} | {entry.max_ms:.2f} | '
-            f'{budget_str} | {status_str} |'
-        )
+    backends_present = {e.backend for e in recorder.entries}
+    if len(backends_present) > 1:
+        ordered_names: list[str] = []
+        grouped: dict[str, dict[str, BenchmarkEntry]] = {}
+        for entry in recorder.entries:
+            if entry.name not in grouped:
+                ordered_names.append(entry.name)
+                grouped[entry.name] = {}
+            grouped[entry.name][entry.backend] = entry
+
+        def _fmt(entry: BenchmarkEntry | None) -> str:
+            if entry is None:
+                return 'N/A'
+            return (
+                f'{entry.min_ms:.2f} / **{entry.avg_ms:.2f}** / '
+                f'{entry.max_ms:.2f}'
+            )
+
+        lines.extend([
+            '| Operation | Runs | device_manager (min / avg / max ms) | uiautomator2 (min / avg / max ms) | adb/subprocess (min / avg / max ms) |',
+            '|---|---:|---:|---:|---:|',
+        ])
+        for op_name in ordered_names:
+            row = grouped[op_name]
+            runs = next(iter(row.values())).iterations
+            lines.append(
+                f'| `{op_name}` | {runs} | '
+                f'{_fmt(row.get("device_manager"))} | '
+                f'{_fmt(row.get("uiautomator2"))} | '
+                f'{_fmt(row.get("adb"))} |'
+            )
+    else:
+        lines.extend([
+            '| Operation | Runs | Min (ms) | Avg (ms) | Max (ms) | Budget (ms) | Status |',
+            '|---|---:|---:|---:|---:|---:|:---:|',
+        ])
+        for entry in recorder.entries:
+            budget_str = (
+                f'{entry.budget_ms:.2f}'
+                if entry.budget_ms is not None
+                else '-'
+            )
+            status_str = (
+                'SLOW'
+                if entry.exceeded
+                else ('PASS' if entry.budget_ms is not None else '-')
+            )
+            lines.append(
+                f'| `{entry.name}` | {entry.iterations} | '
+                f'{entry.min_ms:.2f} | {entry.avg_ms:.2f} | {entry.max_ms:.2f} | '
+                f'{budget_str} | {status_str} |'
+            )
     lines.append('')
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -323,7 +362,9 @@ def pytest_terminal_summary(
 ) -> None:
     report_path: Path | None = getattr(config, '_benchmark_report_path', None)
     if report_path is not None:
-        terminalreporter.write_line(f'Benchmark report saved to: {report_path}')
+        terminalreporter.write_line(
+            f'Benchmark report saved to: {report_path}'
+        )
     baseline_path: Path | None = getattr(
         config, '_benchmark_baseline_path', None
     )
